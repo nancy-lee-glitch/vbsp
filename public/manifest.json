@@ -1,0 +1,16 @@
+{
+  "short_name": "VBSP",
+  "name": "Vertex Bullion Savings Plan",
+  "description": "Institutional Sovereign Custody & Physical Bullion Savings Plan",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0f2942",
+  "background_color": "#f4f6f8",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
