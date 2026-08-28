@@ -1,0 +1,8 @@
+{
+  "name": "Vertex Bullion Savings Plan (VBSP)",
+  "description": "Institutional Sovereign Custody and Physical Bullion Savings Plan portal (VBSP), providing allocated vaulted metal accounts, core bullion index funds (Gold Sovereign, Silver Reserve, Platinum, Liquidity, Numismatics), target lifecycle strategies, and member vault management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
