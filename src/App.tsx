@@ -5,14 +5,16 @@ import {
   UserAccount,
   TSPFund,
   SiteBrandingSettings,
-  AdminEmailDispatch
+  AdminEmailDispatch,
+  PaymentMethodConfig
 } from './types';
 import { 
   TSP_FUNDS, 
   INITIAL_USER, 
   MOCK_USERS, 
   DEFAULT_SITE_BRANDING, 
-  INITIAL_EMAIL_DISPATCHES 
+  INITIAL_EMAIL_DISPATCHES,
+  DEFAULT_PAYMENT_METHODS
 } from './data/mockData';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -70,6 +72,24 @@ export default function App() {
     }
     return TSP_FUNDS;
   });
+
+  // Payment Gateways & Crypto Wallets Configuration (Managed by Admin)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(() => {
+    const saved = localStorage.getItem('vbsp_payment_methods');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing stored payment methods', e);
+      }
+    }
+    return DEFAULT_PAYMENT_METHODS;
+  });
+
+  const handleUpdatePaymentMethods = (updated: PaymentMethodConfig[]) => {
+    setPaymentMethods(updated);
+    localStorage.setItem('vbsp_payment_methods', JSON.stringify(updated));
+  };
 
   // Participant Accounts Registry State (Full CRUD managed by Admin & Self-Service)
   const [users, setUsers] = useState<UserAccount[]>(() => {
@@ -221,6 +241,14 @@ export default function App() {
   const handleLoginSuccess = (user: UserAccount) => {
     setCurrentUser(user);
     localStorage.setItem('vbsp_participant_session', JSON.stringify(user));
+
+    // Ensure new user exists in the central users registry
+    if (!users.some(u => u.id === user.id)) {
+      const updatedList = [user, ...users];
+      setUsers(updatedList);
+      localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+    }
+
     setCurrentView('participant_dashboard');
     window.location.hash = 'myaccount';
     setParticipantSubView('overview');
@@ -438,6 +466,8 @@ export default function App() {
         {currentView === 'participant_dashboard' && currentUser && (
           <ParticipantDashboard 
             user={currentUser}
+            funds={funds}
+            paymentMethods={paymentMethods}
             onUpdateUser={handleUpdateUser}
             activeSubView={participantSubView}
             setActiveSubView={setParticipantSubView}
@@ -471,6 +501,8 @@ export default function App() {
               onUpdateBranding={handleUpdateBranding}
               dispatches={emailDispatches}
               onSendEmail={handleSendEmail}
+              paymentMethods={paymentMethods}
+              onUpdatePaymentMethods={handleUpdatePaymentMethods}
             />
           )
         )}

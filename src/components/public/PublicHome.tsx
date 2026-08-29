@@ -264,10 +264,10 @@ export const PublicHome: React.FC<PublicHomeProps> = ({
                       </div>
                       <div className="text-right">
                         <div className="font-mono font-black text-xs sm:text-sm text-white">
-                          ${f.currentSharePrice.toFixed(4)}
+                          ${(f.currentSharePrice ?? 0).toFixed(4)}
                         </div>
                         <div className={`text-[10px] font-mono font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                          YTD: {isPositive ? `+${f.ytdReturn.toFixed(2)}%` : `${f.ytdReturn.toFixed(2)}%`}
+                          YTD: {isPositive ? `+${(f.ytdReturn ?? 0).toFixed(2)}%` : `${(f.ytdReturn ?? 0).toFixed(2)}%`}
                         </div>
                       </div>
                     </div>
@@ -583,19 +583,19 @@ export const PublicHome: React.FC<PublicHomeProps> = ({
                       <span className="block text-[11px] text-slate-500 font-normal">{fund.benchmark}</span>
                     </td>
                     <td className="py-3 px-3.5 text-right font-mono font-black text-slate-900 text-xs sm:text-sm">
-                      ${fund.currentSharePrice.toFixed(4)}
+                      ${(fund.currentSharePrice ?? 0).toFixed(4)}
                     </td>
                     <td className={`py-3 px-3.5 text-right font-mono font-bold ${isMonthPositive ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {isMonthPositive ? `+${fund.oneMonthReturn.toFixed(2)}%` : `${fund.oneMonthReturn.toFixed(2)}%`}
+                      {isMonthPositive ? `+${(fund.oneMonthReturn ?? 0).toFixed(2)}%` : `${(fund.oneMonthReturn ?? 0).toFixed(2)}%`}
                     </td>
                     <td className={`py-3 px-3.5 text-right font-mono font-black ${isPositive ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {isPositive ? `+${fund.ytdReturn.toFixed(2)}%` : `${fund.ytdReturn.toFixed(2)}%`}
+                      {isPositive ? `+${(fund.ytdReturn ?? 0).toFixed(2)}%` : `${(fund.ytdReturn ?? 0).toFixed(2)}%`}
                     </td>
                     <td className={`py-3 px-3.5 text-right font-mono font-bold hidden sm:table-cell ${isOneYrPositive ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {isOneYrPositive ? `+${fund.oneYearReturn.toFixed(2)}%` : `${fund.oneYearReturn.toFixed(2)}%`}
+                      {isOneYrPositive ? `+${(fund.oneYearReturn ?? 0).toFixed(2)}%` : `${(fund.oneYearReturn ?? 0).toFixed(2)}%`}
                     </td>
                     <td className="py-3 px-3.5 text-right font-mono font-bold text-slate-700 hidden md:table-cell">
-                      +{fund.fiveYearReturn.toFixed(2)}%
+                      +{(fund.fiveYearReturn ?? 0).toFixed(2)}%
                     </td>
                     <td className="py-3 px-3.5 text-right font-mono text-slate-600 font-bold">
                       {fund.expenseRatio}

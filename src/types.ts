@@ -61,12 +61,59 @@ export type AgencyTab =
 export type AdminTab = 
   | 'prices' 
   | 'participants' 
+  | 'approvals'
+  | 'payments'
   | 'email-center'
   | 'branding'
   | 'cms' 
   | 'audit' 
   | 'fraud' 
   | 'parameters';
+
+export type PaymentMethodCategory = 
+  | 'bank_transfer' 
+  | 'crypto' 
+  | 'paypal' 
+  | 'cashapp' 
+  | 'zelle' 
+  | 'custom';
+
+export interface PaymentMethodConfig {
+  id: string;
+  name: string;
+  category: PaymentMethodCategory;
+  isEnabled: boolean;
+  badgeText?: string;
+  
+  // Bank Details
+  bankName?: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  routingNumber?: string;
+  swiftBic?: string;
+  bankAddress?: string;
+  
+  // Crypto Coin Details
+  coinSymbol?: string; // BTC, ETH, USDT, USDC, SOL, LTC, etc.
+  network?: string; // Bitcoin Mainnet, TRC20, ERC20, Solana, etc.
+  walletAddress?: string;
+  memoOrTag?: string; // Optional Memo / Destination Tag
+  qrCodeUrl?: string;
+  
+  // App / P2P Channels
+  payPalEmail?: string;
+  cashAppTag?: string; // e.g. $VBSPVaultReserve
+  zelleIdentifier?: string; // Email or Phone Number
+  recipientName?: string;
+  
+  // Limits & Instructions
+  instructions: string;
+  minDepositUsd: number; // default $5,000
+  maxDepositUsd: number; // default $300,000
+  processingTime: string;
+  createdAt: string;
+  updatedAt?: string;
+}
 
 export interface SiteBrandingSettings {
   siteName: string;
@@ -145,8 +192,13 @@ export interface TSPLoan {
   issueDate: string;
   termMonths: number;
   repaymentPerPayPeriod: number;
-  status: 'Active' | 'Paid' | 'Processing';
+  status: 'Active' | 'Paid' | 'Processing' | 'Rejected';
   collateralAsset?: string;
+  userId?: string;
+  userName?: string;
+  userAccount?: string;
+  purpose?: string;
+  adminNotes?: string;
 }
 
 export interface BankAccount {
@@ -164,8 +216,32 @@ export interface TSPTransaction {
   type: string;
   description: string;
   amount: number;
-  status: 'Completed' | 'Pending' | 'Processed';
+  status: 'Completed' | 'Pending' | 'Rejected' | 'Processed';
   metalEquivalent?: string;
+  userId?: string;
+  userName?: string;
+  userAccount?: string;
+  fundCode?: string;
+  category?: string;
+  paymentMethodName?: string;
+  paymentMethodId?: string;
+  paymentReference?: string;
+  senderAccountOrWallet?: string;
+  paymentProofDataUrl?: string;
+  adminNotes?: string;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userAccount: string;
+  amount: number;
+  type: string;
+  reason?: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  date: string;
+  adminNotes?: string;
 }
 
 export type TransactionRecord = TSPTransaction;
@@ -259,7 +335,7 @@ export interface IdentificationDocument {
 }
 
 export interface KYCVerificationProfile {
-  overallStatus: 'Verified (Tier 1 Allocated)' | 'Pending Review' | 'Requires Documentation' | 'Under Vault Compliance Review';
+  overallStatus: 'Verified (Tier 1 Allocated)' | 'Pending Review' | 'Not Verified' | 'Requires Documentation' | 'Under Vault Compliance Review' | 'Action Required' | 'Rejected';
   verifiedDate?: string;
   riskTier: 'Tier 1 Individual' | 'Tier 2 High-Net-Worth' | 'Tier 3 Institutional Treasury';
   ssnMasked: string;
@@ -307,5 +383,7 @@ export interface UserAccount {
   }[];
   beneficiaries: TSPBeneficiary[];
   activeLoans: TSPLoan[];
+  transactions?: TSPTransaction[];
+  withdrawalRequests?: WithdrawalRequest[];
   kycProfile?: KYCVerificationProfile;
 }

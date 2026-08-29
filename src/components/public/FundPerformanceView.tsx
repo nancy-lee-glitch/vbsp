@@ -118,19 +118,19 @@ export const FundPerformanceView: React.FC<FundPerformanceViewProps> = ({ funds 
                       </div>
                     </td>
                     <td className="py-3.5 px-3 text-slate-600">{fund.category}</td>
-                    <td className="py-3.5 px-3 font-bold text-slate-900">${fund.currentSharePrice.toFixed(2)}</td>
-                    <td className={`py-3.5 px-3 font-semibold ${fund.oneMonthReturn >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {fund.oneMonthReturn >= 0 ? `+${fund.oneMonthReturn.toFixed(2)}%` : `${fund.oneMonthReturn.toFixed(2)}%`}
+                    <td className="py-3.5 px-3 font-bold text-slate-900">${(fund.currentSharePrice ?? 0).toFixed(2)}</td>
+                    <td className={`py-3.5 px-3 font-semibold ${(fund.oneMonthReturn ?? 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {(fund.oneMonthReturn ?? 0) >= 0 ? `+${(fund.oneMonthReturn ?? 0).toFixed(2)}%` : `${(fund.oneMonthReturn ?? 0).toFixed(2)}%`}
                     </td>
-                    <td className={`py-3.5 px-3 font-black ${fund.ytdReturn >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {fund.ytdReturn >= 0 ? `+${fund.ytdReturn.toFixed(2)}%` : `${fund.ytdReturn.toFixed(2)}%`}
+                    <td className={`py-3.5 px-3 font-black ${(fund.ytdReturn ?? 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {(fund.ytdReturn ?? 0) >= 0 ? `+${(fund.ytdReturn ?? 0).toFixed(2)}%` : `${(fund.ytdReturn ?? 0).toFixed(2)}%`}
                     </td>
-                    <td className={`py-3.5 px-3 font-semibold ${fund.oneYearReturn >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {fund.oneYearReturn >= 0 ? `+${fund.oneYearReturn.toFixed(2)}%` : `${fund.oneYearReturn.toFixed(2)}%`}
+                    <td className={`py-3.5 px-3 font-semibold ${(fund.oneYearReturn ?? 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {(fund.oneYearReturn ?? 0) >= 0 ? `+${(fund.oneYearReturn ?? 0).toFixed(2)}%` : `${(fund.oneYearReturn ?? 0).toFixed(2)}%`}
                     </td>
-                    <td className="py-3.5 px-3 text-slate-700 font-medium">+{fund.threeYearReturn.toFixed(2)}%</td>
-                    <td className="py-3.5 px-3 text-slate-700 font-medium">+{fund.fiveYearReturn.toFixed(2)}%</td>
-                    <td className="py-3.5 px-3 font-bold text-blue-900">+{fund.tenYearReturn.toFixed(2)}%</td>
+                    <td className="py-3.5 px-3 text-slate-700 font-medium">+{(fund.threeYearReturn ?? 0).toFixed(2)}%</td>
+                    <td className="py-3.5 px-3 text-slate-700 font-medium">+{(fund.fiveYearReturn ?? 0).toFixed(2)}%</td>
+                    <td className="py-3.5 px-3 font-bold text-blue-900">+{(fund.tenYearReturn ?? 0).toFixed(2)}%</td>
                     <td className="py-3.5 px-3 text-emerald-800 font-bold">{fund.expenseRatio}</td>
                     <td className="py-3.5 px-3 text-right">
                       <button 

@@ -48,10 +48,12 @@ import {
   VBSPAccountType, 
   AdminTab,
   SiteBrandingSettings,
-  AdminEmailDispatch
+  AdminEmailDispatch,
+  PaymentMethodConfig
 } from '../../types';
 import { AdminEmailCenter } from './AdminEmailCenter';
 import { AdminBrandingManager } from './AdminBrandingManager';
+import { AdminPaymentMethodsManager } from './AdminPaymentMethodsManager';
 
 interface AdminPortalViewProps {
   onAdminLogout: () => void;
@@ -66,6 +68,8 @@ interface AdminPortalViewProps {
   onUpdateBranding: (updated: SiteBrandingSettings) => void;
   dispatches: AdminEmailDispatch[];
   onSendEmail: (dispatch: AdminEmailDispatch) => void;
+  paymentMethods: PaymentMethodConfig[];
+  onUpdatePaymentMethods: (methods: PaymentMethodConfig[], logDetails?: string) => void;
 }
 
 export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
@@ -81,6 +85,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   onUpdateBranding,
   dispatches,
   onSendEmail,
+  paymentMethods,
+  onUpdatePaymentMethods,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('prices');
   
@@ -189,9 +195,9 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       }
       return {
         ...fund,
-        currentSharePrice: Number((fund.currentSharePrice * multiplier).toFixed(4)),
-        oneMonthReturn: Number((fund.oneMonthReturn + (type === 'bull' ? 1.2 : type === 'bear' ? -1.5 : 0.1)).toFixed(2)),
-        ytdReturn: Number((fund.ytdReturn + (type === 'bull' ? 1.5 : type === 'bear' ? -1.8 : 0.2)).toFixed(2))
+        currentSharePrice: Number(((fund.currentSharePrice ?? 0) * multiplier).toFixed(4)),
+        oneMonthReturn: Number(((fund.oneMonthReturn ?? 0) + (type === 'bull' ? 1.2 : type === 'bear' ? -1.5 : 0.1)).toFixed(2)),
+        ytdReturn: Number(((fund.ytdReturn ?? 0) + (type === 'bull' ? 1.5 : type === 'bear' ? -1.8 : 0.2)).toFixed(2))
       };
     });
     setEditableFunds(updated);
@@ -473,12 +479,13 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         {[
           { id: 'prices', label: '1. Master Bullion Fund Prices', icon: TrendingUp },
           { id: 'participants', label: '2. Participant Management & Accounts', icon: Users },
-          { id: 'email-center', label: '3. Participant Email & Broadcast', icon: Mail },
-          { id: 'branding', label: '4. Site Name & Logo Settings', icon: SlidersHorizontal },
-          { id: 'cms', label: '5. CMS Bulletins & Vault Notices', icon: FileEdit },
-          { id: 'audit', label: '6. Immutable Audit Trail (NIST)', icon: History },
-          { id: 'fraud', label: '7. AI Vault Fraud Detection', icon: AlertTriangle },
-          { id: 'parameters', label: '8. Statutory 2026 Limits', icon: Sliders },
+          { id: 'payments', label: '3. Payment Gateways & Crypto Wallets', icon: Coins },
+          { id: 'email-center', label: '4. Participant Email & Broadcast', icon: Mail },
+          { id: 'branding', label: '5. Site Name & Logo Settings', icon: SlidersHorizontal },
+          { id: 'cms', label: '6. CMS Bulletins & Vault Notices', icon: FileEdit },
+          { id: 'audit', label: '7. Immutable Audit Trail (NIST)', icon: History },
+          { id: 'fraud', label: '8. AI Vault Fraud Detection', icon: AlertTriangle },
+          { id: 'parameters', label: '9. Statutory 2026 Limits', icon: Sliders },
         ].map((tab) => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
@@ -799,7 +806,31 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       )}
 
       {/* ---------------------------------------------------- */}
-      {/* 3. EMAIL DISPATCH & BROADCAST CENTER */}
+      {/* 3. PAYMENT METHODS & CRYPTO WALLETS MANAGER */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'payments' && (
+        <AdminPaymentMethodsManager
+          paymentMethods={paymentMethods}
+          onUpdatePaymentMethods={(updatedMethods, logDetails) => {
+            onUpdatePaymentMethods(updatedMethods, logDetails);
+            if (logDetails) {
+              const newLog: AuditLogEntry = {
+                id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
+                timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+                actor: 'Executive Administrator (VBSP-Board)',
+                action: 'PAYMENT_GATEWAY_CONFIG',
+                details: logDetails,
+                ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+                status: 'Success'
+              };
+              setAuditLogs([newLog, ...auditLogs]);
+            }
+          }}
+        />
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* 4. EMAIL DISPATCH & BROADCAST CENTER */}
       {/* ---------------------------------------------------- */}
       {activeTab === 'email-center' && (
         <AdminEmailCenter

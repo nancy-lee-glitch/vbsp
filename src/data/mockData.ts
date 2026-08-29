@@ -7,7 +7,8 @@ import {
   Announcement, 
   AuditLogEntry, 
   FraudAlert, 
-  AgencyBulletin 
+  AgencyBulletin,
+  PaymentMethodConfig 
 } from '../types';
 
 export const TSP_FUNDS: TSPFund[] = [
@@ -270,7 +271,126 @@ export const INITIAL_USER: UserAccount = {
       termMonths: 48,
       repaymentPerPayPeriod: 170.11,
       status: 'Active',
-      collateralAsset: 'Segregated Gold Sovereign Bar #LBMA-CH-99410'
+      collateralAsset: 'Segregated Gold Sovereign Bar #LBMA-CH-99410',
+      userId: 'usr_vbsp_994821',
+      userName: 'Marcus Vance',
+      userAccount: 'VBSP-0089-4412-98'
+    }
+  ],
+  kycProfile: {
+    overallStatus: 'Verified (Tier 1 Allocated)',
+    verifiedDate: '2026-01-15',
+    riskTier: 'Tier 1 Individual',
+    ssnMasked: '***-**-4412',
+    ssnDocument: {
+      id: 'doc-ssn-default',
+      type: 'ssn_card',
+      title: 'Social Security Card (SSN Verification)',
+      documentNumberMasked: '***-**-4412',
+      issuingAuthority: 'Social Security Administration (SSA)',
+      fileName: 'SSA_Card_Vance_M.pdf',
+      fileSize: '1.4 MB',
+      uploadedAt: '2026-01-14 10:22 AM',
+      status: 'Verified',
+      notes: 'SSN verified against federal records.'
+    },
+    driverLicenseFront: {
+      id: 'doc-dl-front-default',
+      type: 'driver_license_front',
+      title: "Driver's License (Front Photo ID)",
+      documentNumberMasked: 'VA-D8849****',
+      issuingAuthority: 'Commonwealth of Virginia DMV',
+      expirationDate: '2028-11-15',
+      fileName: 'VA_DriverLicense_Front.jpg',
+      fileSize: '2.8 MB',
+      uploadedAt: '2026-01-14 10:25 AM',
+      status: 'Verified'
+    },
+    driverLicenseBack: {
+      id: 'doc-dl-back-default',
+      type: 'driver_license_back',
+      title: "Driver's License (Back Barcode)",
+      documentNumberMasked: 'VA-D8849****',
+      issuingAuthority: 'Commonwealth of Virginia DMV',
+      expirationDate: '2028-11-15',
+      fileName: 'VA_DriverLicense_Back.jpg',
+      fileSize: '2.1 MB',
+      uploadedAt: '2026-01-14 10:26 AM',
+      status: 'Verified'
+    },
+    passportDocument: {
+      id: 'doc-passport-default',
+      type: 'passport',
+      title: 'International Passport (Photo Identification Page)',
+      documentNumberMasked: 'US-P9942****',
+      issuingAuthority: 'U.S. Department of State',
+      expirationDate: '2031-06-20',
+      fileName: 'US_Passport_Booklet_Vance.jpg',
+      fileSize: '3.6 MB',
+      uploadedAt: '2026-01-14 10:30 AM',
+      status: 'Verified',
+      notes: 'Allocated precious metal international physical delivery authorized.'
+    },
+    additionalDocuments: [
+      {
+        id: 'doc-poa-default',
+        type: 'proof_of_address',
+        title: 'Proof of Residential Address (Utility Statement)',
+        documentNumberMasked: 'UT-9941-88',
+        issuingAuthority: 'Potomac Electric Power Company',
+        fileName: 'Pepco_Utility_Bill_Jan2026.pdf',
+        fileSize: '890 KB',
+        uploadedAt: '2026-01-14 10:32 AM',
+        status: 'Verified'
+      }
+    ]
+  },
+  transactions: [
+    {
+      id: 'tx-109',
+      date: '2026-08-15',
+      type: 'Automated Bullion Thrift (ABT Deposit)',
+      description: 'Monthly recurring bullion allocation deposited to Gold Sovereign (G-Fund)',
+      amount: 1250.00,
+      metalEquivalent: '+0.472 oz Gold (.9999 LBMA)',
+      status: 'Completed',
+      userId: 'usr_vbsp_994821',
+      userName: 'Marcus Vance',
+      userAccount: 'VBSP-0089-4412-98'
+    },
+    {
+      id: 'tx-108',
+      date: '2026-08-15',
+      type: 'Sovereign Match (4% Capture)',
+      description: 'Institutional treasury matching contribution posted to Silver Reserve (S-Fund)',
+      amount: 500.00,
+      metalEquivalent: '+5.79 oz Pure Silver',
+      status: 'Completed',
+      userId: 'usr_vbsp_994821',
+      userName: 'Marcus Vance',
+      userAccount: 'VBSP-0089-4412-98'
+    },
+    {
+      id: 'tx-107',
+      date: '2026-08-01',
+      type: 'Vault Storage & Insurance Fee',
+      description: 'Lloyd\'s of London all-risk specie custody fee (0.004% per month)',
+      amount: -13.71,
+      status: 'Completed',
+      userId: 'usr_vbsp_994821',
+      userName: 'Marcus Vance',
+      userAccount: 'VBSP-0089-4412-98'
+    },
+    {
+      id: 'tx-106',
+      date: '2026-07-28',
+      type: 'Interfund Bullion Rebalance',
+      description: 'Rebalanced 15% from T-Fund (Cash) into G-Fund (Gold Sovereign)',
+      amount: 0.00,
+      status: 'Completed',
+      userId: 'usr_vbsp_994821',
+      userName: 'Marcus Vance',
+      userAccount: 'VBSP-0089-4412-98'
     }
   ]
 };
@@ -319,7 +439,107 @@ export const MOCK_USERS: UserAccount[] = [
         sharePercentage: 100
       }
     ],
-    activeLoans: []
+    activeLoans: [
+      {
+        id: 'LOAN-2026-789',
+        type: 'General Purpose',
+        originalAmount: 10000,
+        currentBalance: 10000,
+        interestRate: 4.25,
+        issueDate: '2026-08-28',
+        termMonths: 36,
+        repaymentPerPayPeriod: 144.20,
+        status: 'Processing',
+        collateralAsset: 'Silver Reserve S-Fund Collateral',
+        userId: 'usr_vbsp_104477',
+        userName: 'Sarah Jenkins',
+        userAccount: 'VBSP-1044-7712-30',
+        purpose: 'Bullion-backed personal emergency loan request'
+      }
+    ],
+    kycProfile: {
+      overallStatus: 'Pending Review',
+      riskTier: 'Tier 1 Individual',
+      ssnMasked: '***-**-7712',
+      driverLicenseFront: {
+        id: 'doc-sj-dl',
+        type: 'driver_license_front',
+        title: "Driver's License (Front Photo ID)",
+        documentNumberMasked: 'VA-T9912****',
+        issuingAuthority: 'Commonwealth of Virginia DMV',
+        expirationDate: '2029-04-12',
+        fileName: 'Sarah_Jenkins_VA_DL.jpg',
+        fileSize: '2.4 MB',
+        uploadedAt: '2026-08-28 09:14 AM',
+        status: 'Pending Review',
+        notes: 'Submitted for DMV & Identity verification'
+      },
+      proofOfAddressDocument: {
+        id: 'doc-sj-poa',
+        type: 'proof_of_address',
+        title: 'Proof of Residential Address (Lease Agreement)',
+        documentNumberMasked: 'LS-2200-CR',
+        issuingAuthority: 'Arlington Residential Properties',
+        fileName: 'Crystal_Dr_Lease_2026.pdf',
+        fileSize: '1.9 MB',
+        uploadedAt: '2026-08-28 09:16 AM',
+        status: 'Pending Review',
+        notes: 'Awaiting Super Admin address verification'
+      },
+      additionalDocuments: []
+    },
+    transactions: [
+      {
+        id: 'tx-sj-101',
+        date: '2026-08-28',
+        type: 'Deposit / Bullion Purchase',
+        description: 'ACH Bullion Thrift Deferral to S-Fund (Silver Reserve)',
+        amount: 2500.00,
+        status: 'Pending',
+        metalEquivalent: '+28.96 oz Silver',
+        userId: 'usr_vbsp_104477',
+        userName: 'Sarah Jenkins',
+        userAccount: 'VBSP-1044-7712-30'
+      }
+    ]
+  },
+  {
+    id: 'usr_vbsp_001928',
+    name: 'Cadet Ryan Parker',
+    email: 'ryan.parker@defense.gov',
+    accountNumber: 'VBSP-2026-8819-42',
+    thriftlinePin: '661199',
+    employingAgency: 'Department of Defense (Naval Surface Warfare)',
+    planType: 'VBSP Standard Account (Taxable Reserve)',
+    hireDate: '2026-08-01',
+    totalBalance: 0,
+    traditionalBalance: 0,
+    rothBalance: 0,
+    ytdReturn: 0.0,
+    vaultDepositaryLocation: 'Delaware Depository Segregated Vault',
+    goldOuncesEquivalent: 0,
+    silverOuncesEquivalent: 0,
+    phone: '+1 (757) 555-0143',
+    address: '1530 Gilbert St, Norfolk, VA 23511',
+    ytdContributions: {
+      employee: 0,
+      agencyMatch: 0,
+      agencyAutomatic: 0
+    },
+    contributionAllocations: {
+      'G': 50,
+      'S': 50
+    },
+    currentHoldings: [],
+    beneficiaries: [],
+    activeLoans: [],
+    transactions: [], // Clean ledger: no transactions rendered yet
+    kycProfile: {
+      overallStatus: 'Not Verified',
+      riskTier: 'Tier 1 Individual',
+      ssnMasked: 'Unverified - Requires Submission',
+      additionalDocuments: []
+    }
   },
   {
     id: 'usr_vbsp_900233',
@@ -363,7 +583,28 @@ export const MOCK_USERS: UserAccount[] = [
         sharePercentage: 100
       }
     ],
-    activeLoans: []
+    activeLoans: [],
+    kycProfile: {
+      overallStatus: 'Verified (Tier 1 Allocated)',
+      verifiedDate: '2026-01-20',
+      riskTier: 'Tier 3 Institutional Treasury',
+      ssnMasked: 'XX-XXX9922 (EIN)',
+      additionalDocuments: []
+    },
+    transactions: [
+      {
+        id: 'tx-at-101',
+        date: '2026-08-10',
+        type: 'Institutional Wire Deposit',
+        description: 'Corporate treasury gold reserve addition allocated to London LBMA Vaults',
+        amount: 250000.00,
+        status: 'Completed',
+        metalEquivalent: '+94.34 oz Gold',
+        userId: 'usr_vbsp_900233',
+        userName: 'Atlas Global Sovereign Reserve LLC',
+        userAccount: 'VBSP-9002-3311-88'
+      }
+    ]
   }
 ];
 
@@ -650,4 +891,128 @@ export const INITIAL_EMAIL_DISPATCHES: any[] = [
     status: 'Delivered'
   }
 ];
+
+export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
+  {
+    id: 'pay-bank-wire-01',
+    name: 'Fedwire / U.S. Federal Depository Wire',
+    category: 'bank_transfer',
+    isEnabled: true,
+    badgeText: 'Federal Depository Wire',
+    bankName: 'Federal Reserve Bank & JPMorgan Chase Depository Trust',
+    accountHolderName: 'Vertex Bullion Savings Plan Treasury Depository Trust',
+    accountNumber: '772091482019',
+    routingNumber: '021000021',
+    swiftBic: 'CHASUS33XXX',
+    bankAddress: '383 Madison Avenue, New York, NY 10017',
+    minDepositUsd: 5000,
+    maxDepositUsd: 300000,
+    processingTime: 'Same-Day Fedwire Settlement',
+    instructions: 'Initiate domestic Fedwire or international SWIFT wire using the exact credentials above. Include your VBSP Account Number in Wire Remittance Memo (Field 70) for automated ledger matching.',
+    createdAt: '2026-01-01'
+  },
+  {
+    id: 'pay-crypto-btc-01',
+    name: 'Bitcoin (BTC)',
+    category: 'crypto',
+    isEnabled: true,
+    badgeText: 'Native SegWit Vault',
+    coinSymbol: 'BTC',
+    network: 'Bitcoin Mainnet (Native SegWit bc1q)',
+    walletAddress: 'bc1qv98d7kx2m94flltq0x86y32p5zwcjh4r6k7j3m',
+    minDepositUsd: 5000,
+    maxDepositUsd: 300000,
+    processingTime: '1-2 Network Confirmations (~15 mins)',
+    instructions: 'Transfer Bitcoin directly to our institutional multi-signature cold vault address. Ensure you are sending native BTC on the Bitcoin network.',
+    createdAt: '2026-01-01'
+  },
+  {
+    id: 'pay-crypto-usdt-trc20',
+    name: 'Tether USDT (TRC-20)',
+    category: 'crypto',
+    isEnabled: true,
+    badgeText: 'Instant / Low Gas',
+    coinSymbol: 'USDT',
+    network: 'Tron Network (TRC-20)',
+    walletAddress: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+    minDepositUsd: 5000,
+    maxDepositUsd: 300000,
+    processingTime: 'Instant (~3 mins)',
+    instructions: 'Send exact USDT amount on the TRON (TRC-20) network. Do not dispatch via other networks to avoid irreversible loss.',
+    createdAt: '2026-01-01'
+  },
+  {
+    id: 'pay-crypto-eth-01',
+    name: 'Ethereum (ETH / ERC-20)',
+    category: 'crypto',
+    isEnabled: true,
+    badgeText: 'Institutional Custody',
+    coinSymbol: 'ETH',
+    network: 'Ethereum Mainnet (ERC-20)',
+    walletAddress: '0x71C8366420A092679b5430F732661B2c80D5230d',
+    minDepositUsd: 5000,
+    maxDepositUsd: 300000,
+    processingTime: '12 Confirmations (~5 mins)',
+    instructions: 'Send ETH or supported ERC-20 stablecoins to our institutional custody smart vault address.',
+    createdAt: '2026-01-01'
+  },
+  {
+    id: 'pay-crypto-usdc-sol',
+    name: 'USDC (Solana SPL)',
+    category: 'crypto',
+    isEnabled: true,
+    badgeText: 'Fastest Settlement',
+    coinSymbol: 'USDC',
+    network: 'Solana Network (SPL)',
+    walletAddress: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
+    minDepositUsd: 5000,
+    maxDepositUsd: 300000,
+    processingTime: 'Under 1 minute',
+    instructions: 'Send Solana SPL USDC to this verified treasury receiver address.',
+    createdAt: '2026-01-01'
+  },
+  {
+    id: 'pay-cashapp-01',
+    name: 'Cash App Remittance',
+    category: 'cashapp',
+    isEnabled: true,
+    badgeText: 'Instant Mobile Transfer',
+    cashAppTag: '$VBSPVaultReserve',
+    recipientName: 'Vertex Bullion Custody Service',
+    minDepositUsd: 5000,
+    maxDepositUsd: 300000,
+    processingTime: 'Instant Clearing',
+    instructions: 'Send payment via Cash App to $VBSPVaultReserve. In the Note / For field, enter your VBSP Account Number. Take a screenshot of the completed payment.',
+    createdAt: '2026-01-01'
+  },
+  {
+    id: 'pay-paypal-01',
+    name: 'PayPal Official Vault Clearing',
+    category: 'paypal',
+    isEnabled: true,
+    badgeText: 'Buyer & Seller Protection',
+    payPalEmail: 'clearing@vbsp-custody.org',
+    recipientName: 'Vertex Bullion Savings Custody Corp',
+    minDepositUsd: 5000,
+    maxDepositUsd: 300000,
+    processingTime: '10-30 Mins',
+    instructions: 'Send payment via PayPal to clearing@vbsp-custody.org. Select Goods & Services or Commercial Remittance and specify your VBSP Account ID.',
+    createdAt: '2026-01-01'
+  },
+  {
+    id: 'pay-zelle-01',
+    name: 'Zelle Instant Bank Settlement',
+    category: 'zelle',
+    isEnabled: true,
+    badgeText: 'Zero-Fee Direct Bank Transfer',
+    zelleIdentifier: 'depository@vbsp.org',
+    recipientName: 'Vertex Bullion Savings Plan LLC',
+    minDepositUsd: 5000,
+    maxDepositUsd: 300000,
+    processingTime: 'Instant Settlement',
+    instructions: 'Enroll with Zelle in your mobile banking application and send to depository@vbsp.org. Verify that the registered name displays "Vertex Bullion Savings Plan LLC". Include your Account ID in the memo.',
+    createdAt: '2026-01-01'
+  }
+];
+
 

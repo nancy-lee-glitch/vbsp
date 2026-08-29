@@ -152,37 +152,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       address: '700 Pennsylvania Ave NW, Washington, DC 20408',
       employingAgency: onboardAgency || 'Federal Civil Service',
       planType: onboardPlanType,
-      hireDate: '2024-01-15',
-      totalBalance: 12500.00,
-      traditionalBalance: 8500.00,
-      rothBalance: 4000.00,
-      ytdReturn: 18.5,
-      vaultDepositaryLocation: 'Zurich Segregated Vault & Delaware Depository',
-      goldOuncesEquivalent: 3.2,
-      silverOuncesEquivalent: 125.0,
+      hireDate: new Date().toISOString().split('T')[0],
+      totalBalance: 0.00,
+      traditionalBalance: 0.00,
+      rothBalance: 0.00,
+      ytdReturn: 0.0,
+      vaultDepositaryLocation: 'Delaware Depository & Zurich Segregated Vault',
+      goldOuncesEquivalent: 0.0,
+      silverOuncesEquivalent: 0.0,
       ytdContributions: {
-        employee: 1200.00,
-        agencyMatch: 480.00,
-        agencyAutomatic: 120.00
+        employee: 0.00,
+        agencyMatch: 0.00,
+        agencyAutomatic: 0.00
       },
       contributionAllocations: {
-        'G': 60,
-        'S': 40
+        'G': 50,
+        'S': 50
       },
-      currentHoldings: [
-        { fundCode: 'G', shares: 80.82, sharePrice: 94.65, balance: 7650.00, percentage: 61.2, metalWeight: '2.85 oz Fine Gold' },
-        { fundCode: 'S', shares: 56.19, sharePrice: 86.30, balance: 4850.00, percentage: 38.8, metalWeight: '149.66 oz Pure Silver' }
-      ],
-      beneficiaries: [
-        {
-          id: `ben_${Date.now()}`,
-          type: 'Primary',
-          name: 'Primary Beneficiary Estate',
-          relationship: 'Spouse/Estate',
-          sharePercentage: 100
-        }
-      ],
-      activeLoans: []
+      currentHoldings: [],
+      beneficiaries: [],
+      activeLoans: [],
+      transactions: [], // Clean ledger: no transactions rendered yet
+      kycProfile: {
+        overallStatus: 'Not Verified',
+        riskTier: 'Tier 1 Individual',
+        ssnMasked: onboardSsn ? `***-**-${onboardSsn.slice(-4)}` : 'Unverified - Requires Submission',
+        additionalDocuments: []
+      }
     };
 
     onLoginSuccess(newRegisteredUser);

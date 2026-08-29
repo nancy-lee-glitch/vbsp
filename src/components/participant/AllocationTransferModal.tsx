@@ -182,7 +182,7 @@ export const AllocationTransferModal: React.FC<AllocationTransferModalProps> = (
                   </span>
                   <div>
                     <div className="font-bold text-xs text-slate-900">{fund.name}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Share Price: ${fund.currentSharePrice.toFixed(2)} • YTD Return: +{fund.ytdReturn}%</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Share Price: ${(fund.currentSharePrice ?? 0).toFixed(2)} • YTD Return: +{fund.ytdReturn ?? 0}%</div>
                   </div>
                 </div>
 

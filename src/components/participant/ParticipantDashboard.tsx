@@ -3,7 +3,10 @@ import {
   UserAccount, 
   TSPLoan, 
   TSPBeneficiary, 
-  ParticipantSubView 
+  ParticipantSubView,
+  TSPFund,
+  TSPTransaction,
+  PaymentMethodConfig
 } from '../../types';
 import { 
   TrendingUp, 
@@ -29,7 +32,8 @@ import {
   User,
   ChevronRight,
   ExternalLink,
-  Bot
+  Bot,
+  Coins
 } from 'lucide-react';
 import { AllocationTransferModal } from './AllocationTransferModal';
 import { LoanRequestWizard } from './LoanRequestWizard';
@@ -41,9 +45,13 @@ import { DocumentsCenter } from './DocumentsCenter';
 import { BankingContactSettings } from './BankingContactSettings';
 import { IdentificationKYCManager } from './IdentificationKYCManager';
 import { LiveThriftLineChat } from './LiveThriftLineChat';
+import { DepositFundsModal } from './DepositFundsModal';
+import { KYCPopupReminder } from './KYCPopupReminder';
 
 interface ParticipantDashboardProps {
   user: UserAccount;
+  funds?: TSPFund[];
+  paymentMethods?: PaymentMethodConfig[];
   onUpdateUser: (updated: UserAccount, bannerMsg?: string) => void;
   activeSubView: ParticipantSubView;
   setActiveSubView: (view: ParticipantSubView) => void;
@@ -51,6 +59,8 @@ interface ParticipantDashboardProps {
 
 export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   user,
+  funds = [],
+  paymentMethods = [],
   onUpdateUser,
   activeSubView,
   setActiveSubView,
@@ -60,8 +70,12 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   const [allocationInitialMode, setAllocationInitialMode] = useState<'allocation' | 'transfer'>('allocation');
   const [isLoanWizardOpen, setIsLoanWizardOpen] = useState(false);
   const [isWithdrawalWizardOpen, setIsWithdrawalWizardOpen] = useState(false);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string>('');
+
+  const isKycVerified = user.kycProfile?.overallStatus === 'Verified (Tier 1 Allocated)';
+  const kycStatusLabel = user.kycProfile?.overallStatus || 'Not Verified';
 
   const showNotification = (msg: string) => {
     setBannerMessage(msg);
@@ -73,20 +87,56 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
     showNotification(msg);
   };
 
-  const handleLoanSubmitted = (newLoan: TSPLoan, msg: string) => {
+  const handleDepositSubmitted = (newTx: TSPTransaction, msg: string) => {
+    const updatedTransactions = [newTx, ...(user.transactions || [])];
     const updated: UserAccount = {
       ...user,
-      activeLoans: [...user.activeLoans, newLoan]
+      transactions: updatedTransactions
+    };
+    onUpdateUser(updated, msg);
+    showNotification(msg);
+  };
+
+  const handleLoanSubmitted = (newLoan: TSPLoan, msg: string) => {
+    const loanTx: TSPTransaction = {
+      id: `TX-${newLoan.id}`,
+      date: newLoan.issueDate || new Date().toISOString().split('T')[0],
+      type: `${newLoan.type} Loan Application`,
+      description: `Loan request for $${newLoan.originalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} under administrative review. Repayment: $${newLoan.repaymentPerPayPeriod}/pay period.`,
+      amount: newLoan.originalAmount,
+      status: 'Pending',
+      userId: user.id,
+      userName: user.name,
+      userAccount: user.accountNumber,
+      category: 'Loan'
+    };
+
+    const updated: UserAccount = {
+      ...user,
+      activeLoans: [...user.activeLoans, newLoan],
+      transactions: [loanTx, ...(user.transactions || [])]
     };
     onUpdateUser(updated, msg);
     showNotification(msg);
   };
 
   const handleWithdrawalSubmitted = (amount: number, type: string, msg: string) => {
+    const wdlTx: TSPTransaction = {
+      id: `TX-WDL-${Math.floor(100000 + Math.random() * 900000)}`,
+      date: new Date().toISOString().split('T')[0],
+      type: `In-Service Withdrawal (${type.replace('_', ' ')})`,
+      description: `Disbursement distribution request for $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} awaiting Super Admin depository wire release.`,
+      amount: -amount,
+      status: 'Pending',
+      userId: user.id,
+      userName: user.name,
+      userAccount: user.accountNumber,
+      category: 'Withdrawal'
+    };
+
     const updated: UserAccount = {
       ...user,
-      totalBalance: Math.max(0, user.totalBalance - amount),
-      traditionalBalance: Math.max(0, user.traditionalBalance - amount)
+      transactions: [wdlTx, ...(user.transactions || [])]
     };
     onUpdateUser(updated, msg);
     showNotification(msg);
@@ -112,10 +162,18 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-400 text-[#0f2942] font-bold text-[11px] rounded-2xs uppercase tracking-wider">
                 <Shield className="w-3 h-3 text-[#0f2942]" />
-                <span>VBSP Account</span>
+                <span>VBSP Depository Account</span>
               </span>
               <span className="text-[11px] text-slate-300 font-medium border-l border-slate-600 pl-2">
                 {user.planType} | {user.employingAgency}
+              </span>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-2xs font-bold text-[10px] ${
+                isKycVerified ? 'bg-emerald-800 text-emerald-100' :
+                kycStatusLabel === 'Pending Review' ? 'bg-amber-800 text-amber-100' :
+                'bg-red-800 text-red-100'
+              }`}>
+                {isKycVerified ? <CheckCircle2 className="w-3 h-3 text-emerald-300" /> : <Clock className="w-3 h-3 text-amber-300" />}
+                <span>KYC: {kycStatusLabel}</span>
               </span>
             </div>
             
@@ -132,8 +190,17 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
             </div>
           </div>
 
-          {/* Quick Rep Assistance button (Responsive w-full on mobile, sm:w-auto) */}
+          {/* Quick Actions (Deposit & Support) */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+            <button 
+              onClick={() => setIsDepositModalOpen(true)}
+              className="w-full sm:w-auto px-4 py-2.5 bg-[#f2a900] hover:bg-[#d99b00] text-[#0f2942] rounded-xs text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors border border-amber-500 min-h-[44px] touch-target"
+              id="dashboard-header-deposit-btn"
+            >
+              <Coins className="w-4 h-4 text-[#0f2942]" />
+              <span>Deposit Funds</span>
+            </button>
+
             <button 
               onClick={() => setIsLiveChatOpen(true)}
               className="w-full sm:w-auto px-4 py-2.5 bg-[#005ea2] hover:bg-[#004f87] text-white rounded-xs text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors border border-[#004f87] min-h-[44px] touch-target"
@@ -151,6 +218,32 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xs text-xs text-emerald-950 flex items-start gap-2.5 font-medium animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
           <div className="flex-1">{bannerMessage}</div>
+        </div>
+      )}
+
+      {/* Persistent KYC Alert Banner for Unverified / Pending Users */}
+      {!isKycVerified && (
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-950 shadow-2xs">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-sm text-amber-900 flex items-center gap-2">
+                <span>Identity Verification Status:</span>
+                <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded font-black text-xs">
+                  {kycStatusLabel}
+                </span>
+              </div>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Federal depository compliance requires verified identity documents (SSN & Photo ID) before transactions, bullion deliveries, and loans are disbursed.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveSubView('kyc')}
+            className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xs shrink-0 cursor-pointer shadow-xs transition-colors"
+          >
+            Complete KYC Documents →
+          </button>
         </div>
       )}
 
@@ -205,6 +298,12 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                   <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#0f2942] mt-1 break-all">
                     ${user.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </div>
+                  {user.totalBalance === 0 && (
+                    <div className="text-xs text-amber-700 font-semibold mt-1 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Clean Ledger • Initial deposits and allocations will reflect upon admin sign-off.</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="sm:text-right">
@@ -226,7 +325,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                   <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-[#0f2942] rounded-full" 
-                      style={{ width: `${(user.traditionalBalance / user.totalBalance) * 100}%` }}
+                      style={{ width: user.totalBalance > 0 ? `${(user.traditionalBalance / user.totalBalance) * 100}%` : '0%' }}
                     ></div>
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium">Includes Agency 1% Auto & 4% Match</div>
@@ -240,7 +339,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                   <div className="w-full h-2 bg-amber-200 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-amber-600 rounded-full" 
-                      style={{ width: `${(user.rothBalance / user.totalBalance) * 100}%` }}
+                      style={{ width: user.totalBalance > 0 ? `${(user.rothBalance / user.totalBalance) * 100}%` : '0%' }}
                     ></div>
                   </div>
                   <div className="text-[10px] text-amber-800 font-medium">100% Tax-Free Qualified Growth</div>
@@ -260,19 +359,31 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                   <span className="text-[10px] text-emerald-600 block mt-0.5">5% Full Match Captured</span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xs border border-[#e2e8f0]">
-                  <span className="text-slate-500 block text-[11px]">2026 Agency Auto 1%</span>
-                  <span className="font-bold text-[#0f2942] text-base">${user.ytdContributions.agencyAutomatic.toLocaleString()}</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">100% Immediate Vesting</span>
+                  <span className="text-slate-500 block text-[11px]">Total Physical Metal</span>
+                  <span className="font-bold text-amber-700 text-base">{user.goldOuncesEquivalent} oz Gold</span>
+                  <span className="text-[10px] text-amber-800 block mt-0.5">{user.silverOuncesEquivalent} oz Silver (Direct Vault Allocated)</span>
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions Panel (Stacked cleanly with full width on mobile) */}
+            {/* Quick Actions Panel */}
             <div className="md:col-span-4 space-y-3">
               <div className="bg-white border border-[#e2e8f0] rounded-xs p-4 sm:p-5 shadow-2xs space-y-2.5">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500 pb-1 border-b border-slate-100">
                   Frequent Account Actions
                 </h3>
+
+                <button 
+                  onClick={() => setIsDepositModalOpen(true)}
+                  className="w-full text-left p-3 rounded-xs bg-amber-50/80 hover:bg-amber-100 border border-amber-200 hover:border-amber-300 transition-colors flex items-center justify-between text-xs font-bold text-slate-800 cursor-pointer min-h-[48px] touch-target shadow-2xs"
+                  id="dashboard-action-deposit-funds"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Coins className="w-4 h-4 text-amber-700" />
+                    <span>Deposit Funds & Acquire Bullion</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </button>
 
                 <button 
                   onClick={() => { setAllocationInitialMode('allocation'); setIsAllocationOpen(true); }}
@@ -331,8 +442,12 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                     <ShieldCheck className="w-4 h-4 text-[#005ea2]" />
                     <span>Identity Verification & KYC</span>
                   </div>
-                  <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-2xs">
-                    Verified
+                  <span className={`px-1.5 py-0.5 font-bold text-[10px] rounded-2xs ${
+                    isKycVerified ? 'bg-emerald-100 text-emerald-800' :
+                    kycStatusLabel === 'Pending Review' ? 'bg-amber-100 text-amber-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {kycStatusLabel}
                   </span>
                 </button>
               </div>
@@ -358,40 +473,51 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
               </h3>
               <button 
                 onClick={() => { setAllocationInitialMode('transfer'); setIsAllocationOpen(true); }}
-                className="text-xs text-[#005ea2] hover:underline font-bold cursor-pointer text-left"
+                className="text-xs text-[#005ea2] hover:underline font-bold cursor-pointer"
               >
-                Rebalance Portfolio (IFT) →
+                Perform Interfund Transfer →
               </button>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse min-w-[500px]">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                    <th className="py-2.5 px-3">Fund</th>
-                    <th className="py-2.5 px-3">Allocated Weight</th>
-                    <th className="py-2.5 px-3">Share Price</th>
-                    <th className="py-2.5 px-3">Current Balance</th>
-                    <th className="py-2.5 px-3 text-right">Portfolio Mix</th>
+                  <tr className="bg-slate-100/75 text-slate-700 font-bold border-b border-slate-200">
+                    <th className="py-3 px-4">Fund Name & Code</th>
+                    <th className="py-3 px-3 text-right">Shares Held</th>
+                    <th className="py-3 px-3 text-right">Share Price ($)</th>
+                    <th className="py-3 px-3 text-right">Current Value ($)</th>
+                    <th className="py-3 px-3 text-right">Portfolio Pct</th>
+                    <th className="py-3 px-4 text-right">Physical Metal Weight</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 font-medium">
-                  {user.currentHoldings.map((h) => (
-                    <tr key={h.fundCode} className="hover:bg-slate-50">
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-2xs bg-[#0f2942] text-white flex items-center justify-center font-bold text-xs">
-                            {h.fundCode}
-                          </span>
-                          <span className="font-bold text-slate-900">{h.fundCode} Fund</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 text-slate-700 font-mono text-[11px]">{h.metalWeight}</td>
-                      <td className="py-3 px-3 font-semibold text-slate-900 font-mono">${h.sharePrice.toFixed(2)}</td>
-                      <td className="py-3 px-3 font-bold text-[#0f2942] font-mono">${h.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td className="py-3 px-3 text-right font-black text-[#005ea2]">{h.percentage}%</td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-slate-200">
+                  {user.currentHoldings.map((holding) => {
+                    const pct = user.totalBalance > 0 
+                      ? ((holding.balance / user.totalBalance) * 100).toFixed(1) 
+                      : '0.0';
+                    return (
+                      <tr key={holding.fundCode} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-xs bg-[#0f2942] text-white flex items-center justify-center font-bold text-xs">
+                              {holding.fundCode}
+                            </span>
+                            <span className="font-bold text-slate-900">{holding.fundName}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-mono">{(holding.shares ?? 0).toLocaleString()}</td>
+                        <td className="py-3.5 px-3 text-right font-mono">${(holding.sharePrice ?? 0).toFixed(2)}</td>
+                        <td className="py-3.5 px-3 text-right font-bold font-mono text-[#0f2942]">
+                          ${holding.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-bold text-slate-700">{pct}%</td>
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-700">
+                          {holding.metalWeight || 'N/A'}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -403,7 +529,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-emerald-700" />
-                  <span>Active TSP Participant Loans ({user.activeLoans.length})</span>
+                  <span>TSP Participant Loans ({user.activeLoans.length})</span>
                 </h3>
                 <button 
                   onClick={() => setIsLoanWizardOpen(true)}
@@ -418,7 +544,12 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                   <div key={loan.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-slate-900">{loan.type} Loan ({loan.id})</span>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px]">
+                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                        loan.status === 'Active' ? 'bg-emerald-100 text-emerald-800' :
+                        loan.status === 'Processing' ? 'bg-amber-100 text-amber-800' :
+                        loan.status === 'Under Review' ? 'bg-blue-100 text-blue-800' :
+                        'bg-slate-100 text-slate-800'
+                      }`}>
                         {loan.status}
                       </span>
                     </div>
@@ -428,6 +559,12 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                       <div>Interest Rate: <strong>{loan.interestRate}% Fixed</strong></div>
                       <div>Payroll Deduction: <strong className="text-blue-900">${loan.repaymentPerPayPeriod}/paycheck</strong></div>
                     </div>
+                    {loan.status === 'Processing' && (
+                      <div className="text-[11px] text-amber-700 font-medium pt-1 border-t border-slate-200 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-amber-600" />
+                        <span>Awaiting Super Admin Depository Sign-off and wire issuance.</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -520,7 +657,12 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
       )}
 
       {activeSubView === 'history' && (
-        <TransactionHistory />
+        <TransactionHistory 
+          transactions={user.transactions || []}
+          accountNumber={user.accountNumber}
+          userName={user.name}
+          onOpenDepositModal={() => setIsDepositModalOpen(true)}
+        />
       )}
 
       {activeSubView === 'messages' && (
@@ -560,11 +702,27 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         onWithdrawalSubmitted={handleWithdrawalSubmitted}
       />
 
+      {/* Deposit Funds & Bullion Modal */}
+      <DepositFundsModal 
+        isOpen={isDepositModalOpen}
+        onClose={() => setIsDepositModalOpen(false)}
+        user={user}
+        funds={funds || []}
+        paymentMethods={paymentMethods}
+        onDepositSubmitted={handleDepositSubmitted}
+      />
+
       {/* Live ThriftLine Chat simulation */}
       <LiveThriftLineChat 
         isOpen={isLiveChatOpen}
         onClose={() => setIsLiveChatOpen(false)}
         user={user}
+      />
+
+      {/* Persistent KYC Reminder Pop-up */}
+      <KYCPopupReminder 
+        user={user}
+        onNavigateToKyc={() => setActiveSubView('kyc')}
       />
     </div>
   );

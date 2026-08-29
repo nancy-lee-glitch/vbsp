@@ -254,7 +254,7 @@ export const CalculatorsHub: React.FC = () => {
             <div>
               <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
                 <span>Expected Investment Return</span>
-                <span className="text-emerald-700 font-bold">{expectedReturn.toFixed(1)}% / yr</span>
+                <span className="text-emerald-700 font-bold">{(expectedReturn ?? 0).toFixed(1)}% / yr</span>
               </div>
               <input 
                 type="range" 
@@ -424,7 +424,7 @@ export const CalculatorsHub: React.FC = () => {
               <div className="bg-blue-950 text-white rounded-xl p-4 space-y-2">
                 <div className="text-xs text-amber-300 font-bold uppercase">Optimal Per-Paycheck Deduction</div>
                 <div className="text-2xl font-black text-white">
-                  ${contribResult.recommendedPerPayPeriod.toFixed(2)} <span className="text-xs font-normal text-slate-300">/ per pay period ({payPeriodCount} cycles)</span>
+                  ${(contribResult.recommendedPerPayPeriod ?? 0).toFixed(2)} <span className="text-xs font-normal text-slate-300">/ per pay period ({payPeriodCount} cycles)</span>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
                   {contribResult.notes}
@@ -694,7 +694,7 @@ export const CalculatorsHub: React.FC = () => {
                 ${Math.round(ballparkResult.totalMonthlyRetirementIncome).toLocaleString()} <span className="text-xs font-normal text-slate-300">/ month</span>
               </div>
               <div className="text-xs text-slate-300">
-                Annual Total: <strong className="text-white">${Math.round(ballparkResult.totalAnnualRetirementIncome).toLocaleString()} / year</strong> • <strong className="text-emerald-400 font-bold">{ballparkResult.replacementRatio.toFixed(1)}%</strong> of High-3 Salary
+                Annual Total: <strong className="text-white">${Math.round(ballparkResult.totalAnnualRetirementIncome).toLocaleString()} / year</strong> • <strong className="text-emerald-400 font-bold">{(ballparkResult.replacementRatio ?? 0).toFixed(1)}%</strong> of High-3 Salary
               </div>
 
               <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/15 text-xs">

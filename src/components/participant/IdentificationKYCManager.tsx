@@ -38,72 +38,10 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
 }) => {
   // Default KYC profile if none exists
   const kycProfile: KYCVerificationProfile = user.kycProfile || {
-    overallStatus: 'Verified (Tier 1 Allocated)',
-    verifiedDate: '2026-01-15',
+    overallStatus: 'Not Verified',
     riskTier: 'Tier 1 Individual',
-    ssnMasked: '***-**-4412',
-    ssnDocument: {
-      id: 'doc-ssn-default',
-      type: 'ssn_card',
-      title: 'Social Security Card (SSN Verification)',
-      documentNumberMasked: '***-**-4412',
-      issuingAuthority: 'Social Security Administration (SSA)',
-      fileName: 'SSA_Card_Vance_M.pdf',
-      fileSize: '1.4 MB',
-      uploadedAt: '2026-01-14 10:22 AM',
-      status: 'Verified',
-      notes: 'SSN verified against federal records.'
-    },
-    driverLicenseFront: {
-      id: 'doc-dl-front-default',
-      type: 'driver_license_front',
-      title: "Driver's License (Front Photo ID)",
-      documentNumberMasked: 'VA-D8849****',
-      issuingAuthority: 'Commonwealth of Virginia DMV',
-      expirationDate: '2028-11-15',
-      fileName: 'VA_DriverLicense_Front.jpg',
-      fileSize: '2.8 MB',
-      uploadedAt: '2026-01-14 10:25 AM',
-      status: 'Verified'
-    },
-    driverLicenseBack: {
-      id: 'doc-dl-back-default',
-      type: 'driver_license_back',
-      title: "Driver's License (Back Barcode)",
-      documentNumberMasked: 'VA-D8849****',
-      issuingAuthority: 'Commonwealth of Virginia DMV',
-      expirationDate: '2028-11-15',
-      fileName: 'VA_DriverLicense_Back.jpg',
-      fileSize: '2.1 MB',
-      uploadedAt: '2026-01-14 10:26 AM',
-      status: 'Verified'
-    },
-    passportDocument: {
-      id: 'doc-passport-default',
-      type: 'passport',
-      title: 'International Passport (Photo Identification Page)',
-      documentNumberMasked: 'US-P9942****',
-      issuingAuthority: 'U.S. Department of State',
-      expirationDate: '2031-06-20',
-      fileName: 'US_Passport_Booklet_Vance.jpg',
-      fileSize: '3.6 MB',
-      uploadedAt: '2026-01-14 10:30 AM',
-      status: 'Verified',
-      notes: 'Allocated precious metal international physical delivery authorized.'
-    },
-    additionalDocuments: [
-      {
-        id: 'doc-poa-default',
-        type: 'proof_of_address',
-        title: 'Proof of Residential Address (Utility Statement)',
-        documentNumberMasked: 'UT-9941-88',
-        issuingAuthority: 'Potomac Electric Power Company',
-        fileName: 'Pepco_Utility_Bill_Jan2026.pdf',
-        fileSize: '890 KB',
-        uploadedAt: '2026-01-14 10:32 AM',
-        status: 'Verified'
-      }
-    ]
+    ssnMasked: 'Unverified - Action Required',
+    additionalDocuments: []
   };
 
   // Upload Modal State
@@ -212,12 +150,16 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
         updatedProfile.additionalDocuments = [newDoc, ...(updatedProfile.additionalDocuments || [])];
       }
 
+      if (updatedProfile.overallStatus !== 'Verified (Tier 1 Allocated)') {
+        updatedProfile.overallStatus = 'Pending Review';
+      }
+
       const updatedUser: UserAccount = {
         ...user,
         kycProfile: updatedProfile
       };
 
-      onUpdateUser(updatedUser, `Identification document "${uploadTitle}" has been uploaded and queued for depository verification.`);
+      onUpdateUser(updatedUser, `Identification document "${uploadTitle}" has been uploaded and queued for Super Admin compliance review. Status updated to "Pending Review".`);
       setIsProcessing(false);
       setActiveUploadType(null);
       setNotification(`Document "${uploadTitle}" uploaded successfully.`);

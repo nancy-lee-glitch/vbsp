@@ -56,13 +56,18 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
       originalAmount: loanAmount,
       currentBalance: loanAmount,
       interestRate: interestRate,
-      issueDate: '2026-08-26',
+      issueDate: new Date().toISOString().split('T')[0],
       termMonths: termYears * 12,
       repaymentPerPayPeriod: Math.round(biweeklyPayment * 100) / 100,
-      status: 'Active'
+      status: 'Processing',
+      collateralAsset: `Segregated ${loanType === 'General Purpose' ? 'Gold Sovereign Reserve' : 'Depository Bullion Reserve'}`,
+      userId: user.id,
+      userName: user.name,
+      userAccount: user.accountNumber,
+      purpose: `${loanType} Bullion-Backed Loan Application`
     };
 
-    onLoanSubmitted(newLoan, `Your $${loanAmount.toLocaleString()} ${loanType} loan has been approved and direct deposit initiated to ${bankAccount}. Confirmation #${newLoan.id}`);
+    onLoanSubmitted(newLoan, `Your $${loanAmount.toLocaleString()} ${loanType} loan application has been submitted (ID: #${newLoan.id}). Status: PROCESSING (Pending Super Admin Depository Approval). Funds will disburse upon admin authorization.`);
     onClose();
   };
 
