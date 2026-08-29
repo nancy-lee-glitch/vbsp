@@ -31,31 +31,40 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const u = adminUsername.trim().toLowerCase();
-      const p = adminPassword.trim();
-      const pin = adminPin.trim();
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: adminUsername.trim(),
+          password: adminPassword.trim(),
+          pin: adminPin.trim(),
+        }),
+      });
 
-      // Validate administrative credentials
-      const validUsers = ['admin@vbsp.org', 'admin@frtib.gov', 'frtib_admin', 'admin', 'executive@vbsp.org'];
-      const validPasswords = ['VBSP_Admin_2026!', 'FRTIB_Admin_2026!', 'Admin2026!', 'admin123'];
-      const validPins = ['990011', '829415', '123456'];
+      const data = await response.json();
 
-      if (validUsers.includes(u) && validPasswords.includes(p) && validPins.includes(pin)) {
+      if (data.success) {
         setIsLoading(false);
         onAdminLoginSuccess();
       } else {
         setIsLoading(false);
-        setErrorMessage('Invalid administrative credentials, master password, or FIPS security PIN.');
+        setErrorMessage(data.message || 'Invalid administrative credentials, master password, or FIPS security PIN.');
       }
-    }, 600);
+    } catch (error) {
+      setIsLoading(false);
+      setErrorMessage('Unable to connect to the server. Please try again.');
+    }
   };
 
+  
   return (
     <div className="max-w-xl mx-auto py-10 px-4" id="admin-login-view">
       <div className="bg-white border-2 border-[#112e51] rounded-sm shadow-xl overflow-hidden">
