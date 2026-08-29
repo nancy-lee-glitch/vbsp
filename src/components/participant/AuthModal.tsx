@@ -84,7 +84,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -93,30 +93,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // Check if account number or email matches any user in registry
-    const matchedUser = users.find(u => 
-      u.accountNumber.toLowerCase() === accountNumber.trim().toLowerCase() ||
-      u.email.toLowerCase() === accountNumber.trim().toLowerCase()
-    );
-
-    if (!matchedUser) {
-      setErrorMessage('Account number or email not recognized in VBSP Sovereign Registry. Please verify your credentials or click "Open an Account" to register.');
+    if (!password.trim()) {
+      setErrorMessage('Please enter your password.');
       return;
     }
 
-    if (thriftlinePin.length !== 6) {
-      setErrorMessage('ThriftLine PIN must be exactly 6 digits.');
-      return;
-    }
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountNumber: accountNumber.trim(),
+          email: accountNumber.trim(),
+          password: password.trim(),
+          pin: thriftlinePin.trim(),
+        }),
+      });
 
-    // Verify PIN if set, or accept valid 6-digit PIN
-    if (matchedUser.thriftlinePin && matchedUser.thriftlinePin !== thriftlinePin.trim()) {
-      setErrorMessage('Invalid 6-Digit ThriftLine PIN for this vault profile.');
-      return;
-    }
+      const data = await response.json();
 
-    setSelectedUserToLogin(matchedUser);
-    setAuthStep('mfa');
+      if (data.success) {
+        // Convert the database user to the format the app expects
+        const loggedInUser: UserAccount = {
+          id: String(data.user.id),
+          name: data.user.full_name,
+          email: data.user.email,
+          accountNumber: data.user.account_number,
+          thriftlinePin: data.user.thriftline_pin,
+          phone: '',
+          address: '',
+          employingAgency: '',
+          planType: data.user.account_type,
+          hireDate: '',
+          totalBalance: Number(data.user.total_balance),
+          traditionalBalance: Number(data.user.traditional_balance || 0),
+          rothBalance: Number(data.user.roth_balance || 0),
+          ytdReturn: 0,
+          vaultDepositaryLocation: '',
+          goldOuncesEquivalent: Number(data.user.gold_ounces_equivalent || 0),
+          silverOuncesEquivalent: Number(data.user.silver_ounces_equivalent || 0),
+          ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
+          contributionAllocations: {},
+          currentHoldings: [],
+          beneficiaries: [],
+          activeLoans: [],
+          transactions: [],
+          kycProfile: {
+            overallStatus: 'Verified',
+            riskTier: 'Tier 1 Individual',
+            ssnMasked: '***-**-****',
+            additionalDocuments: []
+          }
+        };
+
+        setSelectedUserToLogin(loggedInUser);
+        setAuthStep('mfa');
+      } else {
+        setErrorMessage(data.message || 'Login failed. Please check your credentials.');
+      }
+    } catch (error) {
+      setErrorMessage('Unable to connect to the server. Please try again.');
+    }
   };
 
   const handleMfaSubmit = (e: React.FormEvent) => {
