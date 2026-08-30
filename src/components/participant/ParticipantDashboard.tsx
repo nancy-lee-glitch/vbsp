@@ -19,7 +19,6 @@ import {
   History, 
   FileText, 
   Settings, 
-  Headphones, 
   ShieldCheck, 
   Shield,
   ArrowUpRight, 
@@ -44,7 +43,6 @@ import { TransactionHistory } from './TransactionHistory';
 import { DocumentsCenter } from './DocumentsCenter';
 import { BankingContactSettings } from './BankingContactSettings';
 import { IdentificationKYCManager } from './IdentificationKYCManager';
-import { LiveThriftLineChat } from './LiveThriftLineChat';
 import { DepositFundsModal } from './DepositFundsModal';
 import { KYCPopupReminder } from './KYCPopupReminder';
 
@@ -71,7 +69,6 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   const [isLoanWizardOpen, setIsLoanWizardOpen] = useState(false);
   const [isWithdrawalWizardOpen, setIsWithdrawalWizardOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-  const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string>('');
 
   const isKycVerified = user.kycProfile?.overallStatus === 'Verified (Tier 1 Allocated)';
@@ -190,8 +187,8 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
             </div>
           </div>
 
-          {/* Quick Actions (Deposit & Support) */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+          {/* Quick Actions (Deposit) */}
+          <div className="flex items-center gap-2 shrink-0">
             <button 
               onClick={() => setIsDepositModalOpen(true)}
               className="w-full sm:w-auto px-4 py-2.5 bg-[#f2a900] hover:bg-[#d99b00] text-[#0f2942] rounded-xs text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors border border-amber-500 min-h-[44px] touch-target"
@@ -199,15 +196,6 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
             >
               <Coins className="w-4 h-4 text-[#0f2942]" />
               <span>Deposit Funds</span>
-            </button>
-
-            <button 
-              onClick={() => setIsLiveChatOpen(true)}
-              className="w-full sm:w-auto px-4 py-2.5 bg-[#005ea2] hover:bg-[#004f87] text-white rounded-xs text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors border border-[#004f87] min-h-[44px] touch-target"
-              id="dashboard-thriftline-rep-btn"
-            >
-              <Headphones className="w-4 h-4 text-amber-300" />
-              <span>Live ThriftLine Rep</span>
             </button>
           </div>
         </div>
@@ -710,13 +698,6 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         funds={funds || []}
         paymentMethods={paymentMethods}
         onDepositSubmitted={handleDepositSubmitted}
-      />
-
-      {/* Live ThriftLine Chat simulation */}
-      <LiveThriftLineChat 
-        isOpen={isLiveChatOpen}
-        onClose={() => setIsLiveChatOpen(false)}
-        user={user}
       />
 
       {/* Persistent KYC Reminder Pop-up */}

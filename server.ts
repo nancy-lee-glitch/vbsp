@@ -3,6 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import { Pool } from 'pg';
 
 dotenv.config();
 
@@ -10,6 +11,38 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
+
+// -----------------------------------------------------------------------------
+// PostgreSQL / Neon Database Connection Pool (Reads single DATABASE_URL / POSTGRES_URL)
+// -----------------------------------------------------------------------------
+let dbPool: Pool | null = null;
+
+function getDbPool(): Pool | null {
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!connectionString) {
+    return null;
+  }
+  if (!dbPool) {
+    try {
+      const isSsl = connectionString.includes('sslmode=require') || connectionString.includes('neon.tech') || process.env.NODE_ENV === 'production';
+      dbPool = new Pool({
+        connectionString,
+        ssl: isSsl ? { rejectUnauthorized: false } : undefined,
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      });
+
+      dbPool.on('error', (err) => {
+        console.error('Unexpected error on idle PostgreSQL client:', err);
+      });
+    } catch (err) {
+      console.error('Failed to initialize PostgreSQL pool:', err);
+      return null;
+    }
+  }
+  return dbPool;
+}
 
 // Lazy Gemini client getter
 let aiClient: GoogleGenAI | null = null;
@@ -24,9 +57,56 @@ function getGeminiClient(): GoogleGenAI | null {
   return aiClient;
 }
 
-// Health endpoint
+// -----------------------------------------------------------------------------
+// Health & Diagnostic Endpoints
+// -----------------------------------------------------------------------------
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Neon / PostgreSQL Connection Status Endpoint
+app.get('/api/db/status', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) {
+    return res.json({
+      connected: false,
+      engine: 'Neon Serverless PostgreSQL',
+      message: 'No DATABASE_URL or POSTGRES_URL configured. Running in autonomous local client state.',
+      config_source: 'DATABASE_URL or POSTGRES_URL environment variable'
+    });
+  }
+
+  try {
+    const client = await pool.connect();
+    try {
+      const dbResult = await client.query('SELECT NOW() as current_time, version() as pg_version, current_database() as database_name');
+      const tablesResult = await client.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name;
+      `);
+      
+      res.json({
+        connected: true,
+        engine: 'Neon PostgreSQL',
+        database: dbResult.rows[0]?.database_name,
+        server_time: dbResult.rows[0]?.current_time,
+        version: dbResult.rows[0]?.pg_version,
+        tables_count: tablesResult.rows.length,
+        tables: tablesResult.rows.map((r: any) => r.table_name)
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    res.status(500).json({
+      connected: false,
+      engine: 'Neon PostgreSQL',
+      error: error.message,
+      hint: 'Ensure your Neon connection string contains sslmode=require and valid credentials.'
+    });
+  }
 });
 
 // AVA AI Virtual Assistant & Live ThriftLine Rep Gemini API endpoint

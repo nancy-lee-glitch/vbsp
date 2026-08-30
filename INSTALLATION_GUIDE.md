@@ -123,8 +123,19 @@ Participants can access the **"ID Verification & KYC"** tab in their dashboard t
 
 ---
 
-## 5. MySQL Database Option (Optional)
-If connecting to a relational MySQL backend on cPanel:
-1. Open cPanel **MySQL Databases** and create a new database (e.g. `user_vbsp`).
-2. Open **phpMyAdmin**, select the database, click **Import**, and import `database_schema.sql`.
-3. The database schema pre-configures all 10 relational tables for participants, fund prices, loans, beneficiaries, and audit logs.
+## 5. Neon (PostgreSQL) & Vercel Database Setup (Single Connection String)
+
+When deploying on **Vercel** with **Neon Serverless PostgreSQL** (or any PostgreSQL host):
+
+1. **Get your Connection String from Neon Console / Vercel Postgres:**
+   - In Neon Console, copy your **Pooled Connection String** or **Direct Connection String** (e.g. `postgresql://neondb_owner:password@ep-xyz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require`).
+2. **Set Environment Variable:**
+   - In Vercel Project Settings > **Environment Variables** (or in your local `.env`), add:
+     ```env
+     DATABASE_URL="postgresql://username:password@ep-sample-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require"
+     ```
+     *(Or `POSTGRES_URL` which is automatically provided if using the Vercel Neon integration)*.
+3. **Execute the PostgreSQL Schema:**
+   - Open **Neon Console** -> **SQL Editor** (or connect via `psql` / pgAdmin / DBeaver).
+   - Paste the contents of `database_schema.sql` and run the script.
+   - This creates all 13 PostgreSQL relational tables (`admin_users`, `fund_prices`, `participant_accounts`, `participant_allocations`, `payment_methods`, `participant_deposits`, `participant_loans`, `beneficiaries`, `statutory_parameters`, `audit_logs`, `fraud_alerts`, `announcements`, `site_branding`) with automatic timestamp triggers and pre-seeded demo records.

@@ -82,13 +82,11 @@ LOG_CHANNEL=stack
 LOG_DEPRECATIONS_CHANNEL=null
 LOG_LEVEL=info
 
-# cPanel MySQL Database Configuration
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=cpaneluser_tspdb
-DB_USERNAME=cpaneluser_tspuser
-DB_PASSWORD="ChangeToYourStrongPassword123!"
+# Neon Serverless PostgreSQL / Vercel Postgres Database Configuration
+# Reads from single DATABASE_URL or POSTGRES_URL connection string
+DB_CONNECTION=pgsql
+DATABASE_URL="postgresql://username:password@ep-sample-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require"
+POSTGRES_URL="postgresql://username:password@ep-sample-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require"
 
 # Session & Cache (file-based works out of the box on all cPanel shared hosts)
 SESSION_DRIVER=file
@@ -170,58 +168,80 @@ GEMINI_API_KEY=""
     filename: 'database.sql',
     category: 'database',
     content: `-- -------------------------------------------------------------
--- Thrift Savings Plan (TSP.gov) MySQL Schema for cPanel LAMP Stack
--- Compatible with MySQL 5.7+ / MySQL 8.0+ / MariaDB 10.3+
+-- Thrift Savings Plan (TSP.gov) PostgreSQL Schema for Neon / Vercel Postgres / LAMP
+-- Compatible with PostgreSQL 14+, PostgreSQL 15+, PostgreSQL 16+ & Neon Serverless
 -- -------------------------------------------------------------
 
-SET FOREIGN_KEY_CHECKS=0;
-DROP TABLE IF EXISTS audit_logs;
-DROP TABLE IF EXISTS fraud_alerts;
-DROP TABLE IF EXISTS messages;
-DROP TABLE IF EXISTS documents;
-DROP TABLE IF EXISTS transactions;
-DROP TABLE IF EXISTS tsp_loans;
-DROP TABLE IF EXISTS beneficiaries;
-DROP TABLE IF EXISTS bank_accounts;
-DROP TABLE IF EXISTS user_allocations;
-DROP TABLE IF EXISTS tsp_funds;
-DROP TABLE IF EXISTS cms_posts;
-DROP TABLE IF EXISTS users;
-SET FOREIGN_KEY_CHECKS=1;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS fraud_alerts CASCADE;
+DROP TABLE IF EXISTS messages CASCADE;
+DROP TABLE IF EXISTS documents CASCADE;
+DROP TABLE IF EXISTS transactions CASCADE;
+DROP TABLE IF EXISTS tsp_loans CASCADE;
+DROP TABLE IF EXISTS beneficiaries CASCADE;
+DROP TABLE IF EXISTS bank_accounts CASCADE;
+DROP TABLE IF EXISTS user_allocations CASCADE;
+DROP TABLE IF EXISTS tsp_funds CASCADE;
+DROP TABLE IF EXISTS cms_posts CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+DROP TYPE IF EXISTS user_service_type CASCADE;
+DROP TYPE IF EXISTS user_role_type CASCADE;
+DROP TYPE IF EXISTS user_mfa_method CASCADE;
+DROP TYPE IF EXISTS user_status_type CASCADE;
+DROP TYPE IF EXISTS fund_category_type CASCADE;
+DROP TYPE IF EXISTS loan_type_enum CASCADE;
+DROP TYPE IF EXISTS loan_status_enum CASCADE;
+DROP TYPE IF EXISTS beneficiary_type_enum CASCADE;
+DROP TYPE IF EXISTS audit_severity_enum CASCADE;
+DROP TYPE IF EXISTS fraud_status_enum CASCADE;
+
+CREATE TYPE user_service_type AS ENUM ('FERS', 'CSRS', 'BRS', 'Uniformed Services');
+CREATE TYPE user_role_type AS ENUM ('participant', 'public_editor', 'agency_staff', 'full_admin', 'super_admin');
+CREATE TYPE user_mfa_method AS ENUM ('sms', 'authenticator', 'security_key');
+CREATE TYPE user_status_type AS ENUM ('active', 'separated', 'retired');
+CREATE TYPE fund_category_type AS ENUM ('Core Individual Fund', 'Lifecycle Fund');
+CREATE TYPE loan_type_enum AS ENUM ('General Purpose', 'Primary Residence');
+CREATE TYPE loan_status_enum AS ENUM ('Active', 'Paid', 'Processing');
+CREATE TYPE beneficiary_type_enum AS ENUM ('Primary', 'Contingent');
+CREATE TYPE audit_severity_enum AS ENUM ('Low', 'Medium', 'High', 'Critical');
+CREATE TYPE fraud_status_enum AS ENUM ('Investigating', 'Resolved', 'Flagged');
 
 -- 1. Users Table (Participants & Admins)
 CREATE TABLE users (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     tsp_account_number VARCHAR(64) UNIQUE NOT NULL,
     thriftline_pin VARCHAR(255) NOT NULL,
     ssn_last_four VARCHAR(4) NOT NULL,
-    service_type ENUM('FERS', 'CSRS', 'BRS', 'Uniformed Services') DEFAULT 'FERS',
+    service_type user_service_type DEFAULT 'FERS',
     agency VARCHAR(255) DEFAULT 'Federal Civilian Agency',
-    role ENUM('participant', 'public_editor', 'agency_staff', 'full_admin', 'super_admin') DEFAULT 'participant',
+    role user_role_type DEFAULT 'participant',
     total_balance DECIMAL(15,2) DEFAULT 342850.12,
     traditional_balance DECIMAL(15,2) DEFAULT 228500.00,
     roth_balance DECIMAL(15,2) DEFAULT 114350.12,
     personal_rate_of_return DECIMAL(5,2) DEFAULT 14.80,
     phone VARCHAR(32) DEFAULT '(202) 555-0194',
     address TEXT,
-    mfa_enabled TINYINT(1) DEFAULT 1,
-    mfa_method ENUM('sms', 'authenticator', 'security_key') DEFAULT 'authenticator',
-    e_delivery_enabled TINYINT(1) DEFAULT 1,
-    status ENUM('active', 'separated', 'retired') DEFAULT 'active',
+    mfa_enabled BOOLEAN DEFAULT TRUE,
+    mfa_method user_mfa_method DEFAULT 'authenticator',
+    e_delivery_enabled BOOLEAN DEFAULT TRUE,
+    status user_status_type DEFAULT 'active',
     remember_token VARCHAR(100) NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
 -- 2. TSP Funds Catalog & Performance
 CREATE TABLE tsp_funds (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     code VARCHAR(16) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
-    category ENUM('Core Individual Fund', 'Lifecycle Fund') NOT NULL,
+    category fund_category_type NOT NULL,
     description TEXT,
     benchmark VARCHAR(255),
     risk_level VARCHAR(64),
@@ -233,79 +253,76 @@ CREATE TABLE tsp_funds (
     five_year_return DECIMAL(6,2),
     ten_year_return DECIMAL(6,2),
     expense_ratio VARCHAR(32) DEFAULT '0.048%',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
 -- 3. Transactions Table
 CREATE TABLE transactions (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     type VARCHAR(128) NOT NULL,
     fund_code VARCHAR(16) NULL,
     amount DECIMAL(12,2) NOT NULL,
     balance_after DECIMAL(15,2) NOT NULL,
     confirmation_code VARCHAR(64) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
 -- 4. TSP Loans Table
 CREATE TABLE tsp_loans (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     loan_number VARCHAR(64) UNIQUE NOT NULL,
-    type ENUM('General Purpose', 'Primary Residence') NOT NULL,
+    type loan_type_enum NOT NULL,
     principal_amount DECIMAL(12,2) NOT NULL,
     remaining_balance DECIMAL(12,2) NOT NULL,
     interest_rate DECIMAL(5,2) NOT NULL,
     term_months INT NOT NULL,
     monthly_payment DECIMAL(10,2) NOT NULL,
     start_date DATE NOT NULL,
-    status ENUM('Active', 'Paid', 'Processing') DEFAULT 'Active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    status loan_status_enum DEFAULT 'Active',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
 -- 5. Beneficiaries Table
 CREATE TABLE beneficiaries (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
-    type ENUM('Primary', 'Contingent') NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type beneficiary_type_enum NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     relationship VARCHAR(128) NOT NULL,
     ssn_masked VARCHAR(16) NOT NULL,
     percentage DECIMAL(5,2) NOT NULL,
     date_of_birth DATE,
     address TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
 -- 6. Audit Logs Table
 CREATE TABLE audit_logs (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     actor VARCHAR(255) NOT NULL,
     role VARCHAR(128) NOT NULL,
     action VARCHAR(255) NOT NULL,
     ip_address VARCHAR(45) NOT NULL,
-    severity ENUM('Low', 'Medium', 'High', 'Critical') DEFAULT 'Low',
+    severity audit_severity_enum DEFAULT 'Low',
     details TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
 -- 7. Fraud Alerts Table
 CREATE TABLE fraud_alerts (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     account_id VARCHAR(64) NOT NULL,
     participant_name VARCHAR(255) NOT NULL,
     alert_type VARCHAR(128) NOT NULL,
     risk_score INT NOT NULL,
-    status ENUM('Investigating', 'Resolved', 'Flagged') DEFAULT 'Investigating',
+    status fraud_status_enum DEFAULT 'Investigating',
     notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 
 -- SEED CORE DATA
 INSERT INTO tsp_funds (code, name, category, description, benchmark, risk_level, current_share_price, one_month_return, ytd_return, one_year_return, three_year_return, five_year_return, ten_year_return, expense_ratio) VALUES
@@ -318,8 +335,8 @@ INSERT INTO tsp_funds (code, name, category, description, benchmark, risk_level,
 
 -- SEED SAMPLE DEMO PARTICIPANT (Password: FederalTSP2026!)
 INSERT INTO users (name, email, password, tsp_account_number, thriftline_pin, ssn_last_four, service_type, agency, role, total_balance, traditional_balance, roth_balance, personal_rate_of_return, phone, address, mfa_enabled, e_delivery_enabled, status) VALUES
-('Marcus Vance', 'marcus.vance@usda.gov', '$2y$12$0zX7d7N8R5wL7o3fG.rO2eNlmhG8g9H6I9n4K5p6O7q8R9s0T1u2V', 'TSP-0089-4412-98', '829415', '7842', 'FERS', 'United States Department of Agriculture (USDA)', 'participant', 342850.12, 228500.00, 114350.12, 14.80, '(202) 555-0194', '1404 Potomac Ave SE, Washington, DC 20003', 1, 1, 'active'),
-('System Administrator', 'admin@frtib.gov', '$2y$12$0zX7d7N8R5wL7o3fG.rO2eNlmhG8g9H6I9n4K5p6O7q8R9s0T1u2V', 'TSP-ADMIN-0001', '999111', '0000', 'FERS', 'Federal Retirement Thrift Investment Board', 'super_admin', 0.00, 0.00, 0.00, 0.00, '(202) 555-0100', '77 K Street NE, Washington, DC 20002', 1, 1, 'active');
+('Marcus Vance', 'marcus.vance@usda.gov', '$2y$12$0zX7d7N8R5wL7o3fG.rO2eNlmhG8g9H6I9n4K5p6O7q8R9s0T1u2V', 'TSP-0089-4412-98', '829415', '7842', 'FERS', 'United States Department of Agriculture (USDA)', 'participant', 342850.12, 228500.00, 114350.12, 14.80, '(202) 555-0194', '1404 Potomac Ave SE, Washington, DC 20003', TRUE, TRUE, 'active'),
+('System Administrator', 'admin@frtib.gov', '$2y$12$0zX7d7N8R5wL7o3fG.rO2eNlmhG8g9H6I9n4K5p6O7q8R9s0T1u2V', 'TSP-ADMIN-0001', '999111', '0000', 'FERS', 'Federal Retirement Thrift Investment Board', 'super_admin', 0.00, 0.00, 0.00, 0.00, '(202) 555-0100', '77 K Street NE, Washington, DC 20002', TRUE, TRUE, 'active');
 `
   },
   {
