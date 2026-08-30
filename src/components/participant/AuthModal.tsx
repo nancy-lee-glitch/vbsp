@@ -180,50 +180,70 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMessage('');
   };
 
-  const handleCompleteRegistration = () => {
-    const newRegisteredUser: UserAccount = {
-      id: `usr_${Date.now()}`,
-      name: onboardName.trim() || 'Cadet John Reynolds',
-      email: onboardEmail.trim() || 'john.reynolds@defense.gov',
-      accountNumber: `VBSP-2026-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(10 + Math.random() * 90)}`,
-      thriftlinePin: onboardPin || '883142',
-      phone: onboardPhone || '+1 (202) 555-0149',
-      address: '700 Pennsylvania Ave NW, Washington, DC 20408',
-      employingAgency: onboardAgency || 'Federal Civil Service',
-      planType: onboardPlanType,
-      hireDate: new Date().toISOString().split('T')[0],
-      totalBalance: 0.00,
-      traditionalBalance: 0.00,
-      rothBalance: 0.00,
-      ytdReturn: 0.0,
-      vaultDepositaryLocation: 'Delaware Depository & Zurich Segregated Vault',
-      goldOuncesEquivalent: 0.0,
-      silverOuncesEquivalent: 0.0,
-      ytdContributions: {
-        employee: 0.00,
-        agencyMatch: 0.00,
-        agencyAutomatic: 0.00
-      },
-      contributionAllocations: {
-        'G': 50,
-        'S': 50
-      },
-      currentHoldings: [],
-      beneficiaries: [],
-      activeLoans: [],
-      transactions: [], // Clean ledger: no transactions rendered yet
-      kycProfile: {
-        overallStatus: 'Not Verified',
-        riskTier: 'Tier 1 Individual',
-        ssnMasked: onboardSsn ? `***-**-${onboardSsn.slice(-4)}` : 'Unverified - Requires Submission',
-        additionalDocuments: []
+   const handleCompleteRegistration = async () => {
+    if (!onboardName.trim() || !onboardEmail.trim() || !onboardPassword.trim()) {
+      setErrorMessage('Please fill in Full Name, Email and Password.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: onboardName.trim(),
+          email: onboardEmail.trim(),
+          password: onboardPassword.trim(),
+          accountType: onboardPlanType,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const newRegisteredUser: UserAccount = {
+          id: String(data.user.id),
+          name: data.user.full_name,
+          email: data.user.email,
+          accountNumber: data.user.account_number,
+          thriftlinePin: data.user.thriftline_pin,
+          phone: onboardPhone || '',
+          address: '',
+          employingAgency: onboardAgency || '',
+          planType: data.user.account_type,
+          hireDate: new Date().toISOString().split('T')[0],
+          totalBalance: Number(data.user.total_balance || 0),
+          traditionalBalance: 0,
+          rothBalance: 0,
+          ytdReturn: 0,
+          vaultDepositaryLocation: 'Zurich FreePort / Delaware Depository Segregated Vault',
+          goldOuncesEquivalent: 0,
+          silverOuncesEquivalent: 0,
+          ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
+          contributionAllocations: { 'G': 50, 'S': 50 },
+          currentHoldings: [],
+          beneficiaries: [],
+          activeLoans: [],
+          transactions: [],
+          kycProfile: {
+            overallStatus: 'Not Verified',
+            riskTier: 'Tier 1 Individual',
+            ssnMasked: onboardSsn ? `***-**-${onboardSsn.slice(-4)}` : 'Unverified - Requires Submission',
+            additionalDocuments: []
+          }
+        };
+
+        onLoginSuccess(newRegisteredUser);
+        onClose();
+      } else {
+        setErrorMessage(data.message || 'Registration failed. Please try again.');
       }
-    };
-
-    onLoginSuccess(newRegisteredUser);
-    onClose();
+    } catch (error) {
+      setErrorMessage('Unable to connect to the server. Please try again.');
+    }
   };
-
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto" 
