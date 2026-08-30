@@ -68,7 +68,7 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
       return;
     }
 
-    onUpdateBeneficiaries(beneficiaries, 'Your beneficiary designations have been electronically submitted and officially recorded on Form TSP-3.');
+    onUpdateBeneficiaries(beneficiaries, 'Your beneficiary designations have been electronically submitted and officially recorded on Form VBSP-3.');
   };
 
   return (
@@ -81,7 +81,7 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
             <h2 className="text-xl font-black text-slate-900">Beneficiary Designations</h2>
           </div>
           <p className="text-xs text-slate-600">
-            Ensure your TSP funds are distributed according to your wishes. Designations on file supersede wills or state intestacy laws.
+            Ensure your VBSP sovereign funds are distributed according to your wishes. Designations on file supersede wills or state intestacy laws.
           </p>
         </div>
 
@@ -240,7 +240,7 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
             className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>Electronically Save & Confirm Form TSP-3</span>
+            <span>Electronically Save & Confirm Form VBSP-3</span>
           </button>
         </div>
       </div>

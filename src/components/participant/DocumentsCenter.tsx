@@ -34,18 +34,21 @@ export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
   ];
 
   const handleSimulatedDownload = (title: string) => {
-    const text = `OFFICIAL FEDERAL THRIFT SAVINGS PLAN STATEMENT
+    const text = `VERTEX BULLION SOVEREIGN PLAN (VBSP) OFFICIAL CUSTODIAL STATEMENT
 Document: ${title}
 Participant Name: ${user.name}
-TSP Account Number: ${user.accountNumber}
+VBSP Account Number: ${user.accountNumber}
 Employing Agency: ${user.employingAgency}
 Total Account Balance: $${user.totalBalance.toLocaleString()}
-Traditional Balance: $${user.traditionalBalance.toLocaleString()}
-Roth Balance: $${user.rothBalance.toLocaleString()}
+Traditional Bullion Balance: $${user.traditionalBalance.toLocaleString()}
+Roth Bullion Balance: $${user.rothBalance.toLocaleString()}
+Vault Depository Location: ${user.vaultDepositaryLocation || 'Zurich Segregated FreePort & Delaware Depository'}
+Gold Equivalent: ${user.goldOuncesEquivalent || 0} oz (LBMA 999.9 Fine)
+Silver Equivalent: ${user.silverOuncesEquivalent || 0} oz (Fine Physical)
 Current Personal Rate of Return: ${user.ytdReturn}%
 
 Generated: ${new Date().toISOString()}
-Federal Retirement Thrift Investment Board (FRTIB)`;
+Vertex Bullion Sovereign Plan Depository Operations (VBSP)`;
 
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);

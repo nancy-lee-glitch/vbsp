@@ -97,7 +97,7 @@ export const AllocationTransferModal: React.FC<AllocationTransferModalProps> = (
         ...user,
         currentHoldings: newHoldings
       };
-      onUpdateSuccess(updated, 'Your Interfund Transfer (IFT) order has been submitted. Confirmation #TSP-IFT-2026-' + Math.floor(1000 + Math.random() * 9000));
+      onUpdateSuccess(updated, 'Your Interfund Transfer (IFT) order has been submitted. Confirmation #VBSP-IFT-2026-' + Math.floor(1000 + Math.random() * 9000));
     }
 
     onClose();
@@ -153,7 +153,7 @@ export const AllocationTransferModal: React.FC<AllocationTransferModalProps> = (
           <span>
             {activeMode === 'allocation' 
               ? 'Directs where your future payroll contributions and agency matches will be invested.'
-              : `Reallocates your current balance of $${user.totalBalance.toLocaleString()} among TSP funds.`}
+              : `Reallocates your current balance of $${user.totalBalance.toLocaleString()} among VBSP funds.`}
           </span>
           <span className="font-black">Total: {currentSum}%</span>
         </div>

@@ -31,9 +31,14 @@ import { AgencyPortalView } from './components/agency/AgencyPortalView';
 import { AdminPortalView } from './components/admin/AdminPortalView';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { SovereignPreloader } from './components/SovereignPreloader';
+import { LiveActivityToast } from './components/LiveActivityToast';
 import { Search, X, ArrowRight } from 'lucide-react';
 
 export default function App() {
+  // Sovereign Preloader State (Runs on initial site entry)
+  const [isPreloaderActive, setIsPreloaderActive] = useState<boolean>(true);
+
   // Site Branding & Custom Name/Logo State
   const [branding, setBranding] = useState<SiteBrandingSettings>(() => {
     const saved = localStorage.getItem('vbsp_branding_settings');
@@ -400,6 +405,16 @@ export default function App() {
       }`}
       id="vbsp-app-root"
     >
+      {/* Sovereign Federal Bullion Preloader */}
+      {isPreloaderActive && (
+        <SovereignPreloader
+          brandTitle={branding.siteName}
+          brandSubtitle={branding.tagline}
+          logoUrl={branding.customLogoUrl}
+          onComplete={() => setIsPreloaderActive(false)}
+        />
+      )}
+
       {/* Skip to Main Content Link for Section 508 / Screen Readers */}
       <a 
         href="#main-content" 
@@ -589,6 +604,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Live Activity Pop-up Notification (Global 10s intervals) */}
+      <LiveActivityToast />
 
     </div>
   );

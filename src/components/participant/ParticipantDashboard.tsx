@@ -447,7 +447,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                   <span>Annual Account Verification Due</span>
                 </div>
                 <p className="text-[11px] leading-relaxed text-amber-800">
-                  Please verify that your beneficiary designation (Form TSP-3) and primary address are up to date for 2026.
+                  Please verify that your beneficiary designation (Form VBSP-3) and primary address are up to date for 2026.
                 </p>
               </div>
             </div>
@@ -517,7 +517,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-emerald-700" />
-                  <span>TSP Participant Loans ({user.activeLoans.length})</span>
+                  <span>VBSP Participant Loans ({user.activeLoans.length})</span>
                 </h3>
                 <button 
                   onClick={() => setIsLoanWizardOpen(true)}
@@ -596,7 +596,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         <div className="space-y-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900">TSP Loan Services</h2>
+              <h2 className="text-lg font-black text-slate-900">VBSP Loan Services</h2>
               <p className="text-xs text-slate-600">Borrow against your own vested balance without credit checks or commercial bank underwriting.</p>
             </div>
             <button 

@@ -17,7 +17,7 @@ export const EducationalLibrary: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<string>('basics');
 
   const topics = [
-    { id: 'basics', title: 'TSP Basics & Eligibility', icon: BookOpen },
+    { id: 'basics', title: 'VBSP Basics & Bullion Custody', icon: BookOpen },
     { id: 'contributions', title: 'Making Contributions & Agency 5% Match', icon: Coins },
     { id: 'investments', title: 'Investment Options (Core & L Funds)', icon: TrendingUp },
     { id: 'strategies', title: 'Investing Strategies & Dollar-Cost Averaging', icon: Shield },
@@ -32,13 +32,13 @@ export const EducationalLibrary: React.FC = () => {
       <div className="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md border border-slate-800">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-800 text-blue-200 rounded-md text-xs font-bold mb-3">
           <BookOpen className="w-3.5 h-3.5" />
-          <span>OFFICIAL FEDERAL EDUCATION & GUIDANCE</span>
+          <span>OFFICIAL VBSP EDUCATION & GUIDANCE</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-          Thrift Savings Plan Educational Resource Center
+          Vertex Bullion Sovereign Plan Resource Center
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-          Comprehensive guidance for federal employees and uniformed service members across all stages of their career. Learn how contributions, investments, loans, and withdrawals work under FERS, CSRS, and BRS.
+          Comprehensive guidance for sovereign participants across all stages of their career. Learn how contributions, investments, loans, and withdrawals work under VBSP custodial frameworks.
         </p>
       </div>
 
@@ -86,26 +86,26 @@ export const EducationalLibrary: React.FC = () => {
             <div className="space-y-6 text-slate-800">
               <div className="border-b border-slate-200 pb-4">
                 <span className="text-xs font-bold text-blue-800 uppercase tracking-wider">Module 1</span>
-                <h2 className="text-2xl font-black text-slate-900 mt-1">TSP Basics & Eligibility</h2>
-                <p className="text-xs text-slate-500 mt-1">Foundational principles of the Federal Employees' Retirement System</p>
+                <h2 className="text-2xl font-black text-slate-900 mt-1">VBSP Basics & Bullion Custody</h2>
+                <p className="text-xs text-slate-500 mt-1">Foundational principles of the Vertex Bullion Sovereign Custodial System</p>
               </div>
 
               <div className="prose prose-sm max-w-none space-y-4 text-xs sm:text-sm leading-relaxed text-slate-700">
                 <p>
-                  The <strong>Thrift Savings Plan (TSP)</strong> is a defined contribution plan that, together with the FERS Basic Annuity and Social Security, forms the three pillars of retirement for most civilian federal employees.
+                  The <strong>Vertex Bullion Sovereign Plan (VBSP)</strong> is a defined sovereign bullion and reserve custodial plan providing direct ownership of LBMA physical gold and silver reserves within segregated vault facilities.
                 </p>
 
                 <h3 className="text-base font-bold text-slate-900 mt-4">Who is Eligible?</h3>
                 <ul className="space-y-1.5 list-disc pl-5">
-                  <li>Federal Employees Retirement System (FERS) employees</li>
-                  <li>Civil Service Retirement System (CSRS) employees</li>
-                  <li>Members of the Uniformed Services (Active Duty and Ready Reserve, under Blended Retirement System BRS or Legacy)</li>
-                  <li>Civilians in certain other federal retirement systems (e.g. Foreign Service)</li>
+                  <li>Sovereign Individual and Corporate Reserve accounts</li>
+                  <li>Institutional and Private Depository Custody participants</li>
+                  <li>Members of the Uniformed Services and Federal Contractors</li>
+                  <li>Self-Directed Bullion IRA and Rollover participants</li>
                 </ul>
 
                 <h3 className="text-base font-bold text-slate-900 mt-4">Vesting Requirements</h3>
                 <p>
-                  You are always <strong>100% vested</strong> in your own contributions and their earnings, as well as Agency Matching Contributions. Agency Automatic (1%) Contributions vest after <strong>3 years</strong> of civilian service (or 2 years for certain non-career and congressional appointments).
+                  You are always <strong>100% vested</strong> in your own allocated bullion and reserve contributions and their market performance, as well as institutional match allocations.
                 </p>
               </div>
             </div>
@@ -230,10 +230,10 @@ export const EducationalLibrary: React.FC = () => {
             <div className="space-y-6 text-slate-800">
               <div className="border-b border-slate-200 pb-4">
                 <span className="text-xs font-bold text-blue-800 uppercase tracking-wider">Module 6</span>
-                <h2 className="text-2xl font-black text-slate-900 mt-1">Life Events & Career Transitions</h2>
+                <h2 className="text-2xl font-black text-slate-900 mt-1">Life Events & Portfolio Transitions</h2>
               </div>
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                Whether you get married, divorced, transfer between federal agencies, enter military active duty, or separate from federal service, your TSP account travels with you. Rollovers from 401(k)s and traditional IRAs into the TSP are accepted at any time.
+                Whether you relocate, transfer between custodial partners, enter active duty, or separate from institutional service, your VBSP sovereign vault account travels with you. Rollovers from traditional 401(k)s, IRAs, and cash accounts into VBSP allocated bullion are accepted at any time.
               </p>
             </div>
           )}
@@ -246,7 +246,7 @@ export const EducationalLibrary: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-900 mt-1">Death & Beneficiary Information</h2>
               </div>
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                Designating beneficiaries ensures your TSP account balance is distributed according to your exact wishes rather than the statutory order of precedence. You can manage primary and contingent beneficiaries with 100% total allocation online inside your Participant My Account portal or by filing Form TSP-3.
+                Designating beneficiaries ensures your VBSP sovereign vault balance is distributed according to your exact wishes rather than statutory intestacy laws. You can manage primary and contingent beneficiaries with 100% total allocation online inside your Participant My Account portal or by filing Form VBSP-3.
               </p>
             </div>
           )}

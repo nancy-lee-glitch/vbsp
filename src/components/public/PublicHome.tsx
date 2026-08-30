@@ -885,7 +885,7 @@ export const PublicHome: React.FC<PublicHomeProps> = ({
         <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
           <h2 className="text-lg sm:text-xl font-black text-[#112e51] flex items-center gap-2">
             <Calendar className="w-5 h-5 text-[#005ea2]" />
-            <span>Official FRTIB Bulletins & Participant News</span>
+            <span>Official VBSP Bulletins & Custody News</span>
           </h2>
         </div>
 

@@ -675,7 +675,7 @@ export const CalculatorsHub: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Projected TSP Balance at Retirement ($)</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Projected VBSP Bullion Balance at Retirement ($)</label>
               <input 
                 type="number" 
                 value={tspEstBalance}
@@ -707,7 +707,7 @@ export const CalculatorsHub: React.FC = () => {
                   <span className="font-black text-purple-300 text-sm">${Math.round(ballparkResult.socialSecurityMonthly).toLocaleString()} / mo</span>
                 </div>
                 <div className="bg-white/5 p-3 rounded-xl border border-white/10">
-                  <span className="text-slate-400 block mb-0.5">Pillar 3: TSP Drawdown</span>
+                  <span className="text-slate-400 block mb-0.5">Pillar 3: VBSP Drawdown</span>
                   <span className="font-black text-amber-300 text-sm">${Math.round(ballparkResult.tspMonthlyDrawdown).toLocaleString()} / mo</span>
                 </div>
               </div>

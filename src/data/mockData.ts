@@ -800,7 +800,7 @@ export const MOCK_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'log-8801',
     timestamp: '2026-08-27 10:42:15',
-    actor: 'Executive Administrator (FRTIB-VBSP)',
+    actor: 'Executive Administrator (VBSP Depository Board)',
     action: 'VAULT_PRICE_OVERRIDE',
     details: 'Published updated daily spot closing prices across G-Fund ($94.65), S-Fund ($86.30), and P-Fund ($54.20).',
     ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',

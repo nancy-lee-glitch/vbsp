@@ -21,10 +21,10 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
   const [messages, setMessages] = useState<ParticipantMessage[]>([
     {
       id: 'MSG-8821',
-      sender: 'ThriftLine Service Specialist (Sarah Jenkins)',
+      sender: 'VBSP Custody Specialist (Sarah Jenkins)',
       recipient: user.name,
       subject: 'Confirmation of 2026 Beneficiary Designation Update',
-      body: 'Dear Marcus Vance,\n\nThis message confirms that your electronic Form TSP-3 designation of beneficiaries submitted on August 20, 2026 has been processed and accepted into the FRTIB official record system.\n\nPrimary Beneficiaries:\n- Sarah Vance (Spouse) - 100%\n\nNo further paperwork or physical signatures are required at this time.\n\nSincerely,\nThriftLine Operations',
+      body: 'Dear Marcus Vance,\n\nThis message confirms that your electronic Form VBSP-3 designation of beneficiaries submitted on August 20, 2026 has been processed and accepted into the VBSP official depository record system.\n\nPrimary Beneficiaries:\n- Sarah Vance (Spouse) - 100%\n\nNo further paperwork or physical signatures are required at this time.\n\nSincerely,\nVBSP Bullion Operations',
       timestamp: '2026-08-20 14:22 EST',
       isRead: true,
       hasAttachments: false
@@ -79,7 +79,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
             <h2 className="text-xl font-black text-slate-900">Secure Participant Mailbox</h2>
           </div>
           <p className="text-xs text-slate-600">
-            End-to-end encrypted messaging with TSP federal retirement caseworkers and support staff.
+            End-to-end encrypted messaging with VBSP sovereign depository caseworkers and support staff.
           </p>
         </div>
 

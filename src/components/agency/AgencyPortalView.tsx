@@ -169,7 +169,7 @@ export const AgencyPortalView: React.FC = () => {
             {[
               { code: 'ABO-101', title: 'FERS Auto-Enrollment & 5% Default Contribution Onboarding', duration: '45 mins', status: 'Available' },
               { code: 'ABO-204', title: 'SECURE 2.0 Higher Catch-Up Rules for Participants Aged 60–63', duration: '60 mins', status: 'Available' },
-              { code: 'ABO-302', title: 'Military Service Credit & USERRA TSP Make-Up Contributions', duration: '90 mins', status: 'Available' },
+              { code: 'ABO-302', title: 'Military Service Credit & USERRA VBSP Make-Up Contributions', duration: '90 mins', status: 'Available' },
             ].map((m) => (
               <div key={m.code} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                 <div>

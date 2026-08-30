@@ -82,8 +82,8 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
               <DollarSign className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-black text-sm text-white">TSP Loan Application</h2>
-              <p className="text-[11px] text-slate-300">Borrow Against Your Own TSP Account</p>
+              <h2 className="font-black text-sm text-white">VBSP Loan Application</h2>
+              <p className="text-[11px] text-slate-300">Borrow Against Your Own VBSP Account</p>
             </div>
           </div>
           <button 
@@ -194,7 +194,7 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-800">
-                  Loan principal and interest are paid directly back into your own TSP account. $50 loan fee is deducted from disbursement.
+                  Loan principal and interest are paid directly back into your own VBSP account. $50 loan fee is deducted from disbursement.
                 </div>
               </div>
 

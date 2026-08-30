@@ -33,10 +33,10 @@ export const FundPerformanceView: React.FC<FundPerformanceViewProps> = ({ funds 
           <span>OFFICIAL RATES OF RETURN & SHARE PRICES</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-          TSP Investment Funds & Performance
+          VBSP Bullion Funds & Custodial Performance
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-          The TSP offers five individual core funds covering government securities, bonds, large-cap equities, small-cap equities, and international stocks, alongside professionally managed Lifecycle (L) Funds. All funds feature net administrative expense ratios among the lowest in the world (avg 0.048%).
+          The VBSP offers five individual sovereign core bullion and security funds covering LBMA allocated gold, silver reserves, sovereign liquidity, precious metals indexes, and mining reserves, alongside Lifecycle (L) Target-Date Funds. All funds feature 100% audited physical backing and ultra-low custodial fees.
         </p>
       </div>
 

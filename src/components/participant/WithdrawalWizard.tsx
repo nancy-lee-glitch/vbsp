@@ -40,7 +40,7 @@ export const WithdrawalWizard: React.FC<WithdrawalWizardProps> = ({
     if (!eSignature.trim()) return;
 
     const netAmount = amount * (1 - taxWithholdingPercent / 100);
-    const msg = `Withdrawal request for $${amount.toLocaleString()} (${withdrawalType.replace('_', ' ')}) has been submitted. Net disbursement after ${taxWithholdingPercent}% tax withholding: $${netAmount.toLocaleString()}. Confirmation #TSP-WDL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const msg = `Withdrawal request for $${amount.toLocaleString()} (${withdrawalType.replace('_', ' ')}) has been submitted. Net disbursement after ${taxWithholdingPercent}% tax withholding: $${netAmount.toLocaleString()}. Confirmation #VBSP-WDL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
     onWithdrawalSubmitted(amount, withdrawalType, msg);
     onClose();

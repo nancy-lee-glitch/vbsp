@@ -14,8 +14,17 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="/manifest.json" />
   </head>
-  <body class="bg-[#f4f6f8] text-slate-900 antialiased selection:bg-[#0f2942] selection:text-white">
-    <div id="root"></div>
+  <body class="bg-[#071322] text-slate-900 antialiased selection:bg-[#0f2942] selection:text-white">
+    <div id="root">
+      <div id="initial-boot-loader" style="position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #071322; color: #f2a900; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 1.5rem; z-index: 99999;">
+        <div style="width: 56px; height: 56px; border: 3px solid rgba(242, 169, 0, 0.2); border-top-color: #f2a900; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1.25rem;"></div>
+        <div style="font-size: 1.1rem; font-weight: 800; letter-spacing: 0.05em; color: #ffffff; margin-bottom: 0.35rem;">VERTEX BULLION SOVEREIGN PLAN</div>
+        <div style="font-size: 0.75rem; color: #94a3b8; letter-spacing: 0.02em; font-family: monospace;">ALLOCATED VAULT SECURITY ENCLAVE • INITIALIZING</div>
+        <style>
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
     <noscript>
       <div style="padding: 2rem; font-family: system-ui, sans-serif; text-align: center; background: #0f2942; color: #fff;">

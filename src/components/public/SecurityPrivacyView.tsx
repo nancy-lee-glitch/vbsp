@@ -17,13 +17,13 @@ export const SecurityPrivacyView: React.FC = () => {
       <div className="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md border border-slate-800">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-800 text-emerald-200 rounded-md text-xs font-bold mb-3">
           <Shield className="w-3.5 h-3.5 text-emerald-300" />
-          <span>FEDERAL SECURITY, PRIVACY & ACCESSIBILITY COMPLIANCE</span>
+          <span>SOVEREIGN SECURITY, VAULT INTEGRITY & PRIVACY COMPLIANCE</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-          How We Protect Your TSP Account Data
+          How We Protect Your VBSP Bullion Account & Vault Reserves
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-          The Federal Retirement Thrift Investment Board implements multi-layered cybersecurity defense, strict Privacy Act protections, 256-bit encryption, and full Section 508 accessibility compliance.
+          The Vertex Bullion Sovereign Plan implements multi-layered cybersecurity defense, strict Privacy Act protections, 256-bit encryption, physical LBMA vault bar auditing, and full Section 508 accessibility compliance.
         </p>
       </div>
 

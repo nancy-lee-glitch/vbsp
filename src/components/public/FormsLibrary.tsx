@@ -29,19 +29,19 @@ export const FormsLibrary: React.FC = () => {
   });
 
   const handleDownloadSample = (doc: TSPDocument) => {
-    const sampleText = `OFFICIAL FEDERAL THRIFT SAVINGS PLAN DOCUMENT
+    const sampleText = `VERTEX BULLION SOVEREIGN PLAN (VBSP) OFFICIAL CUSTODIAL DOCUMENT
 Document ID: ${doc.id}
 Title: ${doc.title}
 Form Number: ${doc.formNumber || 'N/A'}
 Category: ${doc.category}
 Revision Date: ${doc.lastUpdated}
-Federal Retirement Thrift Investment Board (FRTIB)
+Vertex Bullion Sovereign Plan Depository Authority (VBSP)
 
 =======================================================
 INSTRUCTIONS & GENERAL INFORMATION
 ${doc.description}
 
-This official sample document has been verified compliant with 2026 federal regulations under 5 CFR Part 1600.
+This official custodial document has been verified compliant with 2026 bullion depository governance.
 For live electronic submissions, log into your Participant My Account portal.
 =======================================================`;
 
@@ -49,7 +49,7 @@ For live electronic submissions, log into your Participant My Account portal.
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${doc.formNumber || 'TSP_Document'}_${doc.id}.txt`;
+    a.download = `${doc.formNumber || 'VBSP_Document'}_${doc.id}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -79,7 +79,7 @@ For live electronic submissions, log into your Participant My Account portal.
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by form number (e.g. TSP-3) or title..."
+            placeholder="Search by form number (e.g. VBSP-3) or title..."
             className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-800 focus:bg-white"
           />
         </div>
