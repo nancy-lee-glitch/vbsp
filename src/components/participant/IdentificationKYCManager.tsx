@@ -107,64 +107,76 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
     e.preventDefault();
     if (!activeUploadType) return;
 
-    setIsProcessing(true);
+    const currentUploadType = activeUploadType;
+    const currentTitle = uploadTitle || 'Identification Document';
+    const currentFileName = selectedFile?.name || `${currentUploadType}_scan.pdf`;
 
-    setTimeout(() => {
-      const newDoc: IdentificationDocument = {
-        id: `doc-${Date.now()}`,
-        type: activeUploadType,
-        title: uploadTitle || 'Identification Document',
-        documentNumberMasked: docNumber ? (docNumber.length > 4 ? `••••${docNumber.slice(-4)}` : docNumber) : undefined,
-        issuingAuthority: issuingAuth || 'Government Authority',
-        expirationDate: expDate || undefined,
-        fileName: selectedFile?.name || `${activeUploadType}_scan.pdf`,
-        fileSize: selectedFile?.size || '1.85 MB',
-        fileDataUrl: selectedFile?.dataUrl,
-        uploadedAt: new Date().toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        status: 'Pending Review',
-        notes: 'Submitted for Depository Vault Compliance & Assay Verification.'
-      };
+    const newDoc: IdentificationDocument = {
+      id: `doc-${Date.now()}`,
+      type: currentUploadType,
+      title: currentTitle,
+      documentNumberMasked: docNumber ? (docNumber.length > 4 ? `••••${docNumber.slice(-4)}` : docNumber) : undefined,
+      issuingAuthority: issuingAuth || 'Government Authority',
+      expirationDate: expDate || undefined,
+      fileName: currentFileName,
+      fileSize: selectedFile?.size || '1.85 MB',
+      fileDataUrl: selectedFile?.dataUrl,
+      uploadedAt: new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      status: 'Pending Review',
+      notes: 'Submitted for Depository Vault Compliance & Assay Verification.'
+    };
 
-      const updatedProfile: KYCVerificationProfile = { ...kycProfile };
+    const updatedProfile: KYCVerificationProfile = { ...kycProfile };
 
-      if (activeUploadType === 'ssn_card') {
-        updatedProfile.ssnDocument = newDoc;
-        if (docNumber) {
-          updatedProfile.ssnMasked = `***-**-${docNumber.slice(-4)}`;
-        }
-      } else if (activeUploadType === 'driver_license_front') {
-        updatedProfile.driverLicenseFront = newDoc;
-      } else if (activeUploadType === 'driver_license_back') {
-        updatedProfile.driverLicenseBack = newDoc;
-      } else if (activeUploadType === 'passport') {
-        updatedProfile.passportDocument = newDoc;
-      } else if (activeUploadType === 'proof_of_address') {
-        updatedProfile.proofOfAddressDocument = newDoc;
-      } else {
-        updatedProfile.additionalDocuments = [newDoc, ...(updatedProfile.additionalDocuments || [])];
+    if (currentUploadType === 'ssn_card') {
+      updatedProfile.ssnDocument = newDoc;
+      if (docNumber) {
+        updatedProfile.ssnMasked = `***-**-${docNumber.slice(-4)}`;
       }
+    } else if (currentUploadType === 'driver_license_front') {
+      updatedProfile.driverLicenseFront = newDoc;
+    } else if (currentUploadType === 'driver_license_back') {
+      updatedProfile.driverLicenseBack = newDoc;
+    } else if (currentUploadType === 'passport') {
+      updatedProfile.passportDocument = newDoc;
+    } else if (currentUploadType === 'proof_of_address') {
+      updatedProfile.proofOfAddressDocument = newDoc;
+    } else {
+      updatedProfile.additionalDocuments = [newDoc, ...(updatedProfile.additionalDocuments || [])];
+    }
 
-      if (updatedProfile.overallStatus !== 'Verified (Tier 1 Allocated)') {
-        updatedProfile.overallStatus = 'Pending Review';
-      }
+    if (updatedProfile.overallStatus !== 'Verified (Tier 1 Allocated)') {
+      updatedProfile.overallStatus = 'Pending Review';
+    }
 
-      const updatedUser: UserAccount = {
-        ...user,
-        kycProfile: updatedProfile
-      };
+    const updatedUser: UserAccount = {
+      ...user,
+      kycProfile: updatedProfile
+    };
 
-      onUpdateUser(updatedUser, `Identification document "${uploadTitle}" has been uploaded and queued for Super Admin compliance review. Status updated to "Pending Review".`);
-      setIsProcessing(false);
-      setActiveUploadType(null);
-      setNotification(`Document "${uploadTitle}" uploaded successfully.`);
-      setTimeout(() => setNotification(''), 6000);
-    }, 900);
+    // Close upload modal immediately
+    setActiveUploadType(null);
+    setSelectedFile(null);
+    setDocNumber('');
+    setIssuingAuth('');
+    setExpDate('');
+    setIsProcessing(false);
+
+    // Notify user that document is Under Review
+    onUpdateUser(
+      updatedUser, 
+      `Document "${currentTitle}" (${currentFileName}) uploaded successfully and is now Under Review by compliance.`
+    );
+    setNotification(
+      `Document "${currentTitle}" has been uploaded successfully and is now Under Review. Compliance verification typically takes 1-2 business days.`
+    );
+    setTimeout(() => setNotification(''), 9000);
   };
 
   const getStatusBadge = (status: IdentificationDocument['status']) => {
@@ -229,11 +241,30 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
         </div>
       </div>
 
-      {/* Notification */}
+      {/* Notification Banner */}
       {notification && (
-        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-900 flex items-center gap-2 font-semibold animate-in fade-in">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-          <span>{notification}</span>
+        <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-950 flex items-center justify-between gap-3 font-semibold shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-200 text-amber-900 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded-md text-[10px] font-black uppercase tracking-wider">
+                  Document Under Review
+                </span>
+                <span className="text-[11px] text-amber-800 font-bold">Depository Compliance Queue</span>
+              </div>
+              <p className="text-xs text-amber-900 font-medium">{notification}</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setNotification('')}
+            className="text-amber-800 hover:text-amber-950 p-1.5 rounded-lg hover:bg-amber-200/60 transition-colors cursor-pointer shrink-0"
+            aria-label="Dismiss notification"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

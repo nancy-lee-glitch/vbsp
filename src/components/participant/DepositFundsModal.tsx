@@ -111,7 +111,8 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
       senderAccountOrWallet: senderIdentifier || undefined
     };
 
-    const msg = `Deposit request for $${depositAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} via ${selectedMethod.name} to ${selectedFundCode}-Fund submitted with status PENDING. Super Admin depository sign-off required before ledger balance is credited. Confirmation #${newTx.id}`;
+    const receiptInfo = uploadedReceiptName ? ` (Receipt: "${uploadedReceiptName}")` : '';
+    const msg = `Deposit request for $${depositAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}${receiptInfo} via ${selectedMethod.name} to ${selectedFundCode}-Fund submitted successfully. Your deposit and documentation are now Under Review by depository vault compliance. Confirmation #${newTx.id}`;
 
     setTimeout(() => {
       setIsSubmitting(false);
