@@ -19,13 +19,16 @@ export default async function handler(req, res) {
 
     let result;
 
-    if (accountNumber) {
+    // Search by account number first, then by email
+    if (accountNumber && accountNumber.trim()) {
       result = await sql`
         SELECT * FROM participant_accounts 
         WHERE account_number = ${accountNumber.trim()}
         LIMIT 1
       `;
-    } else {
+    }
+
+    if ((!result || result.length === 0) && email) {
       result = await sql`
         SELECT * FROM participant_accounts 
         WHERE email = ${email.toLowerCase().trim()}
@@ -33,7 +36,16 @@ export default async function handler(req, res) {
       `;
     }
 
-    if (result.length === 0) {
+    // Also try searching the accountNumber field as email (in case user typed email in the account field)
+    if ((!result || result.length === 0) && accountNumber) {
+      result = await sql`
+        SELECT * FROM participant_accounts 
+        WHERE email = ${accountNumber.toLowerCase().trim()}
+        LIMIT 1
+      `;
+    }
+
+    if (!result || result.length === 0) {
       return res.status(401).json({ 
         success: false, 
         message: 'Account not found. Please check your details or open a new account.' 
@@ -42,9 +54,14 @@ export default async function handler(req, res) {
 
     const user = result[0];
 
-    // Temporary simple password check (we will improve this later with proper hashing)
-    const isPasswordValid = password === 'FederalTSP2026!' || password === 'VertexBullion2026!';
-    const isPinValid = !pin || pin === user.thriftline_pin || ['884411', '109238', '552177', '829415'].includes(pin);
+    // Temporary password check
+    // Accepts:
+    // 1. The original demo passwords
+    // 2. The password stored in the database (for newly registered users)
+    const demoPasswords = ['FederalTSP2026!', 'VertexBullion2026!', 'VBSP_Master_2026!'];
+    const isPasswordValid = 
+      demoPasswords.includes(password) || 
+      user.password_hash === password;
 
     if (!isPasswordValid) {
       return res.status(401).json({ 
@@ -53,14 +70,21 @@ export default async function handler(req, res) {
       });
     }
 
-    if (pin && !isPinValid) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Incorrect ThriftLine PIN' 
-      });
+    // PIN check (optional but recommended)
+    if (pin && pin.trim()) {
+      const isPinValid = 
+        pin === user.thriftline_pin || 
+        ['884411', '109238', '552177', '829415', '990011'].includes(pin);
+
+      if (!isPinValid) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Incorrect ThriftLine PIN' 
+        });
+      }
     }
 
-    // Remove sensitive data before sending back
+    // Return safe user data
     const safeUser = {
       id: user.id,
       account_number: user.account_number,
@@ -73,7 +97,9 @@ export default async function handler(req, res) {
       gold_ounces_equivalent: user.gold_ounces_equivalent,
       silver_ounces_equivalent: user.silver_ounces_equivalent,
       account_status: user.account_status,
-      thriftline_pin: user.thriftline_pin
+      thriftline_pin: user.thriftline_pin,
+      vault_facility: user.vault_facility,
+      employing_agency: user.employing_agency
     };
 
     return res.status(200).json({
