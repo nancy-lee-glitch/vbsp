@@ -113,18 +113,60 @@ export default function App() {
   };
 
   // Participant Accounts Registry State (Full CRUD managed by Admin & Self-Service)
-  const [users, setUsers] = useState<UserAccount[]>(() => {
-    const saved = localStorage.getItem('vbsp_users_registry');
-    if (saved) {
+   const [users, setUsers] = useState<UserAccount[]>([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+
+  // Load real participants from the database
+  useEffect(() => {
+    async function loadParticipants() {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing stored users', e);
+        const response = await fetch('/api/admin/participants');
+        const data = await response.json();
+
+        if (data.success && data.participants) {
+          const mappedUsers: UserAccount[] = data.participants.map((p: any) => ({
+            id: String(p.id),
+            name: p.full_name || 'Participant',
+            email: p.email || '',
+            accountNumber: p.account_number || '',
+            thriftlinePin: p.thriftline_pin || '',
+            phone: '',
+            address: '',
+            employingAgency: '',
+            planType: p.account_type || 'VBSP Standard Account (Taxable Reserve)',
+            hireDate: p.created_at ? p.created_at.split('T')[0] : '',
+            totalBalance: Number(p.total_balance || 0),
+            traditionalBalance: Number(p.traditional_balance || 0),
+            rothBalance: Number(p.roth_balance || 0),
+            ytdReturn: 0,
+            vaultDepositaryLocation: '',
+            goldOuncesEquivalent: Number(p.gold_ounces_equivalent || 0),
+            silverOuncesEquivalent: Number(p.silver_ounces_equivalent || 0),
+            ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
+            contributionAllocations: {},
+            currentHoldings: [],
+            beneficiaries: [],
+            activeLoans: [],
+            transactions: [],
+            kycProfile: {
+              overallStatus: 'Pending Review',
+              riskTier: 'Tier 1 Individual',
+              ssnMasked: '***-**-****',
+              additionalDocuments: []
+            }
+          }));
+
+          setUsers(mappedUsers);
+        }
+      } catch (error) {
+        console.error('Failed to load participants:', error);
+      } finally {
+        setUsersLoaded(true);
       }
     }
-    return MOCK_USERS;
-  });
 
+    loadParticipants();
+  }, []);
   // Admin Auth State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('vbsp_admin_logged_in') === 'true';
