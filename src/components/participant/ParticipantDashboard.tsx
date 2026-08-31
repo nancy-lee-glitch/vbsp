@@ -42,9 +42,10 @@ import { ParticipantMailbox } from './ParticipantMailbox';
 import { TransactionHistory } from './TransactionHistory';
 import { DocumentsCenter } from './DocumentsCenter';
 import { BankingContactSettings } from './BankingContactSettings';
-import { IdentificationKYCManager } from './IdentificationKYCManager';
+// import { IdentificationKYCManager } from './IdentificationKYCManager';
 import { DepositFundsModal } from './DepositFundsModal';
 import { KYCPopupReminder } from './KYCPopupReminder';
+import { SimpleKYCUpload } from './SimpleKYCUpload';
 
 interface ParticipantDashboardProps {
   user: UserAccount;
@@ -633,11 +634,8 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         />
       )}
 
-      {activeSubView === 'kyc' && (
-        <IdentificationKYCManager 
-          user={user} 
-          onUpdateUser={handleAllocationUpdate} 
-        />
+     {activeSubView === 'kyc' && (
+        <SimpleKYCUpload user={user} />
       )}
 
       {activeSubView === 'documents' && (
