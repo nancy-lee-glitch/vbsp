@@ -348,28 +348,53 @@ export default function App() {
     localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
   };
 
-  const handleUpdateUser = (updated: UserAccount) => {
-    const updatedList = users.map(u => u.id === updated.id ? updated : u);
-    setUsers(updatedList);
-    localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+   const handleUpdateUser = async (updatedUser: UserAccount) => {
+    try {
+      const response = await fetch('/api/admin/participants', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: updatedUser.id,
+          total_balance: updatedUser.totalBalance,
+          traditional_balance: updatedUser.traditionalBalance,
+          roth_balance: updatedUser.rothBalance,
+          full_name: updatedUser.name,
+          account_status: 'ACTIVE',
+        }),
+      });
 
-    if (currentUser?.id === updated.id) {
-      setCurrentUser(updated);
-      localStorage.setItem('vbsp_participant_session', JSON.stringify(updated));
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+      } else {
+        alert(data.message || 'Failed to update participant');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      alert('Unable to update participant. Please try again.');
     }
   };
 
-  const handleDeleteUser = (userId: string) => {
-    const updatedList = users.filter(u => u.id !== userId);
-    setUsers(updatedList);
-    localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+    const handleDeleteUser = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/admin/participants?id=${userId}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
 
-    if (currentUser?.id === userId) {
-      setCurrentUser(null);
-      localStorage.removeItem('vbsp_participant_session');
+      if (data.success) {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        alert(data.message || 'Failed to delete participant');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Unable to delete participant. Please try again.');
     }
   };
-
   const handleImpersonateUser = (user: UserAccount) => {
     setCurrentUser(user);
     localStorage.setItem('vbsp_participant_session', JSON.stringify(user));
