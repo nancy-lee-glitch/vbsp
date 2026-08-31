@@ -40,17 +40,33 @@ export default function App() {
   const [isPreloaderActive, setIsPreloaderActive] = useState<boolean>(true);
 
   // Site Branding & Custom Name/Logo State
-  const [branding, setBranding] = useState<SiteBrandingSettings>(() => {
-    const saved = localStorage.getItem('vbsp_branding_settings');
-    if (saved) {
+   const [branding, setBranding] = useState<SiteBrandingSettings>(DEFAULT_SITE_BRANDING);
+  const [brandingLoaded, setBrandingLoaded] = useState(false);
+
+  // Load branding from database when the app starts
+  useEffect(() => {
+    async function loadBranding() {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing stored branding settings', e);
+        const response = await fetch('/api/branding');
+        const data = await response.json();
+        if (data.success && data.branding) {
+          setBranding({
+            siteName: data.branding.siteName || DEFAULT_SITE_BRANDING.siteName,
+            siteSubtitle: data.branding.slogan || DEFAULT_SITE_BRANDING.siteSubtitle,
+            logoUrl: data.branding.logoUrl || null,
+            supportPhone: data.branding.supportPhone || DEFAULT_SITE_BRANDING.supportPhone,
+            supportEmail: data.branding.supportEmail || DEFAULT_SITE_BRANDING.supportEmail,
+            footerText: data.branding.footerText || DEFAULT_SITE_BRANDING.footerText,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load branding:', error);
+      } finally {
+        setBrandingLoaded(true);
       }
     }
-    return DEFAULT_SITE_BRANDING;
-  });
+    loadBranding();
+  }, []);
 
   // Admin Email Dispatch Log State
   const [emailDispatches, setEmailDispatches] = useState<AdminEmailDispatch[]>(() => {
@@ -229,10 +245,28 @@ export default function App() {
   };
 
   // Branding Settings Handler
-  const handleUpdateBranding = (updated: SiteBrandingSettings) => {
+    const handleUpdateBranding = async (updated: SiteBrandingSettings) => {
     setBranding(updated);
-    localStorage.setItem('vbsp_branding_settings', JSON.stringify(updated));
-    document.title = `${updated.siteName} | ${updated.siteSubtitle}`;
+    document.title = `${updated.siteName} | ${updated.siteSubtitle || ''}`;
+
+    try {
+      await fetch('/api/branding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          siteName: updated.siteName,
+          slogan: updated.siteSubtitle || '',
+          logoUrl: updated.logoUrl || '',
+          supportPhone: updated.supportPhone || '',
+          supportEmail: updated.supportEmail || '',
+          footerText: updated.footerText || '',
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to save branding:', error);
+    }
   };
 
   // Admin Email Dispatch Handler
