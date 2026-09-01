@@ -105,6 +105,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   // New Participant Form State
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserPhone, setNewUserPhone] = useState('+1 (202) 555-0199');
   const [newUserAddress, setNewUserAddress] = useState('1000 Pennsylvania Ave NW, Washington, DC 20004');
   const [newUserAgency, setNewUserAgency] = useState('Department of the Treasury / Federal Reserve Custody');
@@ -204,102 +205,82 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   };
 
   // Create New Participant
-  const handleCreateParticipant = (e: React.FormEvent) => {
+    const handleCreateParticipant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserName.trim() || !newUserEmail.trim()) return;
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) {
+      alert('Please fill in Full Name, Email and Password.');
+      return;
+    }
 
-    const gPrice = funds.find(f => f.code === 'G')?.currentSharePrice || 94.65;
-    const sPrice = funds.find(f => f.code === 'S')?.currentSharePrice || 86.30;
-    const pPrice = funds.find(f => f.code === 'P')?.currentSharePrice || 54.20;
-    const tPrice = funds.find(f => f.code === 'T')?.currentSharePrice || 19.42;
-    const mPrice = funds.find(f => f.code === 'M')?.currentSharePrice || 42.10;
+    try {
+      const response = await fetch('/api/admin/participants', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: newUserName.trim(),
+          email: newUserEmail.trim(),
+          password: newUserPassword.trim(),
+          accountType: newUserPlanType,
+          totalBalance: newUserDeposit,
+          thriftlinePin: newUserPin,
+        }),
+      });
 
-    const totalAlloc = allocG + allocS + allocP + allocT + allocM;
-    const normG = totalAlloc > 0 ? (allocG / totalAlloc) : 0.5;
-    const normS = totalAlloc > 0 ? (allocS / totalAlloc) : 0.3;
-    const normP = totalAlloc > 0 ? (allocP / totalAlloc) : 0.1;
-    const normT = totalAlloc > 0 ? (allocT / totalAlloc) : 0.1;
-    const normM = totalAlloc > 0 ? (allocM / totalAlloc) : 0.0;
+      const data = await response.json();
 
-    const gBal = newUserDeposit * normG;
-    const sBal = newUserDeposit * normS;
-    const pBal = newUserDeposit * normP;
-    const tBal = newUserDeposit * normT;
-    const mBal = newUserDeposit * normM;
+      if (data.success && data.participant) {
+        const p = data.participant;
 
-    const goldOunces = Number((gBal / 2650).toFixed(4));
-    const silverOunces = Number((sBal / 31.5).toFixed(2));
+        const newUser: UserAccount = {
+          id: String(p.id),
+          name: p.full_name || newUserName,
+          email: p.email || newUserEmail,
+          accountNumber: p.account_number,
+          thriftlinePin: p.thriftline_pin || newUserPin,
+          phone: newUserPhone,
+          address: newUserAddress,
+          employingAgency: newUserAgency,
+          planType: p.account_type || newUserPlanType,
+          hireDate: new Date().toISOString().split('T')[0],
+          totalBalance: Number(p.total_balance || newUserDeposit),
+          traditionalBalance: Number((Number(p.total_balance || newUserDeposit) * 0.7).toFixed(2)),
+          rothBalance: Number((Number(p.total_balance || newUserDeposit) * 0.3).toFixed(2)),
+          ytdReturn: 0,
+          vaultDepositaryLocation: newUserVault,
+          goldOuncesEquivalent: 0,
+          silverOuncesEquivalent: 0,
+          ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
+          contributionAllocations: { 'G': allocG, 'S': allocS, 'P': allocP, 'T': allocT, 'M': allocM },
+          currentHoldings: [],
+          beneficiaries: [],
+          activeLoans: [],
+          transactions: [],
+          kycProfile: {
+            overallStatus: 'Pending Review',
+            riskTier: 'Tier 1 Individual',
+            ssnMasked: '***-**-****',
+            additionalDocuments: []
+          }
+        };
 
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const generatedAccountNum = `VBSP-${Math.floor(1000 + Math.random() * 9000)}-${randomSuffix}-${Math.floor(10 + Math.random() * 89)}`;
+        onCreateUser(newUser);
+        setSelectedParticipant(newUser);
+        setIsCreateModalOpen(false);
+        setNewUserPassword('');
 
-    const newUser: UserAccount = {
-      id: `usr_vbsp_${Date.now()}`,
-      name: newUserName,
-      email: newUserEmail,
-      accountNumber: generatedAccountNum,
-      thriftlinePin: newUserPin,
-      employingAgency: newUserAgency,
-      planType: newUserPlanType,
-      hireDate: new Date().toISOString().split('T')[0],
-      totalBalance: newUserDeposit,
-      traditionalBalance: Number((newUserDeposit * 0.70).toFixed(2)),
-      rothBalance: Number((newUserDeposit * 0.30).toFixed(2)),
-      ytdReturn: 18.5,
-      vaultDepositaryLocation: newUserVault,
-      goldOuncesEquivalent: goldOunces,
-      silverOuncesEquivalent: silverOunces,
-      phone: newUserPhone,
-      address: newUserAddress,
-      ytdContributions: {
-        employee: Number((newUserDeposit * 0.2).toFixed(2)),
-        agencyMatch: Number((newUserDeposit * 0.05).toFixed(2)),
-        agencyAutomatic: Number((newUserDeposit * 0.01).toFixed(2))
-      },
-      contributionAllocations: {
-        'G': allocG,
-        'S': allocS,
-        'P': allocP,
-        'T': allocT,
-        'M': allocM
-      },
-      currentHoldings: [
-        { fundCode: 'G', shares: Number((gBal / gPrice).toFixed(2)), sharePrice: gPrice, balance: Number(gBal.toFixed(2)), percentage: Math.round(normG * 100), metalWeight: `${goldOunces} oz Fine Gold` },
-        { fundCode: 'S', shares: Number((sBal / sPrice).toFixed(2)), sharePrice: sPrice, balance: Number(sBal.toFixed(2)), percentage: Math.round(normS * 100), metalWeight: `${silverOunces} oz Pure Silver` },
-        { fundCode: 'T', shares: Number((tBal / tPrice).toFixed(2)), sharePrice: tPrice, balance: Number(tBal.toFixed(2)), percentage: Math.round(normT * 100), metalWeight: 'Sovereign Liquidity' }
-      ],
-      beneficiaries: [
-        {
-          id: `ben-${Date.now()}`,
-          type: 'Primary',
-          name: `${newUserName} Primary Estate Trust`,
-          relationship: 'Family Trust',
-          sharePercentage: 100
-        }
-      ],
-      activeLoans: []
-    };
-
-    onCreateUser(newUser);
-    setSelectedParticipant(newUser);
-    setIsCreateModalOpen(false);
-
-    // Audit log
-    const newLog: AuditLogEntry = {
-      id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-      actor: 'Executive Administrator (VBSP-Board)',
-      action: 'PARTICIPANT_REGISTERED',
-      details: `Registered new participant: ${newUser.name} (${newUser.accountNumber}) under ${newUser.planType}. Initial vault balance: $${newUser.totalBalance.toLocaleString()}.`,
-      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
-      status: 'Success'
-    };
-    setAuditLogs([newLog, ...auditLogs]);
-
-    setParticipantFeedbackMsg(`Participant "${newUser.name}" successfully created with account #${newUser.accountNumber}.`);
-    setTimeout(() => setParticipantFeedbackMsg(''), 6000);
+        setParticipantFeedbackMsg(`Participant "${newUser.name}" created successfully. Account #${newUser.accountNumber}`);
+        setTimeout(() => setParticipantFeedbackMsg(''), 6000);
+      } else {
+        alert(data.message || 'Failed to create participant');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Unable to create participant. Please try again.');
+    }
   };
-
+  
   // Open Edit Participant Modal
   const handleOpenEditModal = (user: UserAccount) => {
     setSelectedParticipant(user);
@@ -1180,6 +1161,18 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 font-semibold"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Password *</label>
+                <input 
+                  type="password" 
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                  required
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 font-semibold"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
