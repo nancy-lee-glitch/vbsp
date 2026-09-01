@@ -129,6 +129,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [kycParticipant, setKycParticipant] = useState<UserAccount | null>(null);
   const [kycSelectedStatus, setKycSelectedStatus] = useState<string>('Verified (Tier 1 Allocated)');
   const [kycAuditNotes, setKycAuditNotes] = useState<string>('Documents verified against federal and state records.');
+  const [kycDocuments, setKycDocuments] = useState<any[]>([]);
+  const [kycLoading, setKycLoading] = useState(false);
 
   // CMS Announcements State
   const [announcements, setAnnouncements] = useState(MOCK_ANNOUNCEMENTS);
@@ -330,15 +332,26 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   };
 
   // Save KYC Status
-  const handleSaveKycStatus = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!kycParticipant) return;
+   const handleOpenKycModal = async (user: UserAccount) => {
+    setKycParticipant(user);
+    setKycSelectedStatus(user.kycProfile?.overallStatus || 'Pending Review');
+    setKycAuditNotes('');
+    setIsKycModalOpen(true);
+    setKycLoading(true);
+    setKycDocuments([]);
 
-    const currentKyc = kycParticipant.kycProfile || {
-      overallStatus: kycSelectedStatus as any,
-      verifiedDate: new Date().toISOString().split('T')[0],
-      riskTier: 'Tier 1 Individual'
-    };
+    try {
+      const res = await fetch(`/api/kyc?participantId=${user.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setKycDocuments(data.documents || []);
+      }
+    } catch (err) {
+      console.error('Failed to load KYC documents', err);
+    } finally {
+      setKycLoading(false);
+    }
+  };
 
     const updatedKyc = {
       ...currentKyc,
