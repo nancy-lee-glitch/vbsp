@@ -332,42 +332,88 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   };
 
   // Save KYC Status
-   const handleOpenKycModal = async (user: UserAccount) => {
-    setKycParticipant(user);
-    setKycSelectedStatus(user.kycProfile?.overallStatus || 'Pending Review');
-    setKycAuditNotes('');
-    setIsKycModalOpen(true);
-    setKycLoading(true);
-    setKycDocuments([]);
+  //  const handleOpenKycModal = async (user: UserAccount) => {
+  //   setKycParticipant(user);
+  //   setKycSelectedStatus(user.kycProfile?.overallStatus || 'Pending Review');
+  //   setKycAuditNotes('');
+  //   setIsKycModalOpen(true);
+  //   setKycLoading(true);
+  //   setKycDocuments([]);
+
+  //   try {
+  //     const res = await fetch(`/api/kyc?participantId=${user.id}`);
+  //     const data = await res.json();
+  //     if (data.success) {
+  //       setKycDocuments(data.documents || []);
+  //     }
+  //   } catch (err) {
+  //     console.error('Failed to load KYC documents', err);
+  //   } finally {
+  //     setKycLoading(false);
+  //   }
+  // };
+
+  //   const updatedKyc = {
+  //     ...currentKyc,
+  //     overallStatus: kycSelectedStatus as any,
+  //     verifiedDate: new Date().toISOString().split('T')[0]
+  //   };
+
+  //   const updatedUser: UserAccount = {
+  //     ...kycParticipant,
+  //     kycProfile: updatedKyc
+  //   };
+
+  //   onUpdateUser(updatedUser);
+  //   setKycParticipant(updatedUser);
+  //   setIsKycModalOpen(false);
+
+    const handleSaveKycStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kycParticipant) return;
 
     try {
-      const res = await fetch(`/api/kyc?participantId=${user.id}`);
-      const data = await res.json();
-      if (data.success) {
-        setKycDocuments(data.documents || []);
+      // Update every document status for this participant
+      for (const doc of kycDocuments) {
+        await fetch('/api/kyc', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId: doc.id,
+            status: kycSelectedStatus,
+            adminNotes: kycAuditNotes,
+            reviewedBy: 'Admin'
+          })
+        });
       }
+
+      // Also update the user object in the list
+      const updatedUser: UserAccount = {
+        ...kycParticipant,
+        kycProfile: {
+          ...(kycParticipant.kycProfile || {
+            overallStatus: kycSelectedStatus,
+            riskTier: 'Tier 1 Individual',
+            ssnMasked: '***-**-****',
+            additionalDocuments: []
+          }),
+          overallStatus: kycSelectedStatus as any
+        }
+      };
+
+      onUpdateUser(updatedUser);
+      setKycParticipant(updatedUser);
+      setIsKycModalOpen(false);
+
+      setParticipantFeedbackMsg(`KYC status updated for ${updatedUser.name}`);
+      setTimeout(() => setParticipantFeedbackMsg(''), 5000);
     } catch (err) {
-      console.error('Failed to load KYC documents', err);
-    } finally {
-      setKycLoading(false);
+      console.error(err);
+      alert('Failed to update KYC status');
     }
   };
 
-    const updatedKyc = {
-      ...currentKyc,
-      overallStatus: kycSelectedStatus as any,
-      verifiedDate: new Date().toISOString().split('T')[0]
-    };
-
-    const updatedUser: UserAccount = {
-      ...kycParticipant,
-      kycProfile: updatedKyc
-    };
-
-    onUpdateUser(updatedUser);
-    setKycParticipant(updatedUser);
-    setIsKycModalOpen(false);
-
+  
     const newLog: AuditLogEntry = {
       id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
@@ -1489,16 +1535,16 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               </div>
 
               {/* Uploaded Documents Grid */}
-              <div className="space-y-3">
+              {/* <div className="space-y-3">
                 <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-800" />
                   <span>Verified Identity Records on File</span>
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"> */}
                   
                   {/* Document 1: SSN Card */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  {/* <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-900 flex items-center gap-1.5">
                         <Fingerprint className="w-4 h-4 text-blue-900" />
@@ -1512,10 +1558,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                       <div>File: <strong className="font-mono text-slate-800">{kycParticipant.kycProfile?.ssnDocument?.fileName || 'SSA_Card_Vance_M.pdf'}</strong></div>
                       <div>Authority: <span>{kycParticipant.kycProfile?.ssnDocument?.issuingAuthority || 'Social Security Administration'}</span></div>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Document 2: Driver's License Front & Back */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  {/* <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-900 flex items-center gap-1.5">
                         <CreditCard className="w-4 h-4 text-indigo-900" />
@@ -1529,10 +1575,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                       <div>Number: <strong className="font-mono text-slate-800">{kycParticipant.kycProfile?.driverLicenseFront?.documentNumberMasked || 'VA-D8849****'}</strong></div>
                       <div>Expires: <span>{kycParticipant.kycProfile?.driverLicenseFront?.expirationDate || '2028-11-15'}</span></div>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Document 3: Passport Booklet */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  {/* <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-900 flex items-center gap-1.5">
                         <Globe className="w-4 h-4 text-amber-900" />
@@ -1546,10 +1592,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                       <div>Passport #: <strong className="font-mono text-slate-800">{kycParticipant.kycProfile?.passportDocument?.documentNumberMasked || 'US-P9942****'}</strong></div>
                       <div>Authority: <span>{kycParticipant.kycProfile?.passportDocument?.issuingAuthority || 'U.S. Department of State'}</span></div>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Document 4: Proof of Address */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  {/* <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-900 flex items-center gap-1.5">
                         <Building className="w-4 h-4 text-emerald-900" />
@@ -1566,8 +1612,54 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </div>
 
                 </div>
-              </div>
+              </div> */}
 
+                            {/* Real Uploaded Documents */}
+              <div className="space-y-3">
+                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-800" />
+                  <span>Uploaded Documents from Participant</span>
+                </h4>
+
+                {kycLoading ? (
+                  <p className="text-sm text-slate-500">Loading documents...</p>
+                ) : kycDocuments.length === 0 ? (
+                  <p className="text-sm text-slate-500">No documents have been uploaded yet by this participant.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {kycDocuments.map((doc) => (
+                      <div key={doc.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-900">
+                            {doc.document_type?.replace(/_/g, ' ').toUpperCase()}
+                          </span>
+                          <span className={`px-2 py-0.5 font-bold text-[10px] rounded ${
+                            doc.status === 'Verified' ? 'bg-emerald-100 text-emerald-800' :
+                            doc.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-amber-100 text-amber-800'
+                          }`}>
+                            {doc.status}
+                          </span>
+                        </div>
+                        <div className="text-slate-600 text-[11px]">
+                          File: <strong>{doc.file_name || 'Unnamed'}</strong>
+                        </div>
+                        <div className="text-slate-500 text-[11px]">
+                          Uploaded: {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '—'}
+                        </div>
+                        {doc.file_data && doc.file_data.startsWith('data:image') && (
+                          <img 
+                            src={doc.file_data} 
+                            alt={doc.file_name} 
+                            className="mt-2 max-h-40 rounded border border-slate-200"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
               {/* Compliance Status Override Form */}
               <form onSubmit={handleSaveKycStatus} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
                 <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
