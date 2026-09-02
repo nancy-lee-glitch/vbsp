@@ -293,7 +293,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   };
 
   // Save Participant Balance Edit
-  const handleSaveParticipantEdit = (e: React.FormEvent) => {
+  // Save Participant Balance Edit
+  const handleSaveParticipantEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedParticipant) return;
 
@@ -304,76 +305,66 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       rothBalance: editRoth
     };
 
-    onUpdateUser(updated);
-    setSelectedParticipant(updated);
-    setIsEditModalOpen(false);
+    try {
+      const response = await fetch('/api/admin/participants', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: updated.id,
+          total_balance: updated.totalBalance,
+          traditional_balance: updated.traditionalBalance,
+          roth_balance: updated.rothBalance,
+          full_name: updated.name
+        })
+      });
 
-    const newLog: AuditLogEntry = {
-      id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-      actor: 'Executive Administrator (VBSP-Board)',
-      action: 'VAULT_BALANCE_ADJUST',
-      details: `Adjusted balances for ${updated.name} (${updated.accountNumber}). Total: $${updated.totalBalance.toLocaleString()}, Traditional: $${updated.traditionalBalance.toLocaleString()}, Roth: $${updated.rothBalance.toLocaleString()}.`,
-      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
-      status: 'Success'
-    };
-    setAuditLogs([newLog, ...auditLogs]);
+      const data = await response.json();
 
-    setParticipantFeedbackMsg(`Successfully updated balances for participant ${updated.name}.`);
-    setTimeout(() => setParticipantFeedbackMsg(''), 5000);
+      if (data.success) {
+        onUpdateUser(updated);
+        setSelectedParticipant(updated);
+        setIsEditModalOpen(false);
+        setParticipantFeedbackMsg(`Balances updated for ${updated.name}`);
+        setTimeout(() => setParticipantFeedbackMsg(''), 5000);
+      } else {
+        alert(data.message || 'Failed to update balances');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Unable to update balances. Please try again.');
+    }
   };
 
   // Open KYC Inspection Modal
-  const handleOpenKycModal = (user: UserAccount) => {
+    // Open KYC Inspection Modal
+  const handleOpenKycModal = async (user: UserAccount) => {
     setKycParticipant(user);
-    setKycSelectedStatus(user.kycProfile?.overallStatus || 'Verified (Tier 1 Allocated)');
-    setKycAuditNotes('Identification documents reviewed against SSA, DMV and State Department custody registries.');
+    setKycSelectedStatus(user.kycProfile?.overallStatus || 'Pending Review');
+    setKycAuditNotes('');
     setIsKycModalOpen(true);
+    setKycLoading(true);
+    setKycDocuments([]);
+
+    try {
+      const res = await fetch(`/api/kyc?participantId=${user.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setKycDocuments(data.documents || []);
+      }
+    } catch (err) {
+      console.error('Failed to load KYC documents', err);
+    } finally {
+      setKycLoading(false);
+    }
   };
 
   // Save KYC Status
-  //  const handleOpenKycModal = async (user: UserAccount) => {
-  //   setKycParticipant(user);
-  //   setKycSelectedStatus(user.kycProfile?.overallStatus || 'Pending Review');
-  //   setKycAuditNotes('');
-  //   setIsKycModalOpen(true);
-  //   setKycLoading(true);
-  //   setKycDocuments([]);
-
-  //   try {
-  //     const res = await fetch(`/api/kyc?participantId=${user.id}`);
-  //     const data = await res.json();
-  //     if (data.success) {
-  //       setKycDocuments(data.documents || []);
-  //     }
-  //   } catch (err) {
-  //     console.error('Failed to load KYC documents', err);
-  //   } finally {
-  //     setKycLoading(false);
-  //   }
-  // };
-
-  //   const updatedKyc = {
-  //     ...currentKyc,
-  //     overallStatus: kycSelectedStatus as any,
-  //     verifiedDate: new Date().toISOString().split('T')[0]
-  //   };
-
-  //   const updatedUser: UserAccount = {
-  //     ...kycParticipant,
-  //     kycProfile: updatedKyc
-  //   };
-
-  //   onUpdateUser(updatedUser);
-  //   setKycParticipant(updatedUser);
-  //   setIsKycModalOpen(false);
-
-    const handleSaveKycStatus = async (e: React.FormEvent) => {
+  // Save KYC Status
+  const handleSaveKycStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!kycParticipant) return;
 
     try {
-      // Update every document status for this participant
       for (const doc of kycDocuments) {
         await fetch('/api/kyc', {
           method: 'PUT',
@@ -387,7 +378,6 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         });
       }
 
-      // Also update the user object in the list
       const updatedUser: UserAccount = {
         ...kycParticipant,
         kycProfile: {
@@ -412,22 +402,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       alert('Failed to update KYC status');
     }
   };
-
   
-    const newLog: AuditLogEntry = {
-      id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-      actor: 'Executive Compliance Officer (AML-KYC)',
-      action: 'KYC_DOCUMENT_AUDIT',
-      details: `Updated KYC status for ${updatedUser.name} (${updatedUser.accountNumber}) to "${kycSelectedStatus}". ${kycAuditNotes}`,
-      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
-      status: 'Success'
-    };
-    setAuditLogs([newLog, ...auditLogs]);
-
-    setParticipantFeedbackMsg(`KYC verification compliance record updated for ${updatedUser.name}.`);
-    setTimeout(() => setParticipantFeedbackMsg(''), 5000);
-  };
 
   // Delete Participant
   const handleDeleteParticipant = (userId: string, userName: string) => {
