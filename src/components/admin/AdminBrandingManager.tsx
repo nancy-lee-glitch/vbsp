@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { SiteBrandingSettings } from '../../types';
 import { DEFAULT_SITE_BRANDING } from '../../data/mockData';
+import { saveSiteBranding } from '../../services/supabaseService';
 
 interface AdminBrandingManagerProps {
   branding: SiteBrandingSettings;
@@ -75,15 +76,21 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
     if (confirm('Reset site branding and logo to official Vertex Bullion defaults?')) {
       setFormData(DEFAULT_SITE_BRANDING);
       onUpdateBranding(DEFAULT_SITE_BRANDING);
+      saveSiteBranding(DEFAULT_SITE_BRANDING).catch(e => console.warn(e));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 4000);
     }
   };
 
   // Save branding updates
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateBranding(formData);
+    try {
+      await saveSiteBranding(formData);
+    } catch (err) {
+      console.warn('Failed to save branding to Supabase:', err);
+    }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 4000);
   };

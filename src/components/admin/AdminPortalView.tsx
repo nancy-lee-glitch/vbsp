@@ -35,6 +35,7 @@ import {
   Mail,
   Image as ImageIcon,
   FileText,
+  FileCheck,
   CreditCard,
   Fingerprint,
   Clock
@@ -49,11 +50,17 @@ import {
   AdminTab,
   SiteBrandingSettings,
   AdminEmailDispatch,
-  PaymentMethodConfig
+  PaymentMethodConfig,
+  IdentificationDocument,
+  IdentificationDocType,
+  KYCVerificationProfile
 } from '../../types';
 import { AdminEmailCenter } from './AdminEmailCenter';
 import { AdminBrandingManager } from './AdminBrandingManager';
 import { AdminPaymentMethodsManager } from './AdminPaymentMethodsManager';
+import { AdminApprovalsHub } from './AdminApprovalsHub';
+import { NeonDatabaseInspector } from './NeonDatabaseInspector';
+import { saveFundPrice } from '../../services/supabaseService';
 
 interface AdminPortalViewProps {
   onAdminLogout: () => void;
@@ -105,7 +112,6 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   // New Participant Form State
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserPhone, setNewUserPhone] = useState('+1 (202) 555-0199');
   const [newUserAddress, setNewUserAddress] = useState('1000 Pennsylvania Ave NW, Washington, DC 20004');
   const [newUserAgency, setNewUserAgency] = useState('Department of the Treasury / Federal Reserve Custody');
@@ -127,10 +133,9 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   // KYC Inspection Modal State
   const [isKycModalOpen, setIsKycModalOpen] = useState(false);
   const [kycParticipant, setKycParticipant] = useState<UserAccount | null>(null);
-  const [kycSelectedStatus, setKycSelectedStatus] = useState<string>('Verified (Tier 1 Allocated)');
-  const [kycAuditNotes, setKycAuditNotes] = useState<string>('Documents verified against federal and state records.');
-  const [kycDocuments, setKycDocuments] = useState<any[]>([]);
-  const [kycLoading, setKycLoading] = useState(false);
+  const [kycSelectedStatus, setKycSelectedStatus] = useState<string>('Pending Review');
+  const [kycAuditNotes, setKycAuditNotes] = useState<string>('Auditing submitted participant credentials for vault bullion custody.');
+  const [adminViewingDoc, setAdminViewingDoc] = useState<IdentificationDocument | null>(null);
 
   // CMS Announcements State
   const [announcements, setAnnouncements] = useState(MOCK_ANNOUNCEMENTS);
@@ -169,6 +174,13 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     e.preventDefault();
     onUpdateFundPrices(editableFunds);
     
+    // Asynchronously save fund prices to Supabase
+    editableFunds.forEach(fund => {
+      saveFundPrice(fund.code, fund.currentSharePrice).catch(err => {
+        console.warn(`Failed to sync fund ${fund.code} price to Supabase:`, err);
+      });
+    });
+
     // Add an audit log entry for this price change
     const newLog: AuditLogEntry = {
       id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -181,7 +193,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     };
     setAuditLogs([newLog, ...auditLogs]);
 
-    setPriceSaveMessage('Bullion fund share prices and spot benchmark yields updated and published across all rate tables, participant vaults, and calculators.');
+    setPriceSaveMessage('Bullion fund share prices and spot benchmark yields updated and published to Neon PostgreSQL database and across all rate tables, participant vaults, and calculators.');
     setTimeout(() => setPriceSaveMessage(''), 5000);
   };
 
@@ -207,82 +219,102 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   };
 
   // Create New Participant
-    const handleCreateParticipant = async (e: React.FormEvent) => {
+  const handleCreateParticipant = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) {
-      alert('Please fill in Full Name, Email and Password.');
-      return;
-    }
+    if (!newUserName.trim() || !newUserEmail.trim()) return;
 
-    try {
-      const response = await fetch('/api/admin/participants', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: newUserName.trim(),
-          email: newUserEmail.trim(),
-          password: newUserPassword.trim(),
-          accountType: newUserPlanType,
-          totalBalance: newUserDeposit,
-          thriftlinePin: newUserPin,
-        }),
-      });
+    const gPrice = funds.find(f => f.code === 'G')?.currentSharePrice || 94.65;
+    const sPrice = funds.find(f => f.code === 'S')?.currentSharePrice || 86.30;
+    const pPrice = funds.find(f => f.code === 'P')?.currentSharePrice || 54.20;
+    const tPrice = funds.find(f => f.code === 'T')?.currentSharePrice || 19.42;
+    const mPrice = funds.find(f => f.code === 'M')?.currentSharePrice || 42.10;
 
-      const data = await response.json();
+    const totalAlloc = allocG + allocS + allocP + allocT + allocM;
+    const normG = totalAlloc > 0 ? (allocG / totalAlloc) : 0.5;
+    const normS = totalAlloc > 0 ? (allocS / totalAlloc) : 0.3;
+    const normP = totalAlloc > 0 ? (allocP / totalAlloc) : 0.1;
+    const normT = totalAlloc > 0 ? (allocT / totalAlloc) : 0.1;
+    const normM = totalAlloc > 0 ? (allocM / totalAlloc) : 0.0;
 
-      if (data.success && data.participant) {
-        const p = data.participant;
+    const gBal = newUserDeposit * normG;
+    const sBal = newUserDeposit * normS;
+    const pBal = newUserDeposit * normP;
+    const tBal = newUserDeposit * normT;
+    const mBal = newUserDeposit * normM;
 
-        const newUser: UserAccount = {
-          id: String(p.id),
-          name: p.full_name || newUserName,
-          email: p.email || newUserEmail,
-          accountNumber: p.account_number,
-          thriftlinePin: p.thriftline_pin || newUserPin,
-          phone: newUserPhone,
-          address: newUserAddress,
-          employingAgency: newUserAgency,
-          planType: p.account_type || newUserPlanType,
-          hireDate: new Date().toISOString().split('T')[0],
-          totalBalance: Number(p.total_balance || newUserDeposit),
-          traditionalBalance: Number((Number(p.total_balance || newUserDeposit) * 0.7).toFixed(2)),
-          rothBalance: Number((Number(p.total_balance || newUserDeposit) * 0.3).toFixed(2)),
-          ytdReturn: 0,
-          vaultDepositaryLocation: newUserVault,
-          goldOuncesEquivalent: 0,
-          silverOuncesEquivalent: 0,
-          ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
-          contributionAllocations: { 'G': allocG, 'S': allocS, 'P': allocP, 'T': allocT, 'M': allocM },
-          currentHoldings: [],
-          beneficiaries: [],
-          activeLoans: [],
-          transactions: [],
-          kycProfile: {
-            overallStatus: 'Pending Review',
-            riskTier: 'Tier 1 Individual',
-            ssnMasked: '***-**-****',
-            additionalDocuments: []
-          }
-        };
+    const goldOunces = Number((gBal / 2650).toFixed(4));
+    const silverOunces = Number((sBal / 31.5).toFixed(2));
 
-        onCreateUser(newUser);
-        setSelectedParticipant(newUser);
-        setIsCreateModalOpen(false);
-        setNewUserPassword('');
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const generatedAccountNum = `VBSP-${Math.floor(1000 + Math.random() * 9000)}-${randomSuffix}-${Math.floor(10 + Math.random() * 89)}`;
 
-        setParticipantFeedbackMsg(`Participant "${newUser.name}" created successfully. Account #${newUser.accountNumber}`);
-        setTimeout(() => setParticipantFeedbackMsg(''), 6000);
-      } else {
-        alert(data.message || 'Failed to create participant');
-      }
-    } catch (error) {
-      console.error(error);
-      alert('Unable to create participant. Please try again.');
-    }
+    const newUser: UserAccount = {
+      id: `usr_vbsp_${Date.now()}`,
+      name: newUserName,
+      email: newUserEmail,
+      accountNumber: generatedAccountNum,
+      thriftlinePin: newUserPin,
+      employingAgency: newUserAgency,
+      planType: newUserPlanType,
+      hireDate: new Date().toISOString().split('T')[0],
+      totalBalance: newUserDeposit,
+      traditionalBalance: Number((newUserDeposit * 0.70).toFixed(2)),
+      rothBalance: Number((newUserDeposit * 0.30).toFixed(2)),
+      ytdReturn: 18.5,
+      vaultDepositaryLocation: newUserVault,
+      goldOuncesEquivalent: goldOunces,
+      silverOuncesEquivalent: silverOunces,
+      phone: newUserPhone,
+      address: newUserAddress,
+      ytdContributions: {
+        employee: Number((newUserDeposit * 0.2).toFixed(2)),
+        agencyMatch: Number((newUserDeposit * 0.05).toFixed(2)),
+        agencyAutomatic: Number((newUserDeposit * 0.01).toFixed(2))
+      },
+      contributionAllocations: {
+        'G': allocG,
+        'S': allocS,
+        'P': allocP,
+        'T': allocT,
+        'M': allocM
+      },
+      currentHoldings: [
+        { fundCode: 'G', shares: Number((gBal / gPrice).toFixed(2)), sharePrice: gPrice, balance: Number(gBal.toFixed(2)), percentage: Math.round(normG * 100), metalWeight: `${goldOunces} oz Fine Gold` },
+        { fundCode: 'S', shares: Number((sBal / sPrice).toFixed(2)), sharePrice: sPrice, balance: Number(sBal.toFixed(2)), percentage: Math.round(normS * 100), metalWeight: `${silverOunces} oz Pure Silver` },
+        { fundCode: 'T', shares: Number((tBal / tPrice).toFixed(2)), sharePrice: tPrice, balance: Number(tBal.toFixed(2)), percentage: Math.round(normT * 100), metalWeight: 'Sovereign Liquidity' }
+      ],
+      beneficiaries: [
+        {
+          id: `ben-${Date.now()}`,
+          type: 'Primary',
+          name: `${newUserName} Primary Estate Trust`,
+          relationship: 'Family Trust',
+          sharePercentage: 100
+        }
+      ],
+      activeLoans: []
+    };
+
+    onCreateUser(newUser);
+    setSelectedParticipant(newUser);
+    setIsCreateModalOpen(false);
+
+    // Audit log
+    const newLog: AuditLogEntry = {
+      id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+      actor: 'Executive Administrator (VBSP-Board)',
+      action: 'PARTICIPANT_REGISTERED',
+      details: `Registered new participant: ${newUser.name} (${newUser.accountNumber}) under ${newUser.planType}. Initial vault balance: $${newUser.totalBalance.toLocaleString()}.`,
+      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+      status: 'Success'
+    };
+    setAuditLogs([newLog, ...auditLogs]);
+
+    setParticipantFeedbackMsg(`Participant "${newUser.name}" successfully created with account #${newUser.accountNumber}.`);
+    setTimeout(() => setParticipantFeedbackMsg(''), 6000);
   };
-  
+
   // Open Edit Participant Modal
   const handleOpenEditModal = (user: UserAccount) => {
     setSelectedParticipant(user);
@@ -293,8 +325,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   };
 
   // Save Participant Balance Edit
-  // Save Participant Balance Edit
-  const handleSaveParticipantEdit = async (e: React.FormEvent) => {
+  const handleSaveParticipantEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedParticipant) return;
 
@@ -305,104 +336,142 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       rothBalance: editRoth
     };
 
-    try {
-      const response = await fetch('/api/admin/participants', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: updated.id,
-          total_balance: updated.totalBalance,
-          traditional_balance: updated.traditionalBalance,
-          roth_balance: updated.rothBalance,
-          full_name: updated.name
-        })
-      });
+    onUpdateUser(updated);
+    setSelectedParticipant(updated);
+    setIsEditModalOpen(false);
 
-      const data = await response.json();
+    const newLog: AuditLogEntry = {
+      id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+      actor: 'Executive Administrator (VBSP-Board)',
+      action: 'VAULT_BALANCE_ADJUST',
+      details: `Adjusted balances for ${updated.name} (${updated.accountNumber}). Total: $${updated.totalBalance.toLocaleString()}, Traditional: $${updated.traditionalBalance.toLocaleString()}, Roth: $${updated.rothBalance.toLocaleString()}.`,
+      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+      status: 'Success'
+    };
+    setAuditLogs([newLog, ...auditLogs]);
 
-      if (data.success) {
-        onUpdateUser(updated);
-        setSelectedParticipant(updated);
-        setIsEditModalOpen(false);
-        setParticipantFeedbackMsg(`Balances updated for ${updated.name}`);
-        setTimeout(() => setParticipantFeedbackMsg(''), 5000);
-      } else {
-        alert(data.message || 'Failed to update balances');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Unable to update balances. Please try again.');
-    }
+    setParticipantFeedbackMsg(`Successfully updated balances for participant ${updated.name}.`);
+    setTimeout(() => setParticipantFeedbackMsg(''), 5000);
   };
 
   // Open KYC Inspection Modal
-    // Open KYC Inspection Modal
-  const handleOpenKycModal = async (user: UserAccount) => {
+  const handleOpenKycModal = (user: UserAccount) => {
     setKycParticipant(user);
-    setKycSelectedStatus(user.kycProfile?.overallStatus || 'Pending Review');
-    setKycAuditNotes('');
+    const actualStatus = user.kycProfile?.overallStatus || 'Pending Review';
+    setKycSelectedStatus(actualStatus);
+    setKycAuditNotes(
+      actualStatus === 'Verified (Tier 1 Allocated)' 
+        ? 'Documents verified against federal and state registries.' 
+        : 'Assaying uploaded credentials for bullion allocation approval.'
+    );
     setIsKycModalOpen(true);
-    setKycLoading(true);
-    setKycDocuments([]);
-
-    try {
-      const res = await fetch(`/api/kyc?participantId=${user.id}`);
-      const data = await res.json();
-      if (data.success) {
-        setKycDocuments(data.documents || []);
-      }
-    } catch (err) {
-      console.error('Failed to load KYC documents', err);
-    } finally {
-      setKycLoading(false);
-    }
   };
 
-  // Save KYC Status
-  // Save KYC Status
-  const handleSaveKycStatus = async (e: React.FormEvent) => {
+  // Update Individual Document Status (Approve or Reject specific document)
+  const handleUpdateIndividualDocStatus = (
+    docField: 'ssnDocument' | 'driverLicenseFront' | 'driverLicenseBack' | 'passportDocument' | 'proofOfAddressDocument',
+    newStatus: 'Verified' | 'Action Required' | 'Pending Review'
+  ) => {
+    if (!kycParticipant || !kycParticipant.kycProfile) return;
+
+    const currentDoc = kycParticipant.kycProfile[docField];
+    if (!currentDoc) return;
+
+    const updatedDoc: IdentificationDocument = {
+      ...currentDoc,
+      status: newStatus,
+      notes: newStatus === 'Verified' 
+        ? 'Approved by Depository Compliance Officer.' 
+        : 'Requires re-upload: document unclear or unverified.'
+    };
+
+    const updatedKyc: KYCVerificationProfile = {
+      ...kycParticipant.kycProfile,
+      [docField]: updatedDoc
+    };
+
+    const updatedUser: UserAccount = {
+      ...kycParticipant,
+      kycProfile: updatedKyc
+    };
+
+    onUpdateUser(updatedUser);
+    setKycParticipant(updatedUser);
+
+    if (adminViewingDoc && adminViewingDoc.id === currentDoc.id) {
+      setAdminViewingDoc(updatedDoc);
+    }
+
+    setParticipantFeedbackMsg(`Document "${currentDoc.title}" marked as ${newStatus}.`);
+    setTimeout(() => setParticipantFeedbackMsg(''), 4000);
+  };
+
+  // Save Full KYC Status
+  const handleSaveKycStatus = (e: React.FormEvent) => {
     e.preventDefault();
     if (!kycParticipant) return;
 
-    try {
-      for (const doc of kycDocuments) {
-        await fetch('/api/kyc', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            documentId: doc.id,
-            status: kycSelectedStatus,
-            adminNotes: kycAuditNotes,
-            reviewedBy: 'Admin'
-          })
-        });
-      }
+    const isNowVerified = kycSelectedStatus === 'Verified (Tier 1 Allocated)';
+    const currentKyc = kycParticipant.kycProfile || {
+      overallStatus: kycSelectedStatus as any,
+      verifiedDate: isNowVerified ? new Date().toISOString().split('T')[0] : undefined,
+      riskTier: 'Tier 1 Individual' as const,
+      ssnMasked: '***-**-4412',
+      additionalDocuments: []
+    };
 
-      const updatedUser: UserAccount = {
-        ...kycParticipant,
-        kycProfile: {
-          ...(kycParticipant.kycProfile || {
-            overallStatus: kycSelectedStatus,
-            riskTier: 'Tier 1 Individual',
-            ssnMasked: '***-**-****',
-            additionalDocuments: []
-          }),
-          overallStatus: kycSelectedStatus as any
-        }
-      };
+    // If marking as Verified, mark all uploaded documents as Verified as well
+    const updatedKyc: KYCVerificationProfile = {
+      ...currentKyc,
+      overallStatus: kycSelectedStatus as any,
+      verifiedDate: isNowVerified ? new Date().toISOString().split('T')[0] : currentKyc.verifiedDate,
+      complianceOfficerNotes: kycAuditNotes,
+      ssnDocument: currentKyc.ssnDocument ? {
+        ...currentKyc.ssnDocument,
+        status: isNowVerified ? 'Verified' : currentKyc.ssnDocument.status
+      } : undefined,
+      driverLicenseFront: currentKyc.driverLicenseFront ? {
+        ...currentKyc.driverLicenseFront,
+        status: isNowVerified ? 'Verified' : currentKyc.driverLicenseFront.status
+      } : undefined,
+      driverLicenseBack: currentKyc.driverLicenseBack ? {
+        ...currentKyc.driverLicenseBack,
+        status: isNowVerified ? 'Verified' : currentKyc.driverLicenseBack.status
+      } : undefined,
+      passportDocument: currentKyc.passportDocument ? {
+        ...currentKyc.passportDocument,
+        status: isNowVerified ? 'Verified' : currentKyc.passportDocument.status
+      } : undefined,
+      proofOfAddressDocument: currentKyc.proofOfAddressDocument ? {
+        ...currentKyc.proofOfAddressDocument,
+        status: isNowVerified ? 'Verified' : currentKyc.proofOfAddressDocument.status
+      } : undefined
+    };
 
-      onUpdateUser(updatedUser);
-      setKycParticipant(updatedUser);
-      setIsKycModalOpen(false);
+    const updatedUser: UserAccount = {
+      ...kycParticipant,
+      kycProfile: updatedKyc
+    };
 
-      setParticipantFeedbackMsg(`KYC status updated for ${updatedUser.name}`);
-      setTimeout(() => setParticipantFeedbackMsg(''), 5000);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to update KYC status');
-    }
+    onUpdateUser(updatedUser);
+    setKycParticipant(updatedUser);
+    setIsKycModalOpen(false);
+
+    const newLog: AuditLogEntry = {
+      id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+      actor: 'Executive Compliance Officer (AML-KYC)',
+      action: 'KYC_DOCUMENT_AUDIT',
+      details: `Updated KYC status for ${updatedUser.name} (${updatedUser.accountNumber}) to "${kycSelectedStatus}". ${kycAuditNotes}`,
+      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+      status: 'Success'
+    };
+    setAuditLogs([newLog, ...auditLogs]);
+
+    setParticipantFeedbackMsg(`KYC compliance status updated to "${kycSelectedStatus}" for ${updatedUser.name}.`);
+    setTimeout(() => setParticipantFeedbackMsg(''), 5000);
   };
-  
 
   // Delete Participant
   const handleDeleteParticipant = (userId: string, userName: string) => {
@@ -494,13 +563,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         {[
           { id: 'prices', label: '1. Master Bullion Fund Prices', icon: TrendingUp },
           { id: 'participants', label: '2. Participant Management & Accounts', icon: Users },
-          { id: 'payments', label: '3. Payment Gateways & Crypto Wallets', icon: Coins },
-          { id: 'email-center', label: '4. Participant Email & Broadcast', icon: Mail },
-          { id: 'branding', label: '5. Site Name & Logo Settings', icon: SlidersHorizontal },
-          { id: 'cms', label: '6. CMS Bulletins & Vault Notices', icon: FileEdit },
-          { id: 'audit', label: '7. Immutable Audit Trail (NIST)', icon: History },
-          { id: 'fraud', label: '8. AI Vault Fraud Detection', icon: AlertTriangle },
-          { id: 'parameters', label: '9. Statutory 2026 Limits', icon: Sliders },
+          { id: 'approvals', label: '3. Approvals Hub (Deposits, Docs, Loans, WDL)', icon: FileCheck },
+          { id: 'payments', label: '4. Payment Gateways & Crypto Wallets', icon: Coins },
+          { id: 'email-center', label: '5. Participant Email & Broadcast', icon: Mail },
+          { id: 'branding', label: '6. Site Name & Logo Settings', icon: SlidersHorizontal },
+          { id: 'database', label: '7. Neon Database (Active)', icon: Database },
+          { id: 'cms', label: '8. CMS Bulletins & Vault Notices', icon: FileEdit },
+          { id: 'audit', label: '9. Immutable Audit Trail (NIST)', icon: History },
+          { id: 'fraud', label: '10. AI Vault Fraud Detection', icon: AlertTriangle },
+          { id: 'parameters', label: '11. Statutory 2026 Limits', icon: Sliders },
         ].map((tab) => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
@@ -711,6 +782,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   <tr className="bg-slate-100 text-slate-700 uppercase tracking-wider font-bold border-b border-slate-200">
                     <th className="p-3">Participant & Account #</th>
                     <th className="p-3">Account Classification</th>
+                    <th className="p-3">KYC Status</th>
                     <th className="p-3">Vault Depository</th>
                     <th className="p-3 text-right">Total Balance</th>
                     <th className="p-3 text-right">Physical Metal</th>
@@ -720,6 +792,11 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 <tbody className="divide-y divide-slate-100">
                   {filteredUsers.map((user) => {
                     const isSelected = selectedParticipant?.id === user.id;
+                    const kycStatus = user.kycProfile?.overallStatus || 'Not Verified';
+                    const isKycVerified = kycStatus === 'Verified (Tier 1 Allocated)';
+                    const isKycPending = kycStatus === 'Pending Review';
+                    const isKycActionReq = kycStatus === 'Action Required';
+
                     return (
                       <tr 
                         key={user.id} 
@@ -747,6 +824,29 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                             {user.planType}
                           </span>
                           <div className="text-[10px] text-slate-500 mt-0.5">{user.employingAgency}</div>
+                        </td>
+                        <td className="p-3">
+                          {isKycVerified ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              <span>Verified</span>
+                            </span>
+                          ) : isKycPending ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              <span>Pending Review</span>
+                            </span>
+                          ) : isKycActionReq ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                              <AlertTriangle className="w-3 h-3 text-red-600" />
+                              <span>Action Req</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                              <ShieldAlert className="w-3 h-3 text-slate-500" />
+                              <span>Not Verified</span>
+                            </span>
+                          )}
                         </td>
                         <td className="p-3 text-slate-600 font-medium">
                           {user.vaultDepositaryLocation || 'Zurich Segregated Depository'}
@@ -783,10 +883,16 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                             <button
                               onClick={() => handleOpenKycModal(user)}
                               title="Review Identification & KYC Documents (SSN, DL, Passport)"
-                              className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xs font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-2xs"
+                              className={`px-2.5 py-1.5 text-white rounded-xs font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-2xs ${
+                                isKycPending 
+                                  ? 'bg-amber-600 hover:bg-amber-700 ring-2 ring-amber-400 ring-offset-1' 
+                                  : isKycVerified 
+                                  ? 'bg-emerald-700 hover:bg-emerald-800' 
+                                  : 'bg-slate-700 hover:bg-slate-800'
+                              }`}
                             >
-                              <ShieldCheck className="w-3 h-3" />
-                              <span>KYC Docs</span>
+                              {isKycPending ? <Clock className="w-3 h-3 text-white" /> : <ShieldCheck className="w-3 h-3" />}
+                              <span>{isKycPending ? 'Review KYC' : 'KYC Docs'}</span>
                             </button>
 
                             {/* Edit Balances */}
@@ -821,7 +927,19 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       )}
 
       {/* ---------------------------------------------------- */}
-      {/* 3. PAYMENT METHODS & CRYPTO WALLETS MANAGER */}
+      {/* 3. APPROVALS & COMPLIANCE HUB (DEPOSITS, DOCS, LOANS, WITHDRAWALS) */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'approvals' && (
+        <AdminApprovalsHub 
+          users={users} 
+          onRefreshUsers={() => {
+            // refreshed
+          }} 
+        />
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* 4. PAYMENT METHODS & CRYPTO WALLETS MANAGER */}
       {/* ---------------------------------------------------- */}
       {activeTab === 'payments' && (
         <AdminPaymentMethodsManager
@@ -857,7 +975,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       )}
 
       {/* ---------------------------------------------------- */}
-      {/* 4. SITE BRANDING & LOGO MANAGER */}
+      {/* 6. SITE BRANDING & LOGO MANAGER */}
       {/* ---------------------------------------------------- */}
       {activeTab === 'branding' && (
         <AdminBrandingManager
@@ -867,7 +985,14 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       )}
 
       {/* ---------------------------------------------------- */}
-      {/* 5. CMS CONTENT MANAGER */}
+      {/* 7. NEON SERVERLESS DATABASE TERMINAL & HEALTH INSPECTOR */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'database' && (
+        <NeonDatabaseInspector />
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* 8. CMS CONTENT MANAGER */}
       {/* ---------------------------------------------------- */}
       {activeTab === 'cms' && (
         <div className="space-y-6">
@@ -1197,18 +1322,6 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Password *</label>
-                <input 
-                  type="password" 
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  placeholder="Minimum 8 characters"
-                  required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 font-semibold"
-                />
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Account Classification (Plan Type) *</label>
@@ -1454,25 +1567,25 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       {/* 8. KYC & IDENTITY DOCUMENTS REVIEW MODAL */}
       {/* ---------------------------------------------------- */}
       {isKycModalOpen && kycParticipant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-xs">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-300 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
             
             {/* Modal Header */}
             <div className="bg-[#112e51] text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold border border-emerald-500/30">
-                  <ShieldCheck className="w-5 h-5" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold border border-emerald-500/30">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-white">KYC / AML Identity Document Compliance</h3>
+                  <h3 className="font-bold text-base text-white">KYC / AML Identity Document Compliance Audit</h3>
                   <p className="text-xs text-slate-300">
-                    Participant: <strong>{kycParticipant.name}</strong> • Account: <strong>{kycParticipant.accountNumber}</strong>
+                    Participant: <strong>{kycParticipant.name}</strong> • Account: <strong className="font-mono text-amber-300">{kycParticipant.accountNumber}</strong> • {kycParticipant.email}
                   </p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsKycModalOpen(false)}
-                className="text-slate-300 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                className="text-slate-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1484,9 +1597,24 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               {/* Document Overview Badges */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Current Status</span>
-                  <div className="font-black text-xs text-slate-900">
-                    {kycParticipant.kycProfile?.overallStatus || 'Verified (Tier 1 Allocated)'}
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Current Account KYC Status</span>
+                  <div className="flex items-center gap-2">
+                    {kycParticipant.kycProfile?.overallStatus === 'Verified (Tier 1 Allocated)' ? (
+                      <span className="inline-flex items-center gap-1 font-black text-xs text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        Verified (Tier 1 Allocated)
+                      </span>
+                    ) : kycParticipant.kycProfile?.overallStatus === 'Pending Review' ? (
+                      <span className="inline-flex items-center gap-1 font-black text-xs text-amber-900 bg-amber-100 px-2 py-0.5 rounded animate-pulse">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        Pending Compliance Review
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 font-black text-xs text-red-800 bg-red-100 px-2 py-0.5 rounded">
+                        <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                        {kycParticipant.kycProfile?.overallStatus || 'Not Verified'}
+                      </span>
+                    )}
                   </div>
                   <div className="text-[10px] text-slate-500">Tier: {kycParticipant.kycProfile?.riskTier || 'Tier 1 Individual'}</div>
                 </div>
@@ -1496,197 +1624,550 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   <div className="font-mono font-black text-xs text-slate-900">
                     {kycParticipant.kycProfile?.ssnMasked || '***-**-4412'}
                   </div>
-                  <div className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>SSA Record Valid</span>
+                  <div className="text-[10px] text-slate-600 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>Identity Record Attached</span>
                   </div>
                 </div>
 
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Assay / Vault Custody</span>
-                  <div className="font-bold text-xs text-emerald-900">Physical Delivery Approved</div>
-                  <div className="text-[10px] text-slate-500">{kycParticipant.vaultDepositaryLocation || 'Zurich Segregated Depository'}</div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Assay / Vault Custody Allocation</span>
+                  <div className="font-bold text-xs text-slate-900">
+                    {kycParticipant.vaultDepositaryLocation || 'Zurich Segregated Depository'}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    Status: {kycParticipant.kycProfile?.overallStatus === 'Verified (Tier 1 Allocated)' ? 'Allocation Authorized' : 'Pending KYC Approval'}
+                  </div>
                 </div>
               </div>
 
               {/* Uploaded Documents Grid */}
-              {/* <div className="space-y-3">
-                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-800" />
-                  <span>Verified Identity Records on File</span>
-                </h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#005ea2]" />
+                    <span>Submitted Participant Identification Documents</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500">
+                    Click "Inspect Document" to view uploaded scans and files.
+                  </span>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"> */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   
                   {/* Document 1: SSN Card */}
-                  {/* <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <span className="font-bold text-slate-900 flex items-center gap-2">
                         <Fingerprint className="w-4 h-4 text-blue-900" />
-                        <span>Social Security Card</span>
+                        <span>1. Social Security Card</span>
                       </span>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded">
-                        {kycParticipant.kycProfile?.ssnDocument?.status || 'Verified'}
-                      </span>
+                      {kycParticipant.kycProfile?.ssnDocument ? (
+                        <span className={`px-2 py-0.5 font-bold text-[10px] rounded ${
+                          kycParticipant.kycProfile.ssnDocument.status === 'Verified'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : kycParticipant.kycProfile.ssnDocument.status === 'Action Required'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}>
+                          {kycParticipant.kycProfile.ssnDocument.status}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-bold text-[10px] rounded">
+                          Not Uploaded
+                        </span>
+                      )}
                     </div>
-                    <div className="text-slate-600 text-[11px] space-y-0.5">
-                      <div>File: <strong className="font-mono text-slate-800">{kycParticipant.kycProfile?.ssnDocument?.fileName || 'SSA_Card_Vance_M.pdf'}</strong></div>
-                      <div>Authority: <span>{kycParticipant.kycProfile?.ssnDocument?.issuingAuthority || 'Social Security Administration'}</span></div>
-                    </div>
-                  </div> */}
+
+                    {kycParticipant.kycProfile?.ssnDocument ? (
+                      <>
+                        <div className="text-slate-600 text-[11px] space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                          <div>File: <strong className="font-mono text-slate-900">{kycParticipant.kycProfile.ssnDocument.fileName}</strong> ({kycParticipant.kycProfile.ssnDocument.fileSize})</div>
+                          <div>Authority: <strong className="text-slate-800">{kycParticipant.kycProfile.ssnDocument.issuingAuthority || 'Social Security Administration'}</strong></div>
+                          <div>Uploaded: <span>{kycParticipant.kycProfile.ssnDocument.uploadedAt}</span></div>
+                          {kycParticipant.kycProfile.ssnDocument.documentNumberMasked && (
+                            <div>Number: <span className="font-mono">{kycParticipant.kycProfile.ssnDocument.documentNumberMasked}</span></div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setAdminViewingDoc(kycParticipant.kycProfile!.ssnDocument!)}
+                            className="flex-1 py-1.5 bg-[#005ea2] hover:bg-[#112e51] text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Inspect Document</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateIndividualDocStatus('ssnDocument', 'Verified')}
+                            title="Approve SSN Document"
+                            className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg cursor-pointer font-bold flex items-center gap-1"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Approve</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateIndividualDocStatus('ssnDocument', 'Action Required')}
+                            title="Reject & Request Re-upload"
+                            className="p-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg cursor-pointer font-bold flex items-center gap-1"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-slate-500 text-[11px] flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>No Social Security card uploaded yet by participant.</span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Document 2: Driver's License Front & Back */}
-                  {/* <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <span className="font-bold text-slate-900 flex items-center gap-2">
                         <CreditCard className="w-4 h-4 text-indigo-900" />
-                        <span>Driver's License (Front & Back)</span>
+                        <span>2. Driver's License / State ID</span>
                       </span>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded">
-                        {kycParticipant.kycProfile?.driverLicenseFront?.status || 'Verified'}
-                      </span>
+                      {kycParticipant.kycProfile?.driverLicenseFront ? (
+                        <span className={`px-2 py-0.5 font-bold text-[10px] rounded ${
+                          kycParticipant.kycProfile.driverLicenseFront.status === 'Verified'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : kycParticipant.kycProfile.driverLicenseFront.status === 'Action Required'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}>
+                          {kycParticipant.kycProfile.driverLicenseFront.status}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-bold text-[10px] rounded">
+                          Not Uploaded
+                        </span>
+                      )}
                     </div>
-                    <div className="text-slate-600 text-[11px] space-y-0.5">
-                      <div>Number: <strong className="font-mono text-slate-800">{kycParticipant.kycProfile?.driverLicenseFront?.documentNumberMasked || 'VA-D8849****'}</strong></div>
-                      <div>Expires: <span>{kycParticipant.kycProfile?.driverLicenseFront?.expirationDate || '2028-11-15'}</span></div>
-                    </div>
-                  </div> */}
+
+                    {kycParticipant.kycProfile?.driverLicenseFront ? (
+                      <>
+                        <div className="text-slate-600 text-[11px] space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                          <div>Front File: <strong className="font-mono text-slate-900">{kycParticipant.kycProfile.driverLicenseFront.fileName}</strong> ({kycParticipant.kycProfile.driverLicenseFront.fileSize})</div>
+                          <div>Number: <strong className="font-mono text-slate-800">{kycParticipant.kycProfile.driverLicenseFront.documentNumberMasked || 'VA-D8849****'}</strong></div>
+                          <div>Authority: <span>{kycParticipant.kycProfile.driverLicenseFront.issuingAuthority || 'Commonwealth DMV'}</span></div>
+                          {kycParticipant.kycProfile.driverLicenseFront.expirationDate && (
+                            <div>Expires: <strong>{kycParticipant.kycProfile.driverLicenseFront.expirationDate}</strong></div>
+                          )}
+                          {kycParticipant.kycProfile.driverLicenseBack && (
+                            <div className="text-emerald-700 font-semibold mt-1">✓ Back Scan: {kycParticipant.kycProfile.driverLicenseBack.fileName}</div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setAdminViewingDoc(kycParticipant.kycProfile!.driverLicenseFront!)}
+                            className="flex-1 py-1.5 bg-[#005ea2] hover:bg-[#112e51] text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Inspect License</span>
+                          </button>
+                          {kycParticipant.kycProfile.driverLicenseBack && (
+                            <button
+                              type="button"
+                              onClick={() => setAdminViewingDoc(kycParticipant.kycProfile!.driverLicenseBack!)}
+                              className="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-lg flex items-center gap-1 cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Back</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateIndividualDocStatus('driverLicenseFront', 'Verified')}
+                            title="Approve License"
+                            className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg cursor-pointer font-bold flex items-center gap-1"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Approve</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateIndividualDocStatus('driverLicenseFront', 'Action Required')}
+                            title="Reject & Request Re-upload"
+                            className="p-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg cursor-pointer font-bold flex items-center gap-1"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-slate-500 text-[11px] flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>No Driver's License uploaded yet by participant.</span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Document 3: Passport Booklet */}
-                  {/* <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <span className="font-bold text-slate-900 flex items-center gap-2">
                         <Globe className="w-4 h-4 text-amber-900" />
-                        <span>International Passport Booklet</span>
+                        <span>3. International Passport Booklet</span>
                       </span>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded">
-                        {kycParticipant.kycProfile?.passportDocument?.status || 'Verified'}
-                      </span>
+                      {kycParticipant.kycProfile?.passportDocument ? (
+                        <span className={`px-2 py-0.5 font-bold text-[10px] rounded ${
+                          kycParticipant.kycProfile.passportDocument.status === 'Verified'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : kycParticipant.kycProfile.passportDocument.status === 'Action Required'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}>
+                          {kycParticipant.kycProfile.passportDocument.status}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-bold text-[10px] rounded">
+                          Not Uploaded
+                        </span>
+                      )}
                     </div>
-                    <div className="text-slate-600 text-[11px] space-y-0.5">
-                      <div>Passport #: <strong className="font-mono text-slate-800">{kycParticipant.kycProfile?.passportDocument?.documentNumberMasked || 'US-P9942****'}</strong></div>
-                      <div>Authority: <span>{kycParticipant.kycProfile?.passportDocument?.issuingAuthority || 'U.S. Department of State'}</span></div>
-                    </div>
-                  </div> */}
+
+                    {kycParticipant.kycProfile?.passportDocument ? (
+                      <>
+                        <div className="text-slate-600 text-[11px] space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                          <div>File: <strong className="font-mono text-slate-900">{kycParticipant.kycProfile.passportDocument.fileName}</strong> ({kycParticipant.kycProfile.passportDocument.fileSize})</div>
+                          <div>Passport #: <strong className="font-mono text-slate-800">{kycParticipant.kycProfile.passportDocument.documentNumberMasked || 'US-P9942****'}</strong></div>
+                          <div>Authority: <span>{kycParticipant.kycProfile.passportDocument.issuingAuthority || 'U.S. Department of State'}</span></div>
+                          {kycParticipant.kycProfile.passportDocument.expirationDate && (
+                            <div>Expires: <strong>{kycParticipant.kycProfile.passportDocument.expirationDate}</strong></div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setAdminViewingDoc(kycParticipant.kycProfile!.passportDocument!)}
+                            className="flex-1 py-1.5 bg-[#005ea2] hover:bg-[#112e51] text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Inspect Passport</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateIndividualDocStatus('passportDocument', 'Verified')}
+                            title="Approve Passport"
+                            className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg cursor-pointer font-bold flex items-center gap-1"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Approve</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateIndividualDocStatus('passportDocument', 'Action Required')}
+                            title="Reject & Request Re-upload"
+                            className="p-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg cursor-pointer font-bold flex items-center gap-1"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-slate-500 text-[11px] flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>No Passport booklet uploaded yet by participant.</span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Document 4: Proof of Address */}
-                  {/* <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <span className="font-bold text-slate-900 flex items-center gap-2">
                         <Building className="w-4 h-4 text-emerald-900" />
-                        <span>Proof of Address (Utility Bill)</span>
+                        <span>4. Proof of Address / Depository Notice</span>
                       </span>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded">
-                        Verified
-                      </span>
+                      {kycParticipant.kycProfile?.proofOfAddressDocument ? (
+                        <span className={`px-2 py-0.5 font-bold text-[10px] rounded ${
+                          kycParticipant.kycProfile.proofOfAddressDocument.status === 'Verified'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : kycParticipant.kycProfile.proofOfAddressDocument.status === 'Action Required'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}>
+                          {kycParticipant.kycProfile.proofOfAddressDocument.status}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-bold text-[10px] rounded">
+                          Not Uploaded
+                        </span>
+                      )}
                     </div>
-                    <div className="text-slate-600 text-[11px] space-y-0.5">
-                      <div>Address: <span>{kycParticipant.address}</span></div>
-                      <div>Verified: <span>Match Confirmed</span></div>
-                    </div>
+
+                    {kycParticipant.kycProfile?.proofOfAddressDocument ? (
+                      <>
+                        <div className="text-slate-600 text-[11px] space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                          <div>File: <strong className="font-mono text-slate-900">{kycParticipant.kycProfile.proofOfAddressDocument.fileName}</strong> ({kycParticipant.kycProfile.proofOfAddressDocument.fileSize})</div>
+                          <div>Address on File: <span>{kycParticipant.address}</span></div>
+                          <div>Authority/Utility: <span>{kycParticipant.kycProfile.proofOfAddressDocument.issuingAuthority || 'Utility / Bank Statement'}</span></div>
+                          <div>Uploaded: <span>{kycParticipant.kycProfile.proofOfAddressDocument.uploadedAt}</span></div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setAdminViewingDoc(kycParticipant.kycProfile!.proofOfAddressDocument!)}
+                            className="flex-1 py-1.5 bg-[#005ea2] hover:bg-[#112e51] text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Inspect Proof</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateIndividualDocStatus('proofOfAddressDocument', 'Verified')}
+                            title="Approve Proof"
+                            className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg cursor-pointer font-bold flex items-center gap-1"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Approve</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateIndividualDocStatus('proofOfAddressDocument', 'Action Required')}
+                            title="Reject & Request Re-upload"
+                            className="p-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg cursor-pointer font-bold flex items-center gap-1"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-slate-500 text-[11px] flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>No Proof of Address document uploaded yet.</span>
+                      </div>
+                    )}
                   </div>
 
                 </div>
-              </div> */}
-
-                            {/* Real Uploaded Documents */}
-              <div className="space-y-3">
-                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-800" />
-                  <span>Uploaded Documents from Participant</span>
-                </h4>
-
-                {kycLoading ? (
-                  <p className="text-sm text-slate-500">Loading documents...</p>
-                ) : kycDocuments.length === 0 ? (
-                  <p className="text-sm text-slate-500">No documents have been uploaded yet by this participant.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {kycDocuments.map((doc) => (
-                      <div key={doc.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900">
-                            {doc.document_type?.replace(/_/g, ' ').toUpperCase()}
-                          </span>
-                          <span className={`px-2 py-0.5 font-bold text-[10px] rounded ${
-                            doc.status === 'Verified' ? 'bg-emerald-100 text-emerald-800' :
-                            doc.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                            'bg-amber-100 text-amber-800'
-                          }`}>
-                            {doc.status}
-                          </span>
-                        </div>
-                        <div className="text-slate-600 text-[11px]">
-                          File: <strong>{doc.file_name || 'Unnamed'}</strong>
-                        </div>
-                        <div className="text-slate-500 text-[11px]">
-                          Uploaded: {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '—'}
-                        </div>
-                        {doc.file_data && doc.file_data.startsWith('data:image') && (
-                          <img 
-                            src={doc.file_data} 
-                            alt={doc.file_name} 
-                            className="mt-2 max-h-40 rounded border border-slate-200"
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-              
+
               {/* Compliance Status Override Form */}
-              <form onSubmit={handleSaveKycStatus} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
-                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                  <SlidersHorizontal className="w-4 h-4 text-slate-700" />
-                  <span>Update KYC Compliance Decision</span>
-                </h4>
+              <form onSubmit={handleSaveKycStatus} className="bg-slate-50 border border-slate-300 rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <SlidersHorizontal className="w-4 h-4 text-[#005ea2]" />
+                    <span>Executive Compliance & Bullion Custody Determination</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500">
+                    Saving status will immediately synchronize user's access rights.
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Audit Compliance Status</label>
+                    <label className="block font-bold text-slate-800 mb-1">Overall KYC Compliance Decision</label>
                     <select
                       value={kycSelectedStatus}
                       onChange={(e) => setKycSelectedStatus(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:ring-1 focus:ring-[#005ea2]"
                     >
-                      <option value="Verified (Tier 1 Allocated)">Verified (Tier 1 Allocated - Full Bullion Custody)</option>
+                      <option value="Verified (Tier 1 Allocated)">Verified (Tier 1 Allocated - Full Bullion Vault Access)</option>
+                      <option value="Pending Review">Pending Review (Awaiting Executive Assay Sign-off)</option>
                       <option value="Under Vault Assay Review">Under Vault Assay Review</option>
-                      <option value="Pending Review">Pending Review</option>
-                      <option value="Action Required">Action Required (Request Re-Upload)</option>
+                      <option value="Action Required">Action Required (Require Re-Upload from Participant)</option>
+                      <option value="Not Verified">Not Verified (Unverified Account)</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Compliance Audit Log Notes</label>
+                    <label className="block font-bold text-slate-800 mb-1">Compliance Audit Notes / Registry Reference</label>
                     <input
                       type="text"
                       value={kycAuditNotes}
                       onChange={(e) => setKycAuditNotes(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-900"
-                      placeholder="e.g. Verified by Depository Assay Officer"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:ring-1 focus:ring-[#005ea2]"
+                      placeholder="e.g. Identity verified against government databases & Zurich custodian."
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => setIsKycModalOpen(false)}
-                    className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-lg cursor-pointer"
+                    className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-lg cursor-pointer transition-colors"
                   >
                     Close
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-[#005ea2] hover:bg-[#112e51] text-white font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-6 py-2 bg-[#005ea2] hover:bg-[#112e51] text-white font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                   >
                     <Check className="w-4 h-4" />
-                    <span>Save Compliance Audit</span>
+                    <span>Save Compliance Audit Determination</span>
                   </button>
                 </div>
               </form>
 
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================== */}
+      {/* 9. ADMIN DOCUMENT VIEWER & INSPECTOR LIGHTBOX */}
+      {/* ========================================================== */}
+      {adminViewingDoc && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+            
+            {/* Lightbox Header */}
+            <div className="bg-[#112e51] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-5 h-5 text-[#f2a900]" />
+                <div>
+                  <h3 className="font-bold text-sm text-white">{adminViewingDoc.title}</h3>
+                  <p className="text-[11px] text-slate-300">File: {adminViewingDoc.fileName} • {adminViewingDoc.fileSize} • Uploaded: {adminViewingDoc.uploadedAt}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAdminViewingDoc(null)}
+                className="text-slate-300 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Lightbox Content View */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              
+              {/* Document Meta Badges */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">STATUS</span>
+                  <span className={`inline-block px-2 py-0.5 font-bold text-[10px] rounded ${
+                    adminViewingDoc.status === 'Verified'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : adminViewingDoc.status === 'Action Required'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-amber-100 text-amber-900'
+                  }`}>
+                    {adminViewingDoc.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">ID NUMBER</span>
+                  <span className="font-mono font-bold text-slate-900">{adminViewingDoc.documentNumberMasked || '••••••••'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">AUTHORITY</span>
+                  <span className="font-semibold text-slate-800 truncate block">{adminViewingDoc.issuingAuthority || 'Official Authority'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold block">EXPIRY DATE</span>
+                  <span className="text-slate-700 font-semibold block">{adminViewingDoc.expirationDate || 'N/A'}</span>
+                </div>
+              </div>
+
+              {/* Render Image or Realistic Document Preview */}
+              <div className="bg-slate-100 rounded-xl border-2 border-slate-300 p-4 min-h-[300px] flex items-center justify-center text-center">
+                {adminViewingDoc.fileDataUrl ? (
+                  <img 
+                    src={adminViewingDoc.fileDataUrl} 
+                    alt={adminViewingDoc.title} 
+                    className="max-h-[420px] max-w-full object-contain rounded-lg shadow-md border border-slate-200"
+                  />
+                ) : (
+                  <div className="space-y-3 p-8 bg-white rounded-xl border border-slate-200 shadow-xs max-w-md w-full">
+                    <div className="w-14 h-14 rounded-full bg-blue-100 text-[#005ea2] flex items-center justify-center mx-auto">
+                      <FileText className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <div className="font-black text-base text-slate-900">{adminViewingDoc.title}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{adminViewingDoc.fileName}</div>
+                    </div>
+                    <div className="text-[11px] text-slate-600 bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-left font-mono space-y-1">
+                      <div>// Cryptographic Checksum: SHA-256 Verified</div>
+                      <div>// Issuer: {adminViewingDoc.issuingAuthority || 'Government Official'}</div>
+                      <div>// Depository Storage: Segregated AES-256 Vault</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {adminViewingDoc.notes && (
+                <div className="text-xs bg-blue-50 border border-blue-200 text-blue-950 p-3 rounded-xl">
+                  <strong>Compliance Notes:</strong> {adminViewingDoc.notes}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer with Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-[11px] text-slate-500 font-mono">
+                Document ID: {adminViewingDoc.id}
+              </span>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const docType = adminViewingDoc.type as any;
+                    const fieldMap: Record<string, 'ssnDocument' | 'driverLicenseFront' | 'driverLicenseBack' | 'passportDocument' | 'proofOfAddressDocument'> = {
+                      'ssn_card': 'ssnDocument',
+                      'driver_license_front': 'driverLicenseFront',
+                      'driver_license_back': 'driverLicenseBack',
+                      'passport': 'passportDocument',
+                      'proof_of_address': 'proofOfAddressDocument'
+                    };
+                    const targetField = fieldMap[docType];
+                    if (targetField) {
+                      handleUpdateIndividualDocStatus(targetField, 'Action Required');
+                    }
+                  }}
+                  className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-800 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Reject (Request Re-upload)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const docType = adminViewingDoc.type as any;
+                    const fieldMap: Record<string, 'ssnDocument' | 'driverLicenseFront' | 'driverLicenseBack' | 'passportDocument' | 'proofOfAddressDocument'> = {
+                      'ssn_card': 'ssnDocument',
+                      'driver_license_front': 'driverLicenseFront',
+                      'driver_license_back': 'driverLicenseBack',
+                      'passport': 'passportDocument',
+                      'proof_of_address': 'proofOfAddressDocument'
+                    };
+                    const targetField = fieldMap[docType];
+                    if (targetField) {
+                      handleUpdateIndividualDocStatus(targetField, 'Verified');
+                    }
+                  }}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Approve & Mark Verified</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAdminViewingDoc(null)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
           </div>

@@ -150,6 +150,8 @@ export const LiveActivityToast: React.FC = () => {
   useEffect(() => {
     if (isDismissedByUser) return;
 
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
     // Show initial pop-up after 3.5 seconds on page load
     const initialTimer = setTimeout(() => {
       const firstActivity = generateRandomActivity();
@@ -157,7 +159,7 @@ export const LiveActivityToast: React.FC = () => {
       setIsVisible(true);
 
       // Hide after 5 seconds
-      setTimeout(() => {
+      hideTimer = setTimeout(() => {
         setIsVisible(false);
       }, 5000);
     }, 3500);
@@ -170,16 +172,16 @@ export const LiveActivityToast: React.FC = () => {
       setIsVisible(true);
 
       // 2. Hide smoothly after 4.8 seconds
-      const hideTimeout = setTimeout(() => {
+      if (hideTimer) clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
         setIsVisible(false);
       }, 4800);
-
-      return () => clearTimeout(hideTimeout);
     }, 10000);
 
     return () => {
       clearTimeout(initialTimer);
       clearInterval(interval);
+      if (hideTimer) clearTimeout(hideTimer);
     };
   }, [isDismissedByUser, generateRandomActivity]);
 

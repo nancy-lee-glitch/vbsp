@@ -65,6 +65,7 @@ export type AdminTab =
   | 'payments'
   | 'email-center'
   | 'branding'
+  | 'database'
   | 'cms' 
   | 'audit' 
   | 'fraud' 

@@ -34,39 +34,33 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { SovereignPreloader } from './components/SovereignPreloader';
 import { LiveActivityToast } from './components/LiveActivityToast';
 import { Search, X, ArrowRight } from 'lucide-react';
+import { 
+  fetchSiteBranding, 
+  saveSiteBranding,
+  fetchAllParticipants, 
+  upsertParticipantAccount, 
+  deleteParticipantAccount, 
+  fetchFundPrices, 
+  fetchPaymentMethods, 
+  savePaymentMethod 
+} from './services/supabaseService';
 
 export default function App() {
   // Sovereign Preloader State (Runs on initial site entry)
   const [isPreloaderActive, setIsPreloaderActive] = useState<boolean>(true);
 
   // Site Branding & Custom Name/Logo State
-   const [branding, setBranding] = useState<SiteBrandingSettings>(DEFAULT_SITE_BRANDING);
-  const [brandingLoaded, setBrandingLoaded] = useState(false);
-
-  // Load branding from database when the app starts
-  useEffect(() => {
-    async function loadBranding() {
+  const [branding, setBranding] = useState<SiteBrandingSettings>(() => {
+    const saved = localStorage.getItem('vbsp_branding_settings');
+    if (saved) {
       try {
-        const response = await fetch('/api/branding');
-        const data = await response.json();
-        if (data.success && data.branding) {
-          setBranding({
-            siteName: data.branding.siteName || DEFAULT_SITE_BRANDING.siteName,
-            siteSubtitle: data.branding.slogan || DEFAULT_SITE_BRANDING.siteSubtitle,
-            logoUrl: data.branding.logoUrl || null,
-            supportPhone: data.branding.supportPhone || DEFAULT_SITE_BRANDING.supportPhone,
-            supportEmail: data.branding.supportEmail || DEFAULT_SITE_BRANDING.supportEmail,
-            footerText: data.branding.footerText || DEFAULT_SITE_BRANDING.footerText,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load branding:', error);
-      } finally {
-        setBrandingLoaded(true);
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing stored branding settings', e);
       }
     }
-    loadBranding();
-  }, []);
+    return DEFAULT_SITE_BRANDING;
+  });
 
   // Admin Email Dispatch Log State
   const [emailDispatches, setEmailDispatches] = useState<AdminEmailDispatch[]>(() => {
@@ -110,63 +104,50 @@ export default function App() {
   const handleUpdatePaymentMethods = (updated: PaymentMethodConfig[]) => {
     setPaymentMethods(updated);
     localStorage.setItem('vbsp_payment_methods', JSON.stringify(updated));
+    updated.forEach(m => savePaymentMethod(m).catch(e => console.warn(e)));
   };
 
   // Participant Accounts Registry State (Full CRUD managed by Admin & Self-Service)
-   const [users, setUsers] = useState<UserAccount[]>([]);
-  const [usersLoaded, setUsersLoaded] = useState(false);
-
-  // Load real participants from the database
-  useEffect(() => {
-    async function loadParticipants() {
+  const [users, setUsers] = useState<UserAccount[]>(() => {
+    const saved = localStorage.getItem('vbsp_users_registry');
+    if (saved) {
       try {
-        const response = await fetch('/api/admin/participants');
-        const data = await response.json();
-
-        if (data.success && data.participants) {
-          const mappedUsers: UserAccount[] = data.participants.map((p: any) => ({
-            id: String(p.id),
-            name: p.full_name || 'Participant',
-            email: p.email || '',
-            accountNumber: p.account_number || '',
-            thriftlinePin: p.thriftline_pin || '',
-            phone: '',
-            address: '',
-            employingAgency: '',
-            planType: p.account_type || 'VBSP Standard Account (Taxable Reserve)',
-            hireDate: p.created_at ? p.created_at.split('T')[0] : '',
-            totalBalance: Number(p.total_balance || 0),
-            traditionalBalance: Number(p.traditional_balance || 0),
-            rothBalance: Number(p.roth_balance || 0),
-            ytdReturn: 0,
-            vaultDepositaryLocation: '',
-            goldOuncesEquivalent: Number(p.gold_ounces_equivalent || 0),
-            silverOuncesEquivalent: Number(p.silver_ounces_equivalent || 0),
-            ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
-            contributionAllocations: {},
-            currentHoldings: [],
-            beneficiaries: [],
-            activeLoans: [],
-            transactions: [],
-            kycProfile: {
-              overallStatus: 'Pending Review',
-              riskTier: 'Tier 1 Individual',
-              ssnMasked: '***-**-****',
-              additionalDocuments: []
-            }
-          }));
-
-          setUsers(mappedUsers);
-        }
-      } catch (error) {
-        console.error('Failed to load participants:', error);
-      } finally {
-        setUsersLoaded(true);
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing stored users', e);
       }
     }
+    return MOCK_USERS;
+  });
 
-    loadParticipants();
+  // Supabase Initial State Loader (Hydrates from PostgreSQL on mount)
+  useEffect(() => {
+    fetchSiteBranding().then(b => {
+      if (b) {
+        setBranding(b);
+        document.title = `${b.siteName} | ${b.siteSubtitle}`;
+      }
+    }).catch(err => console.warn('Supabase branding load notice:', err));
+
+    fetchAllParticipants().then(pList => {
+      if (pList && pList.length > 0) {
+        setUsers(pList);
+      }
+    }).catch(err => console.warn('Supabase participants load notice:', err));
+
+    fetchFundPrices().then(fList => {
+      if (fList && fList.length > 0) {
+        setFunds(fList);
+      }
+    }).catch(err => console.warn('Supabase funds load notice:', err));
+
+    fetchPaymentMethods().then(pMethods => {
+      if (pMethods && pMethods.length > 0) {
+        setPaymentMethods(pMethods);
+      }
+    }).catch(err => console.warn('Supabase payment methods load notice:', err));
   }, []);
+
   // Admin Auth State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('vbsp_admin_logged_in') === 'true';
@@ -287,28 +268,11 @@ export default function App() {
   };
 
   // Branding Settings Handler
-    const handleUpdateBranding = async (updated: SiteBrandingSettings) => {
+  const handleUpdateBranding = (updated: SiteBrandingSettings) => {
     setBranding(updated);
-    document.title = `${updated.siteName} | ${updated.siteSubtitle || ''}`;
-
-    try {
-      await fetch('/api/branding', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          siteName: updated.siteName,
-          slogan: updated.siteSubtitle || '',
-          logoUrl: updated.logoUrl || '',
-          supportPhone: updated.supportPhone || '',
-          supportEmail: updated.supportEmail || '',
-          footerText: updated.footerText || '',
-        }),
-      });
-    } catch (error) {
-      console.error('Failed to save branding:', error);
-    }
+    localStorage.setItem('vbsp_branding_settings', JSON.stringify(updated));
+    document.title = `${updated.siteName} | ${updated.siteSubtitle}`;
+    saveSiteBranding(updated).catch(err => console.warn('Supabase branding sync notice:', err));
   };
 
   // Admin Email Dispatch Handler
@@ -328,6 +292,7 @@ export default function App() {
       const updatedList = [user, ...users];
       setUsers(updatedList);
       localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+      upsertParticipantAccount(user).catch(err => console.warn('Supabase user create notice:', err));
     }
 
     setCurrentView('participant_dashboard');
@@ -346,55 +311,33 @@ export default function App() {
     const updatedList = [newUser, ...users];
     setUsers(updatedList);
     localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+    upsertParticipantAccount(newUser).catch(err => console.warn('Supabase user create notice:', err));
   };
 
-   const handleUpdateUser = async (updatedUser: UserAccount) => {
-    try {
-      const response = await fetch('/api/admin/participants', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: updatedUser.id,
-          total_balance: updatedUser.totalBalance,
-          traditional_balance: updatedUser.traditionalBalance,
-          roth_balance: updatedUser.rothBalance,
-          full_name: updatedUser.name,
-          account_status: 'ACTIVE',
-        }),
-      });
+  const handleUpdateUser = (updated: UserAccount) => {
+    const updatedList = users.map(u => u.id === updated.id ? updated : u);
+    setUsers(updatedList);
+    localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
 
-      const data = await response.json();
-
-      if (data.success) {
-        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-      } else {
-        alert(data.message || 'Failed to update participant');
-      }
-    } catch (error) {
-      console.error('Update error:', error);
-      alert('Unable to update participant. Please try again.');
+    if (currentUser?.id === updated.id) {
+      setCurrentUser(updated);
+      localStorage.setItem('vbsp_participant_session', JSON.stringify(updated));
     }
+    upsertParticipantAccount(updated).catch(err => console.warn('Supabase user update notice:', err));
   };
 
-    const handleDeleteUser = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/admin/participants?id=${userId}`, {
-        method: 'DELETE',
-      });
-      const data = await response.json();
+  const handleDeleteUser = (userId: string) => {
+    const updatedList = users.filter(u => u.id !== userId);
+    setUsers(updatedList);
+    localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
 
-      if (data.success) {
-        setUsers(prev => prev.filter(u => u.id !== userId));
-      } else {
-        alert(data.message || 'Failed to delete participant');
-      }
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('Unable to delete participant. Please try again.');
+    if (currentUser?.id === userId) {
+      setCurrentUser(null);
+      localStorage.removeItem('vbsp_participant_session');
     }
+    deleteParticipantAccount(userId).catch(err => console.warn('Supabase user delete notice:', err));
   };
+
   const handleImpersonateUser = (user: UserAccount) => {
     setCurrentUser(user);
     localStorage.setItem('vbsp_participant_session', JSON.stringify(user));

@@ -19,47 +19,71 @@ import { UserAccount } from '../../types';
 interface KYCPopupReminderProps {
   user: UserAccount;
   onNavigateToKyc: () => void;
+  activeSubView?: string;
 }
 
 export const KYCPopupReminder: React.FC<KYCPopupReminderProps> = ({
   user,
-  onNavigateToKyc
+  onNavigateToKyc,
+  activeSubView
 }) => {
   const kycStatus = user.kycProfile?.overallStatus || 'Not Verified';
   const isVerified = kycStatus === 'Verified (Tier 1 Allocated)';
   
   // Track popup visibility in local state
   const [isOpen, setIsOpen] = useState(false);
-  const [lastDismissed, setLastDismissed] = useState<number>(0);
+  const [lastDismissed, setLastDismissed] = useState<number>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? sessionStorage.getItem(`kyc_popup_dismissed_${user.id}`) : null;
+      return stored ? Number(stored) : 0;
+    } catch {
+      return 0;
+    }
+  });
 
-  // Automatically show popup when user is not verified, and re-remind periodically
+  // Automatically show popup when user is not verified and not already on the KYC page
   useEffect(() => {
+    if (activeSubView === 'kyc') {
+      setIsOpen(false);
+      return;
+    }
+
     if (!isVerified) {
-      // Show initially after 1.5 seconds if not dismissed recently
+      // Show initially after 2.5 seconds if not dismissed recently
       const timer = setTimeout(() => {
         const now = Date.now();
-        if (now - lastDismissed > 60000) { // 1 min reminder interval if unverified
+        if (now - lastDismissed > 300000) { // 5 min reminder interval if unverified
           setIsOpen(true);
         }
-      }, 1500);
+      }, 2500);
 
       return () => clearTimeout(timer);
     } else {
       setIsOpen(false);
     }
-  }, [user.id, kycStatus, isVerified, lastDismissed]);
+  }, [user.id, kycStatus, isVerified, lastDismissed, activeSubView]);
 
   const handleDismiss = () => {
+    const now = Date.now();
     setIsOpen(false);
-    setLastDismissed(Date.now());
+    setLastDismissed(now);
+    try {
+      sessionStorage.setItem(`kyc_popup_dismissed_${user.id}`, String(now));
+    } catch {}
   };
 
   const handleGoToKyc = () => {
+    const now = Date.now();
     setIsOpen(false);
+    setLastDismissed(now);
+    try {
+      sessionStorage.setItem(`kyc_popup_dismissed_${user.id}`, String(now));
+    } catch {}
     onNavigateToKyc();
   };
 
-  if (isVerified) return null;
+  // If user is already on the KYC subview or is verified, do not render popup or floating badge
+  if (isVerified || activeSubView === 'kyc') return null;
 
   return (
     <>

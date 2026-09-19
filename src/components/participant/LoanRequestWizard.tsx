@@ -13,6 +13,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { UserAccount, TSPLoan } from '../../types';
+import { submitLoanApplication } from '../../services/supabaseService';
 
 interface LoanRequestWizardProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
   const [bankAccount, setBankAccount] = useState<string>('••••••••4892');
   const [eSignature, setESignature] = useState<string>('');
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -46,12 +48,28 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
   const periodRate = (interestRate / 100) / 26;
   const biweeklyPayment = (loanAmount * (periodRate * Math.pow(1 + periodRate, periods))) / (Math.pow(1 + periodRate, periods) - 1);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eSignature.trim()) return;
 
+    setIsSubmitting(true);
+    const loanId = `LOAN-2026-${Math.floor(100 + Math.random() * 900)}`;
+
+    try {
+      await submitLoanApplication(user, {
+        loan_type: loanType,
+        amount: loanAmount,
+        term_months: termYears * 12,
+        interest_rate: interestRate,
+        monthly_payment: Math.round(biweeklyPayment * 2.16 * 100) / 100,
+        reason: `${loanType} Bullion-Backed Loan (Signed: ${eSignature})`
+      });
+    } catch (err) {
+      console.warn('Supabase loan sync warning:', err);
+    }
+
     const newLoan: TSPLoan = {
-      id: `LOAN-2026-${Math.floor(100 + Math.random() * 900)}`,
+      id: loanId,
       type: loanType,
       originalAmount: loanAmount,
       currentBalance: loanAmount,
@@ -67,6 +85,7 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
       purpose: `${loanType} Bullion-Backed Loan Application`
     };
 
+    setIsSubmitting(false);
     onLoanSubmitted(newLoan, `Your $${loanAmount.toLocaleString()} ${loanType} loan application has been submitted (ID: #${newLoan.id}). Status: PROCESSING (Pending Super Admin Depository Approval). Funds will disburse upon admin authorization.`);
     onClose();
   };

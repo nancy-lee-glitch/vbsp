@@ -21,6 +21,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { UserAccount, AdminEmailDispatch, SiteBrandingSettings, VBSPAccountType } from '../../types';
+import { sendLiveMessage } from '../../services/supabaseService';
 
 interface AdminEmailCenterProps {
   users: UserAccount[];
@@ -230,8 +231,23 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
       };
 
       onSendEmail(newDispatch);
+
+      // Dispatch to Supabase live_messages table for each target recipient
+      targetRecipients.forEach(u => {
+        const personalized = renderPersonalizedContent(emailBody, u);
+        sendLiveMessage(u, {
+          sender_type: 'admin',
+          sender_name: senderName || branding.siteName || 'VBSP Depository Administration',
+          sender_email: senderEmail || 'custody@vertexbullion.com',
+          recipient_email: u.email,
+          subject: subject,
+          body: personalized,
+          category: priority === 'Urgent Vault Notice' ? 'urgent' : 'official'
+        }).catch(err => console.warn('Supabase live message dispatch error:', err));
+      });
+
       setIsSending(false);
-      setSendSuccessMessage(`Successfully dispatched email to ${targetRecipients.length} recipient${targetRecipients.length > 1 ? 's' : ''}!`);
+      setSendSuccessMessage(`Successfully dispatched email to ${targetRecipients.length} recipient${targetRecipients.length > 1 ? 's' : ''} and synced to live participant mailboxes!`);
       
       // Auto-clear message after 5s
       setTimeout(() => setSendSuccessMessage(''), 5000);

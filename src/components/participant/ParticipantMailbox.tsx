@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Inbox, 
   Send, 
@@ -9,64 +9,135 @@ import {
   Clock, 
   User, 
   AlertCircle,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import { UserAccount, ParticipantMessage } from '../../types';
+import { 
+  sendLiveMessage, 
+  fetchMessagesForParticipant, 
+  markMessageAsRead, 
+  DbMessage 
+} from '../../services/supabaseService';
 
 interface ParticipantMailboxProps {
   user: UserAccount;
 }
 
-export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) => {
-  const [messages, setMessages] = useState<ParticipantMessage[]>([
-    {
-      id: 'MSG-8821',
-      sender: 'VBSP Custody Specialist (Sarah Jenkins)',
-      recipient: user.name,
-      subject: 'Confirmation of 2026 Beneficiary Designation Update',
-      body: 'Dear Marcus Vance,\n\nThis message confirms that your electronic Form VBSP-3 designation of beneficiaries submitted on August 20, 2026 has been processed and accepted into the VBSP official depository record system.\n\nPrimary Beneficiaries:\n- Sarah Vance (Spouse) - 100%\n\nNo further paperwork or physical signatures are required at this time.\n\nSincerely,\nVBSP Bullion Operations',
-      timestamp: '2026-08-20 14:22 EST',
-      isRead: true,
-      hasAttachments: false
-    },
-    {
-      id: 'MSG-8819',
-      sender: 'Automated Account Notification',
-      recipient: user.name,
-      subject: '2026 Q2 Participant Statement Now Available',
-      body: 'Your official Quarterly Participant Statement for the period ending June 30, 2026 is now available for download in your Documents & Statements Center. Your closing portfolio balance was $342,850.12 with an annualized YTD return of +14.80%.',
-      timestamp: '2026-07-05 09:00 EST',
-      isRead: true,
-      hasAttachments: true
-    }
-  ]);
+const DEFAULT_WELCOME_MESSAGES: ParticipantMessage[] = [
+  {
+    id: 'MSG-8821',
+    sender: 'VBSP Custody Specialist (Sarah Jenkins)',
+    recipient: 'Participant',
+    subject: 'Confirmation of 2026 Beneficiary Designation Update',
+    body: 'Dear Participant,\n\nThis message confirms that your electronic Form VBSP-3 designation of beneficiaries has been processed and accepted into the VBSP official depository record system.\n\nPrimary Beneficiaries:\n- Designated Beneficiary (Spouse) - 100%\n\nNo further paperwork or physical signatures are required at this time.\n\nSincerely,\nVBSP Bullion Operations Desk',
+    timestamp: '2026-08-20 14:22 EST',
+    isRead: true,
+    hasAttachments: false
+  },
+  {
+    id: 'MSG-8819',
+    sender: 'Automated Depository Notification',
+    recipient: 'Participant',
+    subject: 'Quarterly Bullion Reserve Statement Available',
+    body: 'Your official Quarterly Participant Statement is available for download in your Documents & Statements Center. Your closing portfolio balance and bullion allocation are reconciled under physical assay audit.',
+    timestamp: '2026-07-05 09:00 EST',
+    isRead: true,
+    hasAttachments: true
+  }
+];
 
-  const [selectedMessage, setSelectedMessage] = useState<ParticipantMessage>(messages[0]);
+export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) => {
+  const [messages, setMessages] = useState<ParticipantMessage[]>(DEFAULT_WELCOME_MESSAGES);
+  const [selectedMessage, setSelectedMessage] = useState<ParticipantMessage>(DEFAULT_WELCOME_MESSAGES[0]);
   const [isComposing, setIsComposing] = useState(false);
   const [newSubject, setNewSubject] = useState('');
   const [newBody, setNewBody] = useState('');
   const [newCategory, setNewCategory] = useState('Account Administration');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [statusNotification, setStatusNotification] = useState<string | null>(null);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Load messages from Supabase or Cache
+  const loadMessages = async () => {
+    setIsLoading(true);
+    try {
+      const dbMsgs = await fetchMessagesForParticipant(user);
+      if (dbMsgs && dbMsgs.length > 0) {
+        const mapped: ParticipantMessage[] = dbMsgs.map((m: DbMessage) => ({
+          id: m.id ? `MSG-${m.id}` : `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
+          sender: m.sender_name || (m.sender_type === 'admin' ? 'VBSP Custody Admin' : user.name),
+          recipient: m.sender_type === 'admin' ? user.name : 'VBSP Caseworker Desk',
+          subject: m.subject,
+          body: m.body,
+          timestamp: m.created_at ? new Date(m.created_at).toLocaleString() : 'Recent',
+          isRead: m.is_read ?? true,
+          hasAttachments: false
+        }));
+        setMessages(mapped);
+        if (mapped[0]) setSelectedMessage(mapped[0]);
+      }
+    } catch (e) {
+      console.warn('Error loading participant messages:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMessages();
+  }, [user.id, user.accountNumber]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSubject.trim() || !newBody.trim()) return;
 
-    const newMsg: ParticipantMessage = {
-      id: `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
-      sender: user.name,
-      recipient: 'ThriftLine Representative',
-      subject: `[${newCategory}] ${newSubject}`,
-      body: newBody,
-      timestamp: new Date().toLocaleString(),
-      isRead: true,
-      hasAttachments: false
-    };
+    setIsSending(true);
+    const fullSubject = `[${newCategory}] ${newSubject}`;
 
-    setMessages([newMsg, ...messages]);
-    setSelectedMessage(newMsg);
+    try {
+      const saved = await sendLiveMessage(user, {
+        sender_type: 'participant',
+        sender_name: user.name,
+        sender_email: user.email,
+        recipient_email: 'depository@vbsp.org',
+        subject: fullSubject,
+        body: newBody,
+        category: newCategory
+      });
+
+      const newMsg: ParticipantMessage = {
+        id: saved.id ? `MSG-${saved.id}` : `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
+        sender: user.name,
+        recipient: 'VBSP Custodial Depository Desk',
+        subject: fullSubject,
+        body: newBody,
+        timestamp: new Date().toLocaleString(),
+        isRead: true,
+        hasAttachments: false
+      };
+
+      setMessages(prev => [newMsg, ...prev]);
+      setSelectedMessage(newMsg);
+      setIsComposing(false);
+      setNewSubject('');
+      setNewBody('');
+      setStatusNotification('Your secure message was transmitted to the VBSP Administration Desk.');
+      setTimeout(() => setStatusNotification(null), 4000);
+    } catch (err) {
+      console.error('Failed to send live message:', err);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSelectMessage = (m: ParticipantMessage) => {
+    setSelectedMessage(m);
     setIsComposing(false);
-    setNewSubject('');
-    setNewBody('');
+    const numId = parseInt(m.id.replace(/\D/g, ''), 10);
+    if (!isNaN(numId) && numId > 0) {
+      markMessageAsRead(numId);
+    }
   };
 
   return (

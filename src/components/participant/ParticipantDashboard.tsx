@@ -702,6 +702,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
       <KYCPopupReminder 
         user={user}
         onNavigateToKyc={() => setActiveSubView('kyc')}
+        activeSubView={activeSubView}
       />
     </div>
   );

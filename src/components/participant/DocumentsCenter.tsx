@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Download, 
@@ -11,19 +11,50 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { UserAccount } from '../../types';
+import { 
+  uploadUserDocument, 
+  fetchUserDocuments, 
+  DbUserDocument 
+} from '../../services/supabaseService';
 
 interface DocumentsCenterProps {
   user: UserAccount;
 }
 
 export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
-  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; size: string; date: string; status: string }[]>([
+  const [uploadedFiles, setUploadedFiles] = useState<{ id?: number; name: string; size: string; date: string; status: string; data?: string }[]>([
     { name: 'Marriage_Certificate_Vance.pdf', size: '1.2 MB', date: '2026-06-12', status: 'Approved' },
     { name: 'Home_Purchase_Closing_Disclosure.pdf', size: '3.4 MB', date: '2026-03-01', status: 'Approved' }
   ]);
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Fetch documents from Supabase on mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadDocs = async () => {
+      try {
+        const docs = await fetchUserDocuments(user);
+        if (isMounted && docs && docs.length > 0) {
+          const mapped = docs.map((d: DbUserDocument) => ({
+            id: d.id,
+            name: d.file_name || d.title,
+            size: d.file_size || '1.2 MB',
+            date: d.created_at ? d.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            status: d.status || 'Pending',
+            data: d.file_data
+          }));
+          setUploadedFiles(mapped);
+        }
+      } catch (err) {
+        console.warn('Error loading user documents:', err);
+      }
+    };
+    loadDocs();
+    return () => { isMounted = false; };
+  }, [user.id, user.accountNumber]);
 
   const statements = [
     { title: '2026 Q2 Participant Statement', period: 'Apr 1, 2026 - Jun 30, 2026', size: '240 KB' },
@@ -62,15 +93,42 @@ Vertex Bullion Sovereign Plan Depository Operations (VBSP)`;
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const newEntry = {
-        name: file.name,
-        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-        date: new Date().toISOString().split('T')[0],
-        status: 'Under Review'
+      const fileSize = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+      setIsUploading(true);
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const fileData = typeof reader.result === 'string' ? reader.result : '';
+        try {
+          const uploadedDoc = await uploadUserDocument(user, {
+            title: file.name,
+            category: 'legal',
+            file_name: file.name,
+            file_size: fileSize,
+            file_data: fileData,
+            uploaded_by: 'participant',
+            status: 'Pending'
+          });
+
+          const newEntry = {
+            id: uploadedDoc.id,
+            name: file.name,
+            size: fileSize,
+            date: new Date().toISOString().split('T')[0],
+            status: 'Pending',
+            data: fileData
+          };
+
+          setUploadedFiles(prev => [newEntry, ...prev]);
+          setUploadSuccess(`Successfully uploaded "${file.name}" to the secure depository database. Compliance officers will review it.`);
+          setTimeout(() => setUploadSuccess(''), 6000);
+        } catch (err) {
+          console.error('Document upload error:', err);
+        } finally {
+          setIsUploading(false);
+        }
       };
-      setUploadedFiles([newEntry, ...uploadedFiles]);
-      setUploadSuccess(`Successfully uploaded "${file.name}". Our operations caseworkers will review it within 2 business days.`);
-      setTimeout(() => setUploadSuccess(''), 6000);
+      reader.readAsDataURL(file);
     }
   };
 

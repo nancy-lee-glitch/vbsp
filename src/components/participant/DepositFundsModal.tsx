@@ -25,6 +25,8 @@ import {
   PaymentMethodConfig 
 } from '../../types';
 
+import { submitDepositProof } from '../../services/supabaseService';
+
 interface DepositFundsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -53,6 +55,7 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
   const [remittanceReference, setRemittanceReference] = useState<string>('');
   const [senderIdentifier, setSenderIdentifier] = useState<string>(user.name);
   const [uploadedReceiptName, setUploadedReceiptName] = useState<string>('');
+  const [uploadedReceiptData, setUploadedReceiptData] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -79,11 +82,20 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setUploadedReceiptName(e.target.files[0].name);
+      const file = e.target.files[0];
+      setUploadedReceiptName(file.name);
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setUploadedReceiptData(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAmountValid || !selectedMethod) return;
 
@@ -91,9 +103,27 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
 
     const targetFundName = selectedFund?.name || 'Gold Sovereign (G-Fund)';
     const methodName = selectedMethod.name;
+    const newTxId = `TX-DEP-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    try {
+      // 1. Submit to Supabase / PostgreSQL with guaranteed integer participant_id
+      await submitDepositProof(user, {
+        amount: depositAmount,
+        fundCode: selectedFundCode,
+        paymentMethodId: selectedMethod.id,
+        paymentMethodName: selectedMethod.name,
+        paymentReference: remittanceReference || 'Direct Remittance',
+        senderIdentifier: senderIdentifier || user.name,
+        proofFileName: uploadedReceiptName || 'Proof_Document.pdf',
+        proofFileData: uploadedReceiptData || '',
+        txId: newTxId
+      });
+    } catch (err) {
+      console.warn('Supabase deposit sync warning:', err);
+    }
 
     const newTx: TSPTransaction = {
-      id: `TX-DEP-${Math.floor(100000 + Math.random() * 900000)}`,
+      id: newTxId,
       date: new Date().toISOString().split('T')[0],
       type: `Bullion Deposit / ${selectedFundCode}-Fund Acquisition`,
       description: `${methodName} deposit allocated to ${targetFundName}. Channel: ${selectedMethod.category.toUpperCase()}. Ref/TxID: ${remittanceReference || 'Direct Remittance'}`,
@@ -114,11 +144,9 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
     const receiptInfo = uploadedReceiptName ? ` (Receipt: "${uploadedReceiptName}")` : '';
     const msg = `Deposit request for $${depositAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}${receiptInfo} via ${selectedMethod.name} to ${selectedFundCode}-Fund submitted successfully. Your deposit and documentation are now Under Review by depository vault compliance. Confirmation #${newTx.id}`;
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      onDepositSubmitted(newTx, msg);
-      onClose();
-    }, 400);
+    setIsSubmitting(false);
+    onDepositSubmitted(newTx, msg);
+    onClose();
   };
 
   // Filtered Methods by Category Pill
