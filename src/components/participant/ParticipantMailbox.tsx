@@ -18,7 +18,7 @@ import {
   fetchMessagesForParticipant, 
   markMessageAsRead, 
   DbMessage 
-} from '../../services/supabaseService';
+} from '../../services/dbService';
 
 interface ParticipantMailboxProps {
   user: UserAccount;

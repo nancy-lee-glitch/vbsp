@@ -33,19 +33,22 @@ import {
   Award
 } from 'lucide-react';
 import { MOCK_NEWS } from '../../data/mockData';
-import { PortalView, TSPFund } from '../../types';
+import { PortalView, TSPFund, SiteBrandingSettings } from '../../types';
 
 interface PublicHomeProps {
   onNavigate: (view: PortalView) => void;
   onOpenAuth: (mode?: 'login' | 'onboarding') => void;
   funds: TSPFund[];
+  branding?: SiteBrandingSettings;
 }
 
 export const PublicHome: React.FC<PublicHomeProps> = ({
   onNavigate,
   onOpenAuth,
   funds,
+  branding,
 }) => {
+  const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
   const [fundTab, setFundTab] = useState<'core' | 'lifecycle'>('core');
   const [lifeStageTab, setLifeStageTab] = useState<number>(0);
   
@@ -179,7 +182,7 @@ export const PublicHome: React.FC<PublicHomeProps> = ({
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">
-              The Vertex Bullion Savings Plan (VBSP) is a fiduciary tax-deferred savings and physical precious metals custody plan. Providing federal civil servants, uniformed members, and institutional participants direct access to 100% allocated physical gold, silver, and low-cost target-date index funds.
+              The {siteName} is a fiduciary tax-deferred savings and physical precious metals custody plan. Providing federal civil servants, uniformed members, and institutional participants direct access to 100% allocated physical gold, silver, and low-cost target-date index funds.
             </p>
 
             {/* Hero Action Buttons - Distinct Get Started and Sign In */}
@@ -829,7 +832,7 @@ export const PublicHome: React.FC<PublicHomeProps> = ({
             The Three Pillars of FERS Retirement
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Federal Employees Retirement System (FERS) is designed as a three-tier package. Your Bullion Savings Plan (VBSP) is the primary growth engine you control directly.
+            Federal Employees Retirement System (FERS) is designed as a three-tier package. Your {siteName} is the primary growth engine you control directly.
           </p>
         </div>
 
@@ -869,7 +872,7 @@ export const PublicHome: React.FC<PublicHomeProps> = ({
             </div>
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#005ea2]">Tier 3: Defined Contribution</span>
-              <h3 className="text-base font-bold text-[#112e51] mt-0.5">Bullion Savings Plan (VBSP)</h3>
+              <h3 className="text-base font-bold text-[#112e51] mt-0.5">{siteName}</h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
               Tax-advantaged savings with up to <strong>5% automatic and matching agency contributions</strong>. Invest in 5 low-cost core funds or Lifecycle target-date allocations.
@@ -885,7 +888,7 @@ export const PublicHome: React.FC<PublicHomeProps> = ({
         <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
           <h2 className="text-lg sm:text-xl font-black text-[#112e51] flex items-center gap-2">
             <Calendar className="w-5 h-5 text-[#005ea2]" />
-            <span>Official VBSP Bulletins & Custody News</span>
+            <span>Official Custody Bulletins & Announcements</span>
           </h2>
         </div>
 

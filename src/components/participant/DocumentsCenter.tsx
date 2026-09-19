@@ -15,7 +15,7 @@ import {
   uploadUserDocument, 
   fetchUserDocuments, 
   DbUserDocument 
-} from '../../services/supabaseService';
+} from '../../services/dbService';
 
 interface DocumentsCenterProps {
   user: UserAccount;
@@ -65,10 +65,10 @@ export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
   ];
 
   const handleSimulatedDownload = (title: string) => {
-    const text = `VERTEX BULLION SOVEREIGN PLAN (VBSP) OFFICIAL CUSTODIAL STATEMENT
+    const text = `CASSIVON CAPITAL SAVINGS PLAN (CCSP) OFFICIAL CUSTODIAL STATEMENT
 Document: ${title}
 Participant Name: ${user.name}
-VBSP Account Number: ${user.accountNumber}
+Account Number: ${user.accountNumber}
 Employing Agency: ${user.employingAgency}
 Total Account Balance: $${user.totalBalance.toLocaleString()}
 Traditional Bullion Balance: $${user.traditionalBalance.toLocaleString()}
@@ -79,7 +79,7 @@ Silver Equivalent: ${user.silverOuncesEquivalent || 0} oz (Fine Physical)
 Current Personal Rate of Return: ${user.ytdReturn}%
 
 Generated: ${new Date().toISOString()}
-Vertex Bullion Sovereign Plan Depository Operations (VBSP)`;
+Cassivon Capital Savings Plan Depository Operations (CCSP)`;
 
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);

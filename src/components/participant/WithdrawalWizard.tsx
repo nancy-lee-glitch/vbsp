@@ -11,7 +11,7 @@ import {
   FileCheck
 } from 'lucide-react';
 import { UserAccount } from '../../types';
-import { submitWithdrawalRequest } from '../../services/supabaseService';
+import { submitWithdrawalRequest } from '../../services/dbService';
 
 interface WithdrawalWizardProps {
   isOpen: boolean;
@@ -56,7 +56,7 @@ export const WithdrawalWizard: React.FC<WithdrawalWizardProps> = ({
       console.warn('Supabase withdrawal sync warning:', err);
     }
 
-    const msg = `Withdrawal request for $${amount.toLocaleString()} (${withdrawalType.replace('_', ' ')}) has been submitted. Net disbursement after ${taxWithholdingPercent}% tax withholding: $${netAmount.toLocaleString()}. Confirmation #VBSP-WDL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const msg = `Withdrawal request for $${amount.toLocaleString()} (${withdrawalType.replace('_', ' ')}) has been submitted. Net disbursement after ${taxWithholdingPercent}% tax withholding: $${netAmount.toLocaleString()}. Confirmation #CCSP-WDL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
     setIsSubmitting(false);
     onWithdrawalSubmitted(amount, withdrawalType, msg);

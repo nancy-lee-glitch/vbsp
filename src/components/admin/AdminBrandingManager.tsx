@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { SiteBrandingSettings } from '../../types';
 import { DEFAULT_SITE_BRANDING } from '../../data/mockData';
-import { saveSiteBranding } from '../../services/supabaseService';
+import { saveSiteBranding } from '../../services/dbService';
 
 interface AdminBrandingManagerProps {
   branding: SiteBrandingSettings;
@@ -34,6 +34,13 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync formData whenever parent branding updates
+  React.useEffect(() => {
+    if (branding) {
+      setFormData(branding);
+    }
+  }, [branding]);
 
   const handleInputChange = (field: keyof SiteBrandingSettings, value: string) => {
     setFormData(prev => ({
@@ -73,10 +80,11 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
 
   // Reset to default institutional emblem
   const handleResetToDefault = () => {
-    if (confirm('Reset site branding and logo to official Vertex Bullion defaults?')) {
+    if (confirm('Reset site branding and logo to official Cassivon Capital defaults?')) {
       setFormData(DEFAULT_SITE_BRANDING);
       onUpdateBranding(DEFAULT_SITE_BRANDING);
       saveSiteBranding(DEFAULT_SITE_BRANDING).catch(e => console.warn(e));
+      window.dispatchEvent(new CustomEvent('vbsp_db_sync', { detail: { type: 'branding', branding: DEFAULT_SITE_BRANDING } }));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 4000);
     }
@@ -88,8 +96,9 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
     onUpdateBranding(formData);
     try {
       await saveSiteBranding(formData);
+      window.dispatchEvent(new CustomEvent('vbsp_db_sync', { detail: { type: 'branding', branding: formData } }));
     } catch (err) {
-      console.warn('Failed to save branding to Supabase:', err);
+      console.warn('Failed to save branding to database:', err);
     }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 4000);
@@ -149,7 +158,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                   type="text" 
                   value={formData.siteName}
                   onChange={(e) => handleInputChange('siteName', e.target.value)}
-                  placeholder="VERTEX BULLION SAVINGS PLAN"
+                  placeholder="CASSIVON CAPITAL SAVINGS PLAN"
                   className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                   required
                 />
@@ -166,7 +175,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                   type="text" 
                   value={formData.siteSubtitle}
                   onChange={(e) => handleInputChange('siteSubtitle', e.target.value)}
-                  placeholder="Institutional Precious Metals Thrift & Sovereign Bullion Custody Board"
+                  placeholder="Institutional Precious Metals Thrift & Sovereign Custody Board"
                   className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                   required
                 />
@@ -181,7 +190,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                     type="text" 
                     value={formData.siteDomain}
                     onChange={(e) => handleInputChange('siteDomain', e.target.value)}
-                    placeholder="VBSP.ORG"
+                    placeholder="CASSIVON.COM"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 text-xs font-mono font-bold text-[#005ea2] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                     required
                   />
@@ -195,7 +204,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                     type="text" 
                     value={formData.sealText}
                     onChange={(e) => handleInputChange('sealText', e.target.value)}
-                    placeholder="Official Sovereign Precious Metals Depository Portal"
+                    placeholder="Official Vault Custody & Sovereign Savings Reserve • LBMA Good Delivery Certified"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                     required
                   />
@@ -223,7 +232,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xs bg-[#112e51] text-[#f2a900] flex items-center justify-center font-black text-lg border border-[#002f5a] shrink-0">
-                      VB
+                      CC
                     </div>
                   )}
 
@@ -278,7 +287,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                       setFormData(prev => ({ ...prev, logoUrl: e.target.value }));
                       setPreviewError(false);
                     }}
-                    placeholder="https://example.com/assets/vbsp-logo.png"
+                    placeholder="https://example.com/assets/cassivon-logo.png"
                     className="w-full bg-white border border-slate-300 rounded-xs px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                   />
                 </div>
@@ -298,7 +307,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                     type="text" 
                     value={formData.supportPhone}
                     onChange={(e) => handleInputChange('supportPhone', e.target.value)}
-                    placeholder="1-800-VBSP-THRIFT"
+                    placeholder="1-800-CASSIVON (227-7486)"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 text-xs font-semibold"
                   />
                 </div>
@@ -309,7 +318,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                     type="email" 
                     value={formData.supportEmail}
                     onChange={(e) => handleInputChange('supportEmail', e.target.value)}
-                    placeholder="custody@vbsp.org"
+                    placeholder="custody@cassivon.com"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 text-xs font-semibold"
                   />
                 </div>
@@ -353,7 +362,7 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
                         </div>
                       ) : (
                         <div className="w-10 h-10 rounded-xs bg-[#002f5a] flex items-center justify-center font-black text-sm text-[#f2a900] border border-[#004f87]">
-                          VB
+                          CC
                         </div>
                       )}
                       <div>

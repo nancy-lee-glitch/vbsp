@@ -1,8 +1,6 @@
-import { neon } from '@neondatabase/serverless';
+import sql from '../db.js';
 
 export default async function handler(req, res) {
-  const sql = neon(process.env.DATABASE_URL);
-
   try {
     // GET - List all participants or get one
     if (req.method === 'GET') {
@@ -31,7 +29,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, participants: result });
     }
 
-        // POST - Create new participant (from Admin)
+    // POST - Create new participant (from Admin)
     if (req.method === 'POST') {
       const { 
         fullName, 
@@ -90,6 +88,7 @@ export default async function handler(req, res) {
         participant: result[0]
       });
     }
+
     // PUT - Update participant (balance, status, etc.)
     if (req.method === 'PUT') {
       const { id, total_balance, traditional_balance, roth_balance, account_status, full_name } = req.body;
@@ -100,11 +99,11 @@ export default async function handler(req, res) {
 
       const result = await sql`
         UPDATE participant_accounts SET
-          total_balance = COALESCE(${total_balance}, total_balance),
-          traditional_balance = COALESCE(${traditional_balance}, traditional_balance),
-          roth_balance = COALESCE(${roth_balance}, roth_balance),
-          account_status = COALESCE(${account_status}, account_status),
-          full_name = COALESCE(${full_name}, full_name),
+          total_balance = COALESCE(${total_balance !== undefined ? Number(total_balance) : null}, total_balance),
+          traditional_balance = COALESCE(${traditional_balance !== undefined ? Number(traditional_balance) : null}, traditional_balance),
+          roth_balance = COALESCE(${roth_balance !== undefined ? Number(roth_balance) : null}, roth_balance),
+          account_status = COALESCE(${account_status || null}, account_status),
+          full_name = COALESCE(${full_name || null}, full_name),
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${Number(id)}
         RETURNING *

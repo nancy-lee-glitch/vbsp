@@ -10,7 +10,7 @@ interface SovereignPreloaderProps {
 
 export const SovereignPreloader: React.FC<SovereignPreloaderProps> = ({
   onComplete,
-  brandTitle = 'VERTEX BULLION SOVEREIGN PLAN',
+  brandTitle = 'CASSIVON CAPITAL SAVINGS PLAN',
   brandSubtitle = 'Federal Depository Vault & Allocated Physical Bullion Custody',
   logoUrl
 }) => {

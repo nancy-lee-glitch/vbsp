@@ -238,7 +238,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* ---------------------------------------------------- */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
         
-        {/* Left: Strictly Aligned Single Row [Icon] VERTEX BULLION SAVINGS PLAN (VBSP) */}
+        {/* Left: Strictly Aligned Single Row [Icon] Cassivon Capital Savings Plan */}
         <div 
           onClick={() => handleNavClick('public_home')}
           className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none min-w-0"
@@ -268,7 +268,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="font-bold tracking-tight text-[#0f2942] whitespace-nowrap"
                 style={{ fontSize: 'clamp(0.82rem, 3.2vw, 1.2rem)', lineHeight: '1.2' }}
               >
-                VERTEX BULLION SAVINGS PLAN (VBSP)
+                {branding.siteName || 'CASSIVON CAPITAL SAVINGS PLAN'}
               </span>
             </div>
             <p className="text-[10px] text-slate-500 font-medium hidden sm:block truncate">
@@ -343,7 +343,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => onOpenAuthModal('onboarding')}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 bg-amber-50 hover:bg-amber-100 text-[#92400e] text-xs font-bold rounded-xs border border-amber-300 transition-colors cursor-pointer shadow-2xs"
                 id="header-open-account-btn"
-                title="Open a new VBSP Bullion Account"
+                title={`Open a new ${branding.siteName || 'CCSP'} Bullion Account`}
               >
                 <UserPlus className="w-3.5 h-3.5 text-amber-700" />
                 <span>Open Account</span>

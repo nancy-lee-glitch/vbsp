@@ -215,7 +215,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
     setNewPayPalEmail('');
     setNewCashAppTag('$');
     setNewZelleIdentifier('');
-    setNewRecipientName('Vertex Bullion Custody Service');
+    setNewRecipientName('Cassivon Capital Custody Service');
 
     setIsAddModalOpen(true);
   };
@@ -873,7 +873,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
                         required
                         value={newAccountHolderName}
                         onChange={(e) => setNewAccountHolderName(e.target.value)}
-                        placeholder="e.g. Vertex Bullion Savings Plan Trust"
+                        placeholder="e.g. Cassivon Capital Savings Plan Trust"
                         className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 font-semibold text-slate-900"
                       />
                     </div>
@@ -957,7 +957,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
                         required
                         value={newRecipientName}
                         onChange={(e) => setNewRecipientName(e.target.value)}
-                        placeholder="e.g. Vertex Bullion Custody Service"
+                        placeholder="e.g. Cassivon Capital Custody Service"
                         className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 font-semibold text-slate-900"
                       />
                     </div>
@@ -981,7 +981,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
                         required
                         value={newPayPalEmail}
                         onChange={(e) => setNewPayPalEmail(e.target.value)}
-                        placeholder="clearing@vbsp-custody.org"
+                        placeholder="clearing@cassivon.com"
                         className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 font-mono font-bold text-indigo-800"
                       />
                     </div>
@@ -993,7 +993,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
                         required
                         value={newRecipientName}
                         onChange={(e) => setNewRecipientName(e.target.value)}
-                        placeholder="e.g. Vertex Bullion Savings Custody Corp"
+                        placeholder="e.g. Cassivon Capital Savings Custody Corp"
                         className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 font-semibold text-slate-900"
                       />
                     </div>
@@ -1017,7 +1017,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
                         required
                         value={newZelleIdentifier}
                         onChange={(e) => setNewZelleIdentifier(e.target.value)}
-                        placeholder="depository@vbsp.org or +1 (202) 555-0199"
+                        placeholder="depository@cassivon.com or +1 (202) 555-0199"
                         className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 font-mono font-bold text-purple-800"
                       />
                     </div>
@@ -1029,7 +1029,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
                         required
                         value={newRecipientName}
                         onChange={(e) => setNewRecipientName(e.target.value)}
-                        placeholder="Vertex Bullion Savings Plan LLC"
+                        placeholder="Cassivon Capital Savings Plan LLC"
                         className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 font-semibold text-slate-900"
                       />
                     </div>

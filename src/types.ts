@@ -103,7 +103,7 @@ export interface PaymentMethodConfig {
   
   // App / P2P Channels
   payPalEmail?: string;
-  cashAppTag?: string; // e.g. $VBSPVaultReserve
+  cashAppTag?: string; // e.g. $CassivonVaultReserve
   zelleIdentifier?: string; // Email or Phone Number
   recipientName?: string;
   
@@ -148,9 +148,13 @@ export type FontSize = 'small' | 'normal' | 'large' | 'xlarge';
 export type Language = 'en' | 'es';
 
 export type VBSPAccountType = 
+  | 'CCSP Standard Account (Taxable Reserve)'
+  | 'CCSP Sovereign Custody (Self-Directed / IRA)'
+  | 'CCSP Institutional / Corporate Reserve'
   | 'VBSP Standard Account (Taxable Reserve)'
   | 'VBSP Sovereign Custody (Self-Directed / IRA)'
-  | 'VBSP Institutional / Corporate Reserve';
+  | 'VBSP Institutional / Corporate Reserve'
+  | string;
 
 export interface TSPFund {
   id: string;

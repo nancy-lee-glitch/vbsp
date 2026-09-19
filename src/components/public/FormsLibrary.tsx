@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MOCK_DOCUMENTS } from '../../data/mockData';
-import { TSPDocument } from '../../types';
+import { TSPDocument, SiteBrandingSettings } from '../../types';
 import { 
   FileText, 
   Download, 
@@ -12,10 +12,15 @@ import {
   Shield 
 } from 'lucide-react';
 
-export const FormsLibrary: React.FC = () => {
+interface FormsLibraryProps {
+  branding?: SiteBrandingSettings;
+}
+
+export const FormsLibrary: React.FC<FormsLibraryProps> = ({ branding }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [previewDoc, setPreviewDoc] = useState<TSPDocument | null>(null);
+  const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
 
   const categories = ['All', 'Forms', 'Fact Sheets', 'Publications'];
 
@@ -29,13 +34,13 @@ export const FormsLibrary: React.FC = () => {
   });
 
   const handleDownloadSample = (doc: TSPDocument) => {
-    const sampleText = `VERTEX BULLION SOVEREIGN PLAN (VBSP) OFFICIAL CUSTODIAL DOCUMENT
+    const sampleText = `${siteName.toUpperCase()} (CCSP) OFFICIAL CUSTODIAL DOCUMENT
 Document ID: ${doc.id}
 Title: ${doc.title}
 Form Number: ${doc.formNumber || 'N/A'}
 Category: ${doc.category}
 Revision Date: ${doc.lastUpdated}
-Vertex Bullion Sovereign Plan Depository Authority (VBSP)
+${siteName} Depository Authority (CCSP)
 
 =======================================================
 INSTRUCTIONS & GENERAL INFORMATION
@@ -49,7 +54,7 @@ For live electronic submissions, log into your Participant My Account portal.
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${doc.formNumber || 'VBSP_Document'}_${doc.id}.txt`;
+    a.download = `${doc.formNumber || 'CCSP_Document'}_${doc.id}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -79,7 +84,7 @@ For live electronic submissions, log into your Participant My Account portal.
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by form number (e.g. VBSP-3) or title..."
+            placeholder="Search by form number (e.g. CCSP-3) or title..."
             className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-800 focus:bg-white"
           />
         </div>

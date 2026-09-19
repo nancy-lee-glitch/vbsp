@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TSPFund } from '../../types';
+import { TSPFund, SiteBrandingSettings } from '../../types';
 import { 
   TrendingUp, 
   Shield, 
@@ -14,11 +14,13 @@ import {
 
 interface FundPerformanceViewProps {
   funds: TSPFund[];
+  branding?: SiteBrandingSettings;
 }
 
-export const FundPerformanceView: React.FC<FundPerformanceViewProps> = ({ funds }) => {
+export const FundPerformanceView: React.FC<FundPerformanceViewProps> = ({ funds, branding }) => {
   const [selectedFund, setSelectedFund] = useState<TSPFund>(funds[2] || funds[0]); // Default C Fund
   const [filterCategory, setFilterCategory] = useState<'All' | 'Core Individual Fund' | 'Lifecycle Fund'>('All');
+  const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
 
   const filteredFunds = funds.filter(f => 
     filterCategory === 'All' ? true : f.category === filterCategory
@@ -33,10 +35,10 @@ export const FundPerformanceView: React.FC<FundPerformanceViewProps> = ({ funds 
           <span>OFFICIAL RATES OF RETURN & SHARE PRICES</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-          VBSP Bullion Funds & Custodial Performance
+          {siteName} Funds & Custodial Performance
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-          The VBSP offers five individual sovereign core bullion and security funds covering LBMA allocated gold, silver reserves, sovereign liquidity, precious metals indexes, and mining reserves, alongside Lifecycle (L) Target-Date Funds. All funds feature 100% audited physical backing and ultra-low custodial fees.
+          The {siteName} offers five individual sovereign core bullion and security funds covering LBMA allocated gold, silver reserves, sovereign liquidity, precious metals indexes, and mining reserves, alongside Lifecycle (L) Target-Date Funds. All funds feature 100% audited physical backing and ultra-low custodial fees.
         </p>
       </div>
 

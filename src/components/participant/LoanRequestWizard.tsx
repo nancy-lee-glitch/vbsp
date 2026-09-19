@@ -13,7 +13,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { UserAccount, TSPLoan } from '../../types';
-import { submitLoanApplication } from '../../services/supabaseService';
+import { submitLoanApplication } from '../../services/dbService';
 
 interface LoanRequestWizardProps {
   isOpen: boolean;
@@ -40,17 +40,25 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
   if (!isOpen) return null;
 
   // Maximum loan calculation (Lesser of 50% vested balance or $50,000 minus outstanding loan)
-  const maxLoanAllowed = Math.min(50000 - 8500, Math.floor(user.totalBalance * 0.5));
+  const safeTotalBalance = (isNaN(user.totalBalance) || Number.isNaN(user.totalBalance)) ? 0 : user.totalBalance;
+  const maxLoanAllowed = Math.max(1000, Math.min(50000 - 8500, Math.floor(safeTotalBalance * 0.5)));
   const interestRate = 4.25; // Current G Fund loan rate
 
   // Calculate bi-weekly payroll payment
-  const periods = termYears * 26;
+  const safeTermYears = (isNaN(termYears) || Number.isNaN(termYears) || termYears <= 0) ? 3 : termYears;
+  const periods = safeTermYears * 26;
   const periodRate = (interestRate / 100) / 26;
-  const biweeklyPayment = (loanAmount * (periodRate * Math.pow(1 + periodRate, periods))) / (Math.pow(1 + periodRate, periods) - 1);
+  const safeLoanAmount = (isNaN(loanAmount) || Number.isNaN(loanAmount) || loanAmount <= 0) ? 5000 : loanAmount;
+  const rawBiweekly = (safeLoanAmount * (periodRate * Math.pow(1 + periodRate, periods))) / (Math.pow(1 + periodRate, periods) - 1);
+  const biweeklyPayment = (isNaN(rawBiweekly) || Number.isNaN(rawBiweekly) || !isFinite(rawBiweekly)) ? 0 : rawBiweekly;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eSignature.trim()) return;
+
+    const validatedAmount = (isNaN(loanAmount) || Number.isNaN(loanAmount) || loanAmount <= 0) ? 5000 : loanAmount;
+    const validatedMonthlyPayment = Math.round(biweeklyPayment * 2.16 * 100) / 100;
+    const safeMonthlyPayment = (isNaN(validatedMonthlyPayment) || Number.isNaN(validatedMonthlyPayment)) ? 0 : validatedMonthlyPayment;
 
     setIsSubmitting(true);
     const loanId = `LOAN-2026-${Math.floor(100 + Math.random() * 900)}`;
@@ -58,10 +66,10 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
     try {
       await submitLoanApplication(user, {
         loan_type: loanType,
-        amount: loanAmount,
-        term_months: termYears * 12,
+        amount: validatedAmount,
+        term_months: safeTermYears * 12,
         interest_rate: interestRate,
-        monthly_payment: Math.round(biweeklyPayment * 2.16 * 100) / 100,
+        monthly_payment: safeMonthlyPayment,
         reason: `${loanType} Bullion-Backed Loan (Signed: ${eSignature})`
       });
     } catch (err) {
@@ -71,11 +79,11 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
     const newLoan: TSPLoan = {
       id: loanId,
       type: loanType,
-      originalAmount: loanAmount,
-      currentBalance: loanAmount,
+      originalAmount: validatedAmount,
+      currentBalance: validatedAmount,
       interestRate: interestRate,
       issueDate: new Date().toISOString().split('T')[0],
-      termMonths: termYears * 12,
+      termMonths: safeTermYears * 12,
       repaymentPerPayPeriod: Math.round(biweeklyPayment * 100) / 100,
       status: 'Processing',
       collateralAsset: `Segregated ${loanType === 'General Purpose' ? 'Gold Sovereign Reserve' : 'Depository Bullion Reserve'}`,

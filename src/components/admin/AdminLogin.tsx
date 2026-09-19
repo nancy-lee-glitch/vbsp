@@ -83,7 +83,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               )}
               <div>
                 <span className="text-[11px] font-bold tracking-wider text-[#f2a900] uppercase block">
-                  {branding?.siteName || 'VERTEX BULLION SAVINGS PLAN'}
+                  {branding?.siteName || 'CASSIVON CAPITAL SAVINGS PLAN'}
                 </span>
                 <h1 className="text-xl sm:text-2xl font-black text-white">
                   Executive Administrative Terminal

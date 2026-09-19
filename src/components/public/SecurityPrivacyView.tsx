@@ -10,7 +10,15 @@ import {
   FileText
 } from 'lucide-react';
 
-export const SecurityPrivacyView: React.FC = () => {
+import { SiteBrandingSettings } from '../../types';
+
+interface SecurityPrivacyViewProps {
+  branding?: SiteBrandingSettings;
+}
+
+export const SecurityPrivacyView: React.FC<SecurityPrivacyViewProps> = ({ branding }) => {
+  const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
+
   return (
     <div className="space-y-8 pb-12" id="security-privacy-view">
       {/* Header */}
@@ -20,10 +28,10 @@ export const SecurityPrivacyView: React.FC = () => {
           <span>SOVEREIGN SECURITY, VAULT INTEGRITY & PRIVACY COMPLIANCE</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-          How We Protect Your VBSP Bullion Account & Vault Reserves
+          How We Protect Your CCSP Bullion Account & Vault Reserves
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-          The Vertex Bullion Sovereign Plan implements multi-layered cybersecurity defense, strict Privacy Act protections, 256-bit encryption, physical LBMA vault bar auditing, and full Section 508 accessibility compliance.
+          The {siteName} implements multi-layered cybersecurity defense, strict Privacy Act protections, 256-bit encryption, physical LBMA vault bar auditing, and full Section 508 accessibility compliance.
         </p>
       </div>
 

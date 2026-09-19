@@ -12,21 +12,27 @@ import {
   Lock
 } from 'lucide-react';
 
+import { SiteBrandingSettings } from '../../types';
+
 interface ContactThriftLineProps {
   onNavigate?: (view: any) => void;
+  branding?: SiteBrandingSettings;
 }
 
-export const ContactThriftLine: React.FC<ContactThriftLineProps> = () => {
+export const ContactThriftLine: React.FC<ContactThriftLineProps> = ({ branding }) => {
+  const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
+  const supportPhone = branding?.supportPhone || '1-800-CASSIVON (227-7486)';
+
   return (
     <div className="space-y-8 pb-12" id="contact-thriftline">
       {/* Header */}
       <div className="bg-[#112e51] text-white rounded-sm p-6 sm:p-8 shadow-md border border-[#002f5a]">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#002f5a] text-[#f2a900] rounded-xs text-xs font-bold mb-3 border border-[#004f87]">
           <Phone className="w-3.5 h-3.5" />
-          <span>OFFICIAL VBSP THRIFTLINE & CUSTODIAL SUPPORT</span>
+          <span>OFFICIAL CCSP CUSTODIAL SUPPORT</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-          Contact Vertex Bullion Savings Plan
+          Contact {siteName}
         </h1>
         <p className="text-xs sm:text-sm text-slate-200 max-w-3xl leading-relaxed">
           Connect with dedicated sovereign bullion custody specialists, bullion allocation officers, and participant retirement support via phone, secure vault correspondence, or global depository desks.
@@ -40,15 +46,15 @@ export const ContactThriftLine: React.FC<ContactThriftLineProps> = () => {
             <Phone className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-[#112e51]">Telephone / VBSP ThriftLine</h2>
+            <h2 className="text-base font-bold text-[#112e51]">Telephone / Custodial Support</h2>
             <p className="text-xs text-slate-500 mt-0.5">Live Vault Custodians & Automated Tele-PIN</p>
           </div>
 
           <div className="space-y-3 text-xs text-slate-700">
             <div>
               <span className="font-bold text-slate-900 block">Toll-Free (US & Canada):</span>
-              <a href="tel:18008277877" className="text-[#005ea2] hover:underline font-black text-base">
-                1-800-VBSP-THRIFT (827-7877)
+              <a href={`tel:${supportPhone.replace(/[^0-9]/g, '')}`} className="text-[#005ea2] hover:underline font-black text-base">
+                {supportPhone}
               </a>
             </div>
 
@@ -94,11 +100,11 @@ export const ContactThriftLine: React.FC<ContactThriftLineProps> = () => {
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xs text-xs space-y-1">
               <div className="font-bold text-slate-800">Support Inquiries:</div>
-              <a href="mailto:custody@vbsp.org" className="text-[#005ea2] hover:underline font-semibold block">
-                custody@vbsp.org
+              <a href={`mailto:${branding?.supportEmail || 'custody@cassivon.com'}`} className="text-[#005ea2] hover:underline font-semibold block">
+                {branding?.supportEmail || 'custody@cassivon.com'}
               </a>
-              <a href="mailto:compliance@vbsp.org" className="text-[#005ea2] hover:underline font-semibold block">
-                compliance@vbsp.org
+              <a href="mailto:compliance@cassivon.com" className="text-[#005ea2] hover:underline font-semibold block">
+                compliance@cassivon.com
               </a>
             </div>
           </div>
@@ -123,7 +129,7 @@ export const ContactThriftLine: React.FC<ContactThriftLineProps> = () => {
             <div>
               <span className="font-bold text-slate-900 block">General Participant Correspondence:</span>
               <p className="text-slate-600">
-                Vertex Bullion Savings Plan Board<br />
+                {siteName} Board<br />
                 100 Wall Street, 28th Floor<br />
                 New York, NY 10005
               </p>

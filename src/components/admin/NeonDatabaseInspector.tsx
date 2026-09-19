@@ -98,7 +98,7 @@ export const NeonDatabaseInspector: React.FC = () => {
                 </span>
               </div>
               <p className="text-sm text-slate-300 mt-1">
-                Primary persistent database engine for all VBSP participant vaults, funds, branding, and transactions.
+                Primary persistent database engine for all CCSP participant vaults, funds, branding, and transactions.
               </p>
             </div>
           </div>
@@ -346,7 +346,7 @@ export const NeonDatabaseInspector: React.FC = () => {
           <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 max-h-96 overflow-y-auto leading-relaxed">
             <pre>
 {`-- ==============================================================================
--- VERTEX BULLION SAVINGS PLAN (VBSP) - NEON POSTGRESQL SCHEMA
+-- CASSIVON CAPITAL SAVINGS PLAN (CCSP) - NEON POSTGRESQL SCHEMA
 -- Target: Neon Serverless PostgreSQL (console.neon.tech)
 -- Connection: Reads from DATABASE_URL with sslmode=require
 -- ==============================================================================
@@ -359,7 +359,7 @@ CREATE TABLE IF NOT EXISTS participant_accounts (
   password_hash VARCHAR(255) NOT NULL,
   thriftline_pin VARCHAR(20) NOT NULL DEFAULT '829415',
   full_name VARCHAR(255) NOT NULL,
-  account_type VARCHAR(100) NOT NULL DEFAULT 'VBSP Standard Account (Taxable Reserve)',
+  account_type VARCHAR(100) NOT NULL DEFAULT 'CCSP Standard Account (Taxable Reserve)',
   total_balance NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
   traditional_balance NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
   roth_balance NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
@@ -390,13 +390,13 @@ CREATE TABLE IF NOT EXISTS fund_prices (
 -- 3. SITE BRANDING SETTINGS TABLE
 CREATE TABLE IF NOT EXISTS site_branding (
   id SERIAL PRIMARY KEY,
-  site_name VARCHAR(255) NOT NULL DEFAULT 'Vertex Bullion Savings Plan',
+  site_name VARCHAR(255) NOT NULL DEFAULT 'Cassivon Capital Savings Plan',
   site_subtitle VARCHAR(255) DEFAULT 'Institutional Sovereign Custody',
-  site_domain VARCHAR(100) DEFAULT 'VBSP.ORG',
+  site_domain VARCHAR(100) DEFAULT 'CASSIVON.COM',
   logo_url TEXT DEFAULT '',
   seal_text TEXT DEFAULT 'Official Vault Custody & Bullion Savings Reserve • LBMA Good Delivery Certified',
-  support_phone VARCHAR(100) DEFAULT '1-800-VBSP-THRIFT (827-7877)',
-  support_email VARCHAR(255) DEFAULT 'custody@vbsp.org',
+  support_phone VARCHAR(100) DEFAULT '+1 (202) 555-0194',
+  support_email VARCHAR(255) DEFAULT 'custody@cassivon.com',
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 

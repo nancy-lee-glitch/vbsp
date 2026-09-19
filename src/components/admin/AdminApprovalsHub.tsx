@@ -35,7 +35,7 @@ import {
   updateWithdrawalStatus,
   DbWithdrawalRequest,
   updateParticipantBalances
-} from '../../services/supabaseService';
+} from '../../services/dbService';
 
 interface AdminApprovalsHubProps {
   users: UserAccount[];
@@ -152,52 +152,56 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
   };
 
   const handleApproveLoan = async (loan: DbLoanApplication) => {
-    const loanKey = loan.id || loan.loan_id;
+    const loanKey = loan.id || (loan as any).loan_number || loan.loan_id;
     if (!loanKey) return;
+    const rawAmt = Number(loan.amount);
+    const safeAmt = (isNaN(rawAmt) || Number.isNaN(rawAmt)) ? 0 : rawAmt;
     setIsLoading(true);
     await updateLoanStatus(loanKey, 'Approved', 'Board approval granted. Disbursed via payroll custodial authorization.');
-    showNotification(`Loan ${loan.loan_id} ($${loan.amount.toLocaleString()}) Approved!`);
+    showNotification(`Loan ${loan.loan_id || (loan as any).loan_number || loanKey} ($${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}) Approved by Admin!`);
     await loadAllData();
   };
 
   const handleRejectLoan = async (loan: DbLoanApplication) => {
-    const loanKey = loan.id || loan.loan_id;
+    const loanKey = loan.id || (loan as any).loan_number || loan.loan_id;
     if (!loanKey) return;
     const reason = prompt('Reason for rejecting loan application:', 'Collateral tier ceiling exceeded or pending credit verification');
     if (reason === null) return;
     setIsLoading(true);
     await updateLoanStatus(loanKey, 'Rejected', reason);
-    showNotification(`Loan ${loan.loan_id} marked as Rejected.`);
+    showNotification(`Loan ${loan.loan_id || (loan as any).loan_number || loanKey} marked as Rejected.`);
     await loadAllData();
   };
 
   const handleApproveWithdrawal = async (wdl: DbWithdrawalRequest) => {
-    const wdlKey = wdl.id || wdl.request_id;
+    const wdlKey = wdl.id || (wdl as any).request_number || wdl.request_id;
     if (!wdlKey) return;
-    const ok = confirm(`Approve in-service distribution of $${wdl.amount.toLocaleString()} for participant? Fedwire release will be queued.`);
+    const rawAmt = Number(wdl.amount);
+    const safeAmt = (isNaN(rawAmt) || Number.isNaN(rawAmt)) ? 0 : rawAmt;
+    const ok = confirm(`Approve in-service distribution of $${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })} for participant? Fedwire release will be queued.`);
     if (!ok) return;
     setIsLoading(true);
     await updateWithdrawalStatus(wdlKey, 'Approved', 'Authorized for custodial bank wire distribution.');
-    showNotification(`Withdrawal ${wdl.request_id} ($${wdl.amount.toLocaleString()}) Approved!`);
+    showNotification(`Withdrawal ${wdl.request_id || (wdl as any).request_number || wdlKey} ($${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}) Approved by Admin!`);
     await loadAllData();
   };
 
   const handleRejectWithdrawal = async (wdl: DbWithdrawalRequest) => {
-    const wdlKey = wdl.id || wdl.request_id;
+    const wdlKey = wdl.id || (wdl as any).request_number || wdl.request_id;
     if (!wdlKey) return;
     const reason = prompt('Reason for rejecting withdrawal request:', 'Statutory hardship criteria not established or IRS documentation missing');
     if (reason === null) return;
     setIsLoading(true);
     await updateWithdrawalStatus(wdlKey, 'Rejected', reason);
-    showNotification(`Withdrawal ${wdl.request_id} marked as Rejected.`);
+    showNotification(`Withdrawal ${wdl.request_id || (wdl as any).request_number || wdlKey} marked as Rejected.`);
     await loadAllData();
   };
 
   // Counts for pending badges
-  const pendingDepositsCount = deposits.filter(d => d.status === 'Pending').length;
-  const pendingDocsCount = documents.filter(d => d.status === 'Pending').length;
-  const pendingLoansCount = loans.filter(l => l.status === 'Pending').length;
-  const pendingWdlCount = withdrawals.filter(w => w.status === 'Pending').length;
+  const pendingDepositsCount = deposits.filter(d => d.status === 'Pending' || d.status === 'Pending Review').length;
+  const pendingDocsCount = documents.filter(d => d.status === 'Pending' || d.status === 'Pending Review').length;
+  const pendingLoansCount = loans.filter(l => l.status === 'Pending' || l.status === 'Pending Review' || l.status === 'Processing').length;
+  const pendingWdlCount = withdrawals.filter(w => w.status === 'Pending' || w.status === 'Pending Review').length;
 
   return (
     <div className="space-y-6" id="admin-approvals-hub">

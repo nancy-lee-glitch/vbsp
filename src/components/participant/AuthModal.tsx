@@ -21,7 +21,7 @@ import {
   FileCheck,
   Landmark
 } from 'lucide-react';
-import { UserAccount, VBSPAccountType } from '../../types';
+import { UserAccount, VBSPAccountType, SiteBrandingSettings } from '../../types';
 import { INITIAL_USER, MOCK_USERS } from '../../data/mockData';
 
 interface AuthModalProps {
@@ -30,6 +30,7 @@ interface AuthModalProps {
   onLoginSuccess: (user: UserAccount) => void;
   users?: UserAccount[];
   initialMode?: 'login' | 'onboarding';
+  branding?: SiteBrandingSettings;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -37,9 +38,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onLoginSuccess,
   users = MOCK_USERS,
-  initialMode = 'login'
+  initialMode = 'login',
+  branding
 }) => {
   const [authStep, setAuthStep] = useState<'login' | 'mfa' | 'onboarding' | 'recovery'>('login');
+  const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
   
   // Selected user for login
   const [selectedUserToLogin, setSelectedUserToLogin] = useState<UserAccount>(users[0] || INITIAL_USER);
@@ -63,7 +66,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [onboardSsn, setOnboardSsn] = useState('');
   const [onboardDob, setOnboardDob] = useState('');
   const [onboardAgency, setOnboardAgency] = useState('Department of Defense (DoD)');
-  const [onboardPlanType, setOnboardPlanType] = useState<VBSPAccountType>('VBSP Standard Account (Taxable Reserve)');
+  const [onboardPlanType, setOnboardPlanType] = useState<VBSPAccountType>('CCSP Standard Account (Taxable Reserve)');
   const [onboardPassword, setOnboardPassword] = useState('');
   const [onboardPin, setOnboardPin] = useState('883142');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -116,7 +119,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMessage('');
 
     if (!accountNumber.trim()) {
-      setErrorMessage('Please enter your VBSP account number or registered email.');
+      setErrorMessage('Please enter your CCSP account number or registered email.');
       return;
     }
 
@@ -145,13 +148,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const loggedInUser: UserAccount = {
           id: String(data.user.id),
           name: data.user.full_name || 'Allocated Vault Participant',
-          email: data.user.email || 'participant@vbsp.org',
+          email: data.user.email || 'participant@cassivon.com',
           accountNumber: data.user.account_number || accountNumber.trim(),
           thriftlinePin: data.user.thriftline_pin || thriftlinePin || '829415',
           phone: '(202) 555-0149',
           address: '400 7th St SW, Washington, DC 20024',
           employingAgency: 'Federal Reserve / Depository Custody',
-          planType: data.user.account_type || 'VBSP Sovereign Custody (Self-Directed / IRA)',
+          planType: data.user.account_type || 'CCSP Sovereign Custody (Self-Directed / IRA)',
           hireDate: '2020-03-15',
           totalBalance: Number(data.user.total_balance || 0),
           traditionalBalance: Number(data.user.traditional_balance || 0),
@@ -216,7 +219,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     const randomPart1 = Math.floor(1000 + Math.random() * 9000);
     const randomPart2 = Math.floor(1000 + Math.random() * 9000);
-    const generatedAccountNum = `VBSP-${randomPart1}-${randomPart2}-${Math.floor(10 + Math.random() * 90)}`;
+    const generatedAccountNum = `CCSP-${randomPart1}-${randomPart2}-${Math.floor(10 + Math.random() * 90)}`;
     const generatedPin = onboardPin || String(Math.floor(100000 + Math.random() * 900000));
 
     let createdUserAccount: UserAccount;
@@ -345,7 +348,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {authStep === 'onboarding' ? 'Open a Bullion Savings Account' : 'Sign In to Your Vault Account'}
               </h2>
               <p className="text-[11px] text-slate-300">
-                Vertex Bullion Savings Plan • Institutional Sovereign Custody
+                {siteName} • Institutional Sovereign Custody
               </p>
             </div>
           </div>
@@ -410,14 +413,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    VBSP Account Number or Registered Email *
+                    CCSP Account Number or Registered Email *
                   </label>
                   <div className="relative">
                     <input 
                       type="text" 
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
-                      placeholder="VBSP-0089-4412-98 or email@agency.gov"
+                      placeholder="CCSP-0089-4412-98 or email@agency.gov"
                       className="w-full bg-slate-50 border border-slate-300 rounded-xs pl-9 pr-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                       required
                     />
@@ -599,9 +602,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       onChange={(e: any) => setOnboardPlanType(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                     >
-                      <option value="VBSP Standard Account (Taxable Reserve)">VBSP Standard Account (Taxable Reserve)</option>
-                      <option value="VBSP Sovereign Custody (Self-Directed / IRA)">VBSP Sovereign Custody (Self-Directed / IRA)</option>
-                      <option value="VBSP Institutional / Corporate Reserve">VBSP Institutional / Corporate Reserve</option>
+                      <option value="CCSP Standard Account (Taxable Reserve)">CCSP Standard Account (Taxable Reserve)</option>
+                      <option value="CCSP Sovereign Custody (Self-Directed / IRA)">CCSP Sovereign Custody (Self-Directed / IRA)</option>
+                      <option value="CCSP Institutional / Corporate Reserve">CCSP Institutional / Corporate Reserve</option>
                     </select>
                   </div>
 
@@ -759,7 +762,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <div className="flex justify-between items-center pb-1.5 border-b border-slate-200">
                       <span className="text-slate-500 font-semibold">Assigned Account #:</span>
                       <strong className="font-mono text-sm text-[#005ea2] font-black bg-blue-50 px-2 py-0.5 rounded-xs border border-blue-200">
-                        {createdUser?.accountNumber || 'VBSP-2026-8819-02'}
+                        {createdUser?.accountNumber || 'CCSP-2026-8819-02'}
                       </strong>
                     </div>
                     <div className="flex justify-between">

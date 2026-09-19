@@ -1,104 +1,179 @@
 /// <reference types="vite/client" />
-import { createClient } from '@supabase/supabase-js';
 
-// Read Supabase environment variables from Vite or window or process
-const metaEnv = (import.meta as unknown as { env?: Record<string, string> }).env || {};
-const procEnv = (typeof process !== 'undefined' && process.env) ? process.env : {};
+// =============================================================================
+// CASSIVON CAPITAL SAVINGS PLAN (CCSP) - NEON POSTGRESQL CLIENT LIB
+// =============================================================================
+// Direct Neon PostgreSQL connectivity is powered by the 'postgres' npm package 
+// via connection parameters (PGHOST, PGUSER, PGDATABASE, PGPASSWORD) and 
+// synchronized REST API microservices, completely deprecating @supabase/supabase-js.
+// =============================================================================
 
-const supabaseUrl = 
-  metaEnv.VITE_SUPABASE_URL || 
-  procEnv.VITE_SUPABASE_URL ||
-  procEnv.SUPABASE_URL ||
-  '';
+export const isSupabaseConfigured = (): boolean => false;
+export const isNeonConfigured = (): boolean => true;
 
-const supabaseAnonKey = 
-  metaEnv.VITE_SUPABASE_ANON_KEY || 
-  procEnv.VITE_SUPABASE_ANON_KEY ||
-  procEnv.SUPABASE_ANON_KEY ||
-  '';
-
-// Check if credentials are valid URL and key
-export const isSupabaseConfigured = (): boolean => {
-  return Boolean(
-    supabaseUrl && 
-    supabaseAnonKey && 
-    supabaseUrl.startsWith('http') && 
-    supabaseAnonKey.length > 10
-  );
-};
-
-// Create the Supabase client
-export const supabase = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  : createClient(
-      'https://placeholder-project.supabase.co', 
-      'placeholder-anon-key-that-is-safe-for-local-fallback-vbsp',
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      }
-    );
+/**
+ * Checks if a value is NaN or not a finite valid number
+ */
+export function isInvalidNumber(val: any): boolean {
+  if (val === null || val === undefined) return true;
+  if (typeof val === 'number') {
+    return isNaN(val) || Number.isNaN(val) || !isFinite(val);
+  }
+  const parsed = Number(val);
+  return isNaN(parsed) || Number.isNaN(parsed) || !isFinite(parsed);
+}
 
 /**
  * Universal integer sanitizer to prevent PostgreSQL:
  * "Invalid input syntax for type integer: 'NaN'"
+ * Explicitly uses both isNaN() and Number.isNaN() checks.
  */
 export function sanitizeInteger(value: any, fallback = 1): number {
   if (value === null || value === undefined) return fallback;
   if (typeof value === 'number') {
-    if (isNaN(value) || !isFinite(value)) return fallback;
+    if (isNaN(value) || Number.isNaN(value) || !isFinite(value)) return fallback;
     return Math.floor(value);
   }
   if (typeof value === 'string') {
     const trimmed = value.trim();
     const directParse = parseInt(trimmed, 10);
-    if (!isNaN(directParse)) return directParse;
+    if (!isNaN(directParse) && !Number.isNaN(directParse) && isFinite(directParse)) return directParse;
 
     // Try extracting numeric characters e.g. "usr_01" -> 1, "usr_99" -> 99
     const digitsOnly = trimmed.replace(/\D/g, '');
     if (digitsOnly.length > 0) {
       const extracted = parseInt(digitsOnly, 10);
-      if (!isNaN(extracted) && extracted > 0) return extracted;
+      if (!isNaN(extracted) && !Number.isNaN(extracted) && isFinite(extracted) && extracted > 0) return extracted;
     }
   }
-  return fallback;
+  const parsed = parseInt(String(value), 10);
+  if (isNaN(parsed) || Number.isNaN(parsed) || !isFinite(parsed)) return fallback;
+  return parsed;
 }
 
 /**
  * Universal numeric float sanitizer to prevent NaN or undefined in database queries
+ * Explicitly validates with isNaN() and Number.isNaN().
  */
 export function sanitizeNumeric(value: any, fallback = 0.0): number {
   if (value === null || value === undefined) return fallback;
   if (typeof value === 'number') {
-    if (isNaN(value) || !isFinite(value)) return fallback;
+    if (isNaN(value) || Number.isNaN(value) || !isFinite(value)) return fallback;
     return Number(value.toFixed(2));
   }
   if (typeof value === 'string') {
     const cleaned = value.replace(/[^0-9.-]/g, '');
+    if (!cleaned) return fallback;
     const parsed = parseFloat(cleaned);
-    if (!isNaN(parsed) && isFinite(parsed)) {
+    if (!isNaN(parsed) && !Number.isNaN(parsed) && isFinite(parsed)) {
       return Number(parsed.toFixed(2));
     }
+    return fallback;
   }
-  return fallback;
+  const parsed = Number(value);
+  if (isNaN(parsed) || Number.isNaN(parsed) || !isFinite(parsed)) return fallback;
+  return Number(parsed.toFixed(2));
 }
 
 /**
- * SQL Schema migration statement for user convenience or Supabase SQL Editor
+ * Validates and sanitizes all numeric fields within a UserAccount object
+ * prior to writing to PostgreSQL to prevent 'NaN' syntax errors.
  */
-export const SUPABASE_DATABASE_SCHEMA_SQL = `
+export function sanitizeParticipantAccountData<T extends Record<string, any>>(user: T): T {
+  if (!user || typeof user !== 'object') return user;
+
+  const sanitized: any = { ...user };
+
+  // Explicitly validate and sanitize core balances
+  sanitized.totalBalance = (isNaN(sanitized.totalBalance) || Number.isNaN(sanitized.totalBalance))
+    ? 0.0
+    : sanitizeNumeric(sanitized.totalBalance, 0.0);
+
+  sanitized.traditionalBalance = (isNaN(sanitized.traditionalBalance) || Number.isNaN(sanitized.traditionalBalance))
+    ? 0.0
+    : sanitizeNumeric(sanitized.traditionalBalance, 0.0);
+
+  sanitized.rothBalance = (isNaN(sanitized.rothBalance) || Number.isNaN(sanitized.rothBalance))
+    ? 0.0
+    : sanitizeNumeric(sanitized.rothBalance, 0.0);
+
+  sanitized.ytdReturn = (isNaN(sanitized.ytdReturn) || Number.isNaN(sanitized.ytdReturn))
+    ? 22.8
+    : sanitizeNumeric(sanitized.ytdReturn, 22.8);
+
+  if ('goldOuncesEquivalent' in sanitized) {
+    sanitized.goldOuncesEquivalent = (isNaN(sanitized.goldOuncesEquivalent) || Number.isNaN(sanitized.goldOuncesEquivalent))
+      ? 0.0
+      : sanitizeNumeric(sanitized.goldOuncesEquivalent, 0.0);
+  }
+
+  if ('silverOuncesEquivalent' in sanitized) {
+    sanitized.silverOuncesEquivalent = (isNaN(sanitized.silverOuncesEquivalent) || Number.isNaN(sanitized.silverOuncesEquivalent))
+      ? 0.0
+      : sanitizeNumeric(sanitized.silverOuncesEquivalent, 0.0);
+  }
+
+  // Sanitize YTD contributions
+  if (sanitized.ytdContributions && typeof sanitized.ytdContributions === 'object') {
+    sanitized.ytdContributions = {
+      employee: (isNaN(sanitized.ytdContributions.employee) || Number.isNaN(sanitized.ytdContributions.employee))
+        ? 0.0
+        : sanitizeNumeric(sanitized.ytdContributions.employee, 0.0),
+      agencyMatch: (isNaN(sanitized.ytdContributions.agencyMatch) || Number.isNaN(sanitized.ytdContributions.agencyMatch))
+        ? 0.0
+        : sanitizeNumeric(sanitized.ytdContributions.agencyMatch, 0.0),
+      agencyAutomatic: (isNaN(sanitized.ytdContributions.agencyAutomatic) || Number.isNaN(sanitized.ytdContributions.agencyAutomatic))
+        ? 0.0
+        : sanitizeNumeric(sanitized.ytdContributions.agencyAutomatic, 0.0),
+      total: (isNaN(sanitized.ytdContributions.total) || Number.isNaN(sanitized.ytdContributions.total))
+        ? 0.0
+        : sanitizeNumeric(sanitized.ytdContributions.total, 0.0),
+    };
+  }
+
+  // Sanitize contribution allocations
+  if (sanitized.contributionAllocations && typeof sanitized.contributionAllocations === 'object') {
+    const cleanAlloc: Record<string, number> = {};
+    for (const [k, v] of Object.entries(sanitized.contributionAllocations)) {
+      cleanAlloc[k] = (isNaN(Number(v)) || Number.isNaN(Number(v))) ? 0 : sanitizeNumeric(v, 0);
+    }
+    sanitized.contributionAllocations = cleanAlloc;
+  }
+
+  // Sanitize current holdings
+  if (Array.isArray(sanitized.currentHoldings)) {
+    sanitized.currentHoldings = sanitized.currentHoldings.map((h: any) => ({
+      ...h,
+      shares: (isNaN(h.shares) || Number.isNaN(h.shares)) ? 0.0 : sanitizeNumeric(h.shares, 0.0),
+      sharePrice: (isNaN(h.sharePrice) || Number.isNaN(h.sharePrice)) ? 10.0 : sanitizeNumeric(h.sharePrice, 10.0),
+      balance: (isNaN(h.balance) || Number.isNaN(h.balance)) ? 0.0 : sanitizeNumeric(h.balance, 0.0),
+      percentage: (isNaN(h.percentage) || Number.isNaN(h.percentage)) ? 0 : sanitizeNumeric(h.percentage, 0),
+    }));
+  }
+
+  // Sanitize active loans
+  if (Array.isArray(sanitized.activeLoans)) {
+    sanitized.activeLoans = sanitized.activeLoans.map((l: any) => ({
+      ...l,
+      originalAmount: (isNaN(l.originalAmount) || Number.isNaN(l.originalAmount)) ? 0.0 : sanitizeNumeric(l.originalAmount, 0.0),
+      currentBalance: (isNaN(l.currentBalance) || Number.isNaN(l.currentBalance)) ? 0.0 : sanitizeNumeric(l.currentBalance, 0.0),
+      interestRate: (isNaN(l.interestRate) || Number.isNaN(l.interestRate)) ? 4.25 : sanitizeNumeric(l.interestRate, 4.25),
+      termMonths: (isNaN(l.termMonths) || Number.isNaN(l.termMonths)) ? 36 : sanitizeInteger(l.termMonths, 36),
+      repaymentPerPayPeriod: (isNaN(l.repaymentPerPayPeriod) || Number.isNaN(l.repaymentPerPayPeriod)) ? 0.0 : sanitizeNumeric(l.repaymentPerPayPeriod, 0.0),
+    }));
+  }
+
+  return sanitized as T;
+}
+
+/**
+ * PostgreSQL Database Schema Reference for Neon cluster
+ */
+export const NEON_DATABASE_SCHEMA_SQL = `
 -- =============================================================================
--- VERTEX BULLION SAVINGS PLAN (VBSP) - SUPABASE POSTGRESQL SCHEMA
+-- CASSIVON CAPITAL SAVINGS PLAN (CCSP) - NEON POSTGRESQL SCHEMA
 -- =============================================================================
 
--- 1. Admin Users
 CREATE TABLE IF NOT EXISTS admin_users (
   id SERIAL PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -110,7 +185,6 @@ CREATE TABLE IF NOT EXISTS admin_users (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Participant Accounts
 CREATE TABLE IF NOT EXISTS participant_accounts (
   id SERIAL PRIMARY KEY,
   account_number TEXT UNIQUE NOT NULL,
@@ -119,180 +193,160 @@ CREATE TABLE IF NOT EXISTS participant_accounts (
   thriftline_pin TEXT DEFAULT '829415',
   full_name TEXT NOT NULL,
   employing_agency TEXT,
-  plan_type TEXT DEFAULT 'VBSP Sovereign Custody (Self-Directed / IRA)',
+  plan_type TEXT DEFAULT 'CCSP Sovereign Custody (Self-Directed / IRA)',
   hire_date TEXT,
   total_balance NUMERIC(18,2) DEFAULT 0.00,
   traditional_balance NUMERIC(18,2) DEFAULT 0.00,
   roth_balance NUMERIC(18,2) DEFAULT 0.00,
   ytd_return NUMERIC(8,2) DEFAULT 22.80,
-  vault_depository_location TEXT DEFAULT 'Zurich Segregated Vault (Malca-Amit Depository CH-09)',
+  vault_facility TEXT DEFAULT 'Zurich FreePort / Delaware Depository Segregated Vault',
   gold_ounces_equivalent NUMERIC(18,4) DEFAULT 0.00,
   silver_ounces_equivalent NUMERIC(18,4) DEFAULT 0.00,
   phone TEXT,
   address TEXT,
   account_status TEXT DEFAULT 'Active / Verified',
-  kyc_status TEXT DEFAULT 'Not Verified',
+  kyc_status TEXT DEFAULT 'Verified (Tier 1 Allocated)',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Site Branding
 CREATE TABLE IF NOT EXISTS site_branding (
   id SERIAL PRIMARY KEY,
-  site_name TEXT DEFAULT 'Vertex Bullion Savings Plan',
+  site_name TEXT DEFAULT 'Cassivon Capital Savings Plan',
   site_subtitle TEXT DEFAULT 'Institutional Sovereign Custody & Allocated Bullion Reserve',
-  agency_name TEXT DEFAULT 'VBSP Federal Bullion Depository System',
+  agency_name TEXT DEFAULT 'CCSP Federal Bullion Depository System',
   slogan TEXT DEFAULT 'Preserving Generational Wealth in Tangible Sovereign Metals',
-  announcement_banner TEXT DEFAULT '',
   support_phone TEXT DEFAULT '+1 (202) 555-0194',
-  support_email TEXT DEFAULT 'depository@vbsp.org',
-  footer_disclaimer TEXT DEFAULT 'The Vertex Bullion Savings Plan (VBSP) is an institutional allocated physical metal custody trust. All bullion holdings are 100% physically allocated, insured by Lloyd''s of London, and audited quarterly by independent LBMA assayers.',
+  support_email TEXT DEFAULT 'depository@cassivon.com',
   logo_url TEXT,
-  seal_url TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Deposits / Payment Proofs (Critical: Integer participant_id)
 CREATE TABLE IF NOT EXISTS deposits (
   id SERIAL PRIMARY KEY,
-  tx_id TEXT UNIQUE NOT NULL,
+  reference_id TEXT UNIQUE NOT NULL,
   participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
-  account_number TEXT NOT NULL,
-  participant_name TEXT NOT NULL,
+  user_account_number TEXT NOT NULL,
+  user_name TEXT NOT NULL,
   amount NUMERIC(18,2) NOT NULL,
-  fund_code TEXT DEFAULT 'G',
+  target_fund_code TEXT DEFAULT 'G',
   payment_method_id TEXT,
   payment_method_name TEXT,
-  payment_reference TEXT,
-  sender_identifier TEXT,
+  transaction_hash TEXT,
   proof_file_name TEXT,
-  proof_file_data TEXT,
-  status TEXT DEFAULT 'Pending',
+  status TEXT DEFAULT 'Pending Review',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS withdrawal_requests (
+  id SERIAL PRIMARY KEY,
+  request_number TEXT UNIQUE NOT NULL,
+  participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
+  user_account_number TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  withdrawal_type TEXT NOT NULL,
+  amount NUMERIC(18,2) NOT NULL,
+  delivery_option TEXT DEFAULT 'Insured Armored Courier Delivery',
+  destination_address TEXT,
+  bank_details TEXT,
+  status TEXT DEFAULT 'Pending Review',
+  reason TEXT,
   admin_notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Messages (Two-way Live Mailbox)
+CREATE TABLE IF NOT EXISTS loan_applications (
+  id SERIAL PRIMARY KEY,
+  loan_number TEXT UNIQUE NOT NULL,
+  participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
+  user_account_number TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  loan_type TEXT NOT NULL,
+  requested_amount NUMERIC(18,2) NOT NULL,
+  term_months INTEGER NOT NULL,
+  interest_rate NUMERIC(5,2) DEFAULT 4.25,
+  monthly_payment NUMERIC(18,2) NOT NULL,
+  collateral_asset TEXT DEFAULT 'Segregated LBMA Gold Sovereign Bar',
+  status TEXT DEFAULT 'Pending Review',
+  purpose TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS kyc_documents (
+  id SERIAL PRIMARY KEY,
+  participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
+  doc_type TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_data TEXT,
+  file_size TEXT,
+  status TEXT DEFAULT 'Pending Review',
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS messages (
   id SERIAL PRIMARY KEY,
   participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
-  sender_type TEXT NOT NULL, -- 'participant', 'admin', 'system'
+  recipient_user_id TEXT,
+  sender_type TEXT NOT NULL,
   sender_name TEXT NOT NULL,
   sender_email TEXT,
   recipient_email TEXT,
   subject TEXT NOT NULL,
   body TEXT NOT NULL,
-  category TEXT DEFAULT 'General Inquiry',
+  category TEXT DEFAULT 'official',
   is_read BOOLEAN DEFAULT false,
-  is_starred BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. User Documents (Documents Center)
 CREATE TABLE IF NOT EXISTS user_documents (
   id SERIAL PRIMARY KEY,
+  doc_id TEXT UNIQUE NOT NULL,
   participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  category TEXT NOT NULL, -- 'statement', 'tax', 'disclosure', 'loan', 'legal', 'custom'
+  user_account_number TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  document_title TEXT NOT NULL,
+  document_type TEXT NOT NULL,
   file_name TEXT NOT NULL,
+  file_url TEXT,
   file_size TEXT,
-  file_data TEXT,
-  status TEXT DEFAULT 'Pending', -- 'Approved', 'Pending', 'Rejected'
-  is_official BOOLEAN DEFAULT false,
-  uploaded_by TEXT DEFAULT 'participant', -- 'participant' or 'admin'
-  admin_notes TEXT,
+  status TEXT DEFAULT 'Verified',
+  compliance_notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. KYC Documents
-CREATE TABLE IF NOT EXISTS kyc_documents (
-  id SERIAL PRIMARY KEY,
-  participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
-  doc_type TEXT NOT NULL, -- 'ssn_card', 'driver_license_front', 'driver_license_back', 'passport', 'proof_of_address'
-  file_name TEXT NOT NULL,
-  file_data TEXT,
-  file_size TEXT,
-  doc_number_masked TEXT,
-  issuing_authority TEXT,
-  expiration_date TEXT,
-  status TEXT DEFAULT 'Pending Review', -- 'Verified', 'Pending Review', 'Action Required'
-  admin_notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 8. Loan Applications
-CREATE TABLE IF NOT EXISTS loan_applications (
-  id SERIAL PRIMARY KEY,
-  loan_id TEXT UNIQUE NOT NULL,
-  participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
-  loan_type TEXT NOT NULL, -- 'General Purpose', 'Residential'
-  amount NUMERIC(18,2) NOT NULL,
-  term_months INTEGER NOT NULL,
-  interest_rate NUMERIC(5,2) DEFAULT 4.75,
-  monthly_payment NUMERIC(18,2) NOT NULL,
-  reason TEXT,
-  status TEXT DEFAULT 'Pending', -- 'Pending', 'Approved', 'Rejected', 'Active'
-  admin_notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 9. Withdrawal Requests
-CREATE TABLE IF NOT EXISTS withdrawal_requests (
-  id SERIAL PRIMARY KEY,
-  request_id TEXT UNIQUE NOT NULL,
-  participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
-  withdrawal_type TEXT NOT NULL,
-  amount NUMERIC(18,2) NOT NULL,
-  reason TEXT,
-  disbursement_method TEXT DEFAULT 'Direct Deposit (ACH)',
+CREATE TABLE IF NOT EXISTS payment_methods (
+  id TEXT PRIMARY KEY,
+  category TEXT NOT NULL,
+  name TEXT NOT NULL,
+  symbol TEXT,
+  network TEXT,
+  wallet_address TEXT,
+  memo_tag TEXT,
   bank_name TEXT,
+  account_holder TEXT,
   routing_number TEXT,
-  account_number_last4 TEXT,
-  status TEXT DEFAULT 'Pending', -- 'Pending', 'Approved', 'Rejected'
-  admin_notes TEXT,
+  account_number TEXT,
+  swift_bic TEXT,
+  handle TEXT,
+  qr_image_url TEXT,
+  instructions TEXT,
+  min_deposit NUMERIC(18,2) DEFAULT 5000,
+  max_deposit NUMERIC(18,2) DEFAULT 300000,
+  is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 10. Financial Transactions Ledger
-CREATE TABLE IF NOT EXISTS transactions (
-  id SERIAL PRIMARY KEY,
-  tx_code TEXT UNIQUE NOT NULL,
-  participant_id INTEGER NOT NULL REFERENCES participant_accounts(id) ON DELETE CASCADE,
-  account_number TEXT NOT NULL,
-  date TEXT NOT NULL,
-  type TEXT NOT NULL,
-  description TEXT,
-  amount NUMERIC(18,2) NOT NULL,
-  status TEXT DEFAULT 'Pending',
-  category TEXT DEFAULT 'Deposit',
-  fund_code TEXT,
-  metal_equivalent TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 11. Announcements & CMS
-CREATE TABLE IF NOT EXISTS announcements (
-  id SERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  summary TEXT,
-  content TEXT,
-  category TEXT DEFAULT 'general',
-  badge TEXT,
-  is_pinned BOOLEAN DEFAULT false,
-  published_date TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 12. Fund Prices
 CREATE TABLE IF NOT EXISTS fund_prices (
   id SERIAL PRIMARY KEY,
-  code TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  category TEXT,
+  fund_code TEXT UNIQUE NOT NULL,
+  fund_name TEXT NOT NULL,
   current_share_price NUMERIC(12,4) NOT NULL,
   daily_change NUMERIC(8,2) DEFAULT 0.00,
   ytd_return NUMERIC(8,2) DEFAULT 0.00,
@@ -300,33 +354,6 @@ CREATE TABLE IF NOT EXISTS fund_prices (
   vault_location TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
--- 13. Payment Methods
-CREATE TABLE IF NOT EXISTS payment_methods (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  category TEXT NOT NULL,
-  is_enabled BOOLEAN DEFAULT true,
-  badge_text TEXT,
-  bank_name TEXT,
-  account_holder_name TEXT,
-  account_number TEXT,
-  routing_number TEXT,
-  swift_bic TEXT,
-  bank_address TEXT,
-  coin_symbol TEXT,
-  network TEXT,
-  wallet_address TEXT,
-  memo_or_tag TEXT,
-  paypal_email TEXT,
-  cashapp_tag TEXT,
-  zelle_identifier TEXT,
-  recipient_name TEXT,
-  instructions TEXT,
-  min_deposit_usd NUMERIC(18,2) DEFAULT 5000,
-  max_deposit_usd NUMERIC(18,2) DEFAULT 300000,
-  processing_time TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
 `;
+
+export const SUPABASE_DATABASE_SCHEMA_SQL = NEON_DATABASE_SCHEMA_SQL;

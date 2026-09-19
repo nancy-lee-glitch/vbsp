@@ -43,7 +43,7 @@ import {
   fetchFundPrices, 
   fetchPaymentMethods, 
   savePaymentMethod 
-} from './services/supabaseService';
+} from './services/dbService';
 
 export default function App() {
   // Sovereign Preloader State (Runs on initial site entry)
@@ -120,32 +120,50 @@ export default function App() {
     return MOCK_USERS;
   });
 
-  // Supabase Initial State Loader (Hydrates from PostgreSQL on mount)
+  // Neon PostgreSQL Database Initial State Loader (Hydrates from Neon on mount via dbService.ts)
   useEffect(() => {
-    fetchSiteBranding().then(b => {
-      if (b) {
-        setBranding(b);
-        document.title = `${b.siteName} | ${b.siteSubtitle}`;
-      }
-    }).catch(err => console.warn('Supabase branding load notice:', err));
+    fetchSiteBranding()
+      .then(b => {
+        if (b) {
+          setBranding(b);
+          document.title = `${b.siteName} | ${b.siteSubtitle}`;
+        }
+      })
+      .catch(err => console.warn('Neon PostgreSQL database branding load notice:', err));
 
-    fetchAllParticipants().then(pList => {
-      if (pList && pList.length > 0) {
-        setUsers(pList);
-      }
-    }).catch(err => console.warn('Supabase participants load notice:', err));
+    fetchAllParticipants()
+      .then(pList => {
+        if (pList && pList.length > 0) {
+          setUsers(pList);
+          // Keep active participant session in sync with fresh Neon database record
+          setCurrentUser(prevUser => {
+            if (!prevUser) return null;
+            const freshUser = pList.find(p => p.id === prevUser.id || p.accountNumber === prevUser.accountNumber);
+            if (freshUser) {
+              localStorage.setItem('vbsp_participant_session', JSON.stringify(freshUser));
+              return freshUser;
+            }
+            return prevUser;
+          });
+        }
+      })
+      .catch(err => console.warn('Neon PostgreSQL database participants load notice:', err));
 
-    fetchFundPrices().then(fList => {
-      if (fList && fList.length > 0) {
-        setFunds(fList);
-      }
-    }).catch(err => console.warn('Supabase funds load notice:', err));
+    fetchFundPrices()
+      .then(fList => {
+        if (fList && fList.length > 0) {
+          setFunds(fList);
+        }
+      })
+      .catch(err => console.warn('Neon PostgreSQL database funds load notice:', err));
 
-    fetchPaymentMethods().then(pMethods => {
-      if (pMethods && pMethods.length > 0) {
-        setPaymentMethods(pMethods);
-      }
-    }).catch(err => console.warn('Supabase payment methods load notice:', err));
+    fetchPaymentMethods()
+      .then(pMethods => {
+        if (pMethods && pMethods.length > 0) {
+          setPaymentMethods(pMethods);
+        }
+      })
+      .catch(err => console.warn('Neon PostgreSQL database payment methods load notice:', err));
   }, []);
 
   // Admin Auth State
@@ -272,7 +290,7 @@ export default function App() {
     setBranding(updated);
     localStorage.setItem('vbsp_branding_settings', JSON.stringify(updated));
     document.title = `${updated.siteName} | ${updated.siteSubtitle}`;
-    saveSiteBranding(updated).catch(err => console.warn('Supabase branding sync notice:', err));
+    saveSiteBranding(updated).catch(err => console.warn('Neon database branding sync notice:', err));
   };
 
   // Admin Email Dispatch Handler
@@ -292,7 +310,7 @@ export default function App() {
       const updatedList = [user, ...users];
       setUsers(updatedList);
       localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
-      upsertParticipantAccount(user).catch(err => console.warn('Supabase user create notice:', err));
+      upsertParticipantAccount(user).catch(err => console.warn('Neon database user create notice:', err));
     }
 
     setCurrentView('participant_dashboard');
@@ -311,7 +329,7 @@ export default function App() {
     const updatedList = [newUser, ...users];
     setUsers(updatedList);
     localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
-    upsertParticipantAccount(newUser).catch(err => console.warn('Supabase user create notice:', err));
+    upsertParticipantAccount(newUser).catch(err => console.warn('Neon database user create notice:', err));
   };
 
   const handleUpdateUser = (updated: UserAccount) => {
@@ -323,7 +341,7 @@ export default function App() {
       setCurrentUser(updated);
       localStorage.setItem('vbsp_participant_session', JSON.stringify(updated));
     }
-    upsertParticipantAccount(updated).catch(err => console.warn('Supabase user update notice:', err));
+    upsertParticipantAccount(updated).catch(err => console.warn('Neon database user update notice:', err));
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -335,7 +353,7 @@ export default function App() {
       setCurrentUser(null);
       localStorage.removeItem('vbsp_participant_session');
     }
-    deleteParticipantAccount(userId).catch(err => console.warn('Supabase user delete notice:', err));
+    deleteParticipantAccount(userId).catch(err => console.warn('Neon database user delete notice:', err));
   };
 
   const handleImpersonateUser = (user: UserAccount) => {
@@ -425,14 +443,14 @@ export default function App() {
     { title: 'Roth / Sovereign Custody In-Plan Transfer Modeler', category: 'Calculators', view: 'public_calculators' as PortalView },
     { title: 'Sovereign Wealth Reserve Estimator', category: 'Calculators', view: 'public_calculators' as PortalView },
     { title: 'Core Bullion Funds & Spot Rates (G, S, P, T, M, L Funds)', category: 'Investment Funds', view: 'public_funds' as PortalView },
-    { title: 'VBSP Architecture, Eligibility & Account Classifications', category: 'Educational Center', view: 'public_education' as PortalView },
+    { title: 'Cassivon Capital Architecture, Eligibility & Account Classifications', category: 'Educational Center', view: 'public_education' as PortalView },
     { title: 'Payroll Direct Deposit & Agency Bullion Matching', category: 'Educational Center', view: 'public_education' as PortalView },
     { title: 'Physical Metal Vault Audits & Bar Verification', category: 'Educational Center', view: 'public_education' as PortalView },
-    { title: 'Official VBSP Forms & Custodial Publications', category: 'Forms Library', view: 'public_forms' as PortalView },
-    { title: 'Contact Vertex Bullion & Dedicated ThriftLine Officers', category: 'Support', view: 'public_contact' as PortalView },
+    { title: 'Official Cassivon Capital Forms & Custodial Publications', category: 'Forms Library', view: 'public_forms' as PortalView },
+    { title: 'Contact Cassivon Capital & Dedicated Custody Officers', category: 'Support', view: 'public_contact' as PortalView },
     { title: 'Security, FIPS 140-2 & Segregated Storage Assays', category: 'Legal & Privacy', view: 'public_security' as PortalView },
     { title: 'Corporate Treasury & Agency Benefits Officers Portal', category: 'Agency Portal', view: 'agency_portal' as PortalView },
-    { title: 'VBSP Master Administrative & Custody Control Center', category: 'Admin Operations', view: 'admin_portal' as PortalView },
+    { title: 'Cassivon Capital Master Administrative & Custody Control Center', category: 'Admin Operations', view: 'admin_portal' as PortalView },
   ];
 
   const searchResults = searchableLinks.filter(item => 
@@ -492,12 +510,14 @@ export default function App() {
             onNavigate={handleNavigate}
             onOpenAuth={handleOpenAuth}
             funds={funds}
+            branding={branding}
           />
         )}
 
         {currentView === 'public_funds' && (
           <FundPerformanceView 
             funds={funds}
+            branding={branding}
           />
         )}
 
@@ -506,19 +526,19 @@ export default function App() {
         )}
 
         {currentView === 'public_education' && (
-          <EducationalLibrary />
+          <EducationalLibrary branding={branding} />
         )}
 
         {currentView === 'public_forms' && (
-          <FormsLibrary />
+          <FormsLibrary branding={branding} />
         )}
 
         {currentView === 'public_contact' && (
-          <ContactThriftLine />
+          <ContactThriftLine branding={branding} />
         )}
 
         {currentView === 'public_security' && (
-          <SecurityPrivacyView />
+          <SecurityPrivacyView branding={branding} />
         )}
 
         {/* PARTICIPANT PORTAL */}
@@ -590,6 +610,7 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
         users={users}
         initialMode={authModalMode}
+        branding={branding}
       />
 
       {/* Global Site Search Modal */}
@@ -608,7 +629,7 @@ export default function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search VBSP bullion funds, calculators, forms, policies, or topics..."
+                placeholder="Search Cassivon Capital bullion funds, calculators, forms, policies, or topics..."
                 className="w-full text-sm font-semibold text-slate-900 focus:outline-none bg-transparent"
                 autoFocus
               />
@@ -641,7 +662,7 @@ export default function App() {
                 ))
               ) : (
                 <div className="p-6 text-center text-xs text-slate-500">
-                  No matching VBSP resources found for "{searchQuery}".
+                  No matching resources found for "{searchQuery}".
                 </div>
               )}
             </div>

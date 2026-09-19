@@ -25,7 +25,8 @@ import {
   PaymentMethodConfig 
 } from '../../types';
 
-import { submitDepositProof } from '../../services/supabaseService';
+import { submitDepositProof } from '../../services/dbService';
+import { sanitizeNumeric } from '../../lib/supabase';
 
 interface DepositFundsModalProps {
   isOpen: boolean;
@@ -63,16 +64,26 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
 
   // Selected Fund & Metal Equivalents
   const selectedFund = funds.find(f => f.code === selectedFundCode) || funds[0];
-  const fundPrice = selectedFund?.currentSharePrice || 94.65;
-  const estimatedMetalShares = (depositAmount / fundPrice).toFixed(3);
+  const fundPrice = (isNaN(selectedFund?.currentSharePrice) || Number.isNaN(selectedFund?.currentSharePrice)) ? 94.65 : (selectedFund?.currentSharePrice || 94.65);
+  const rawDepositAmount = Number(depositAmount);
+  const safeDepositAmount = (isNaN(rawDepositAmount) || Number.isNaN(rawDepositAmount) || !isFinite(rawDepositAmount)) ? 0 : rawDepositAmount;
+  const estimatedMetalShares = (safeDepositAmount / (fundPrice > 0 ? fundPrice : 1)).toFixed(3);
 
   // Selected Payment Method
   const selectedMethod = availableMethods.find(m => m.id === selectedMethodId) || availableMethods[0];
 
   // Statutory Limits: Minimum $5,000, Maximum $300,000
-  const MIN_DEPOSIT = selectedMethod?.minDepositUsd || 5000;
-  const MAX_DEPOSIT = selectedMethod?.maxDepositUsd || 300000;
-  const isAmountValid = depositAmount >= 5000 && depositAmount <= 300000;
+  const rawMin = Number(selectedMethod?.minDepositUsd);
+  const MIN_DEPOSIT = (isNaN(rawMin) || Number.isNaN(rawMin)) ? 5000 : rawMin;
+  const rawMax = Number(selectedMethod?.maxDepositUsd);
+  const MAX_DEPOSIT = (isNaN(rawMax) || Number.isNaN(rawMax)) ? 300000 : rawMax;
+  
+  // Explicit validation using Number.isNaN() and isNaN() checks
+  const isAmountValid = !isNaN(safeDepositAmount) && 
+    !Number.isNaN(safeDepositAmount) && 
+    isFinite(safeDepositAmount) && 
+    safeDepositAmount >= MIN_DEPOSIT && 
+    safeDepositAmount <= MAX_DEPOSIT;
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -99,6 +110,10 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
     e.preventDefault();
     if (!isAmountValid || !selectedMethod) return;
 
+    // Explicit sanitize numeric before submission
+    const sanitizedAmount = sanitizeNumeric(safeDepositAmount, 0.0);
+    if (isNaN(sanitizedAmount) || Number.isNaN(sanitizedAmount) || sanitizedAmount <= 0) return;
+
     setIsSubmitting(true);
 
     const targetFundName = selectedFund?.name || 'Gold Sovereign (G-Fund)';
@@ -108,7 +123,7 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
     try {
       // 1. Submit to Supabase / PostgreSQL with guaranteed integer participant_id
       await submitDepositProof(user, {
-        amount: depositAmount,
+        amount: sanitizedAmount,
         fundCode: selectedFundCode,
         paymentMethodId: selectedMethod.id,
         paymentMethodName: selectedMethod.name,
@@ -127,7 +142,7 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
       date: new Date().toISOString().split('T')[0],
       type: `Bullion Deposit / ${selectedFundCode}-Fund Acquisition`,
       description: `${methodName} deposit allocated to ${targetFundName}. Channel: ${selectedMethod.category.toUpperCase()}. Ref/TxID: ${remittanceReference || 'Direct Remittance'}`,
-      amount: depositAmount,
+      amount: sanitizedAmount,
       status: 'Pending',
       metalEquivalent: `+${estimatedMetalShares} ${selectedFundCode === 'G' ? 'oz Gold' : selectedFundCode === 'S' ? 'oz Silver' : selectedFundCode === 'P' ? 'oz Platinum' : 'Target Units'}`,
       userId: user.id,
@@ -254,7 +269,10 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
                 max="300000"
                 step="100"
                 value={depositAmount || ''}
-                onChange={(e) => setDepositAmount(parseFloat(e.target.value) || 0)}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setDepositAmount(isNaN(val) || Number.isNaN(val) ? 0 : val);
+                }}
                 className={`w-full bg-slate-50 border rounded-xs pl-9 pr-4 py-2.5 text-base font-black text-slate-900 focus:bg-white outline-none font-mono ${
                   !isAmountValid 
                     ? 'border-red-500 focus:border-red-600' 

@@ -12,12 +12,18 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { SiteBrandingSettings } from '../../types';
 
-export const EducationalLibrary: React.FC = () => {
+interface EducationalLibraryProps {
+  branding?: SiteBrandingSettings;
+}
+
+export const EducationalLibrary: React.FC<EducationalLibraryProps> = ({ branding }) => {
   const [selectedTopic, setSelectedTopic] = useState<string>('basics');
+  const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
 
   const topics = [
-    { id: 'basics', title: 'VBSP Basics & Bullion Custody', icon: BookOpen },
+    { id: 'basics', title: 'CCSP Basics & Bullion Custody', icon: BookOpen },
     { id: 'contributions', title: 'Making Contributions & Agency 5% Match', icon: Coins },
     { id: 'investments', title: 'Investment Options (Core & L Funds)', icon: TrendingUp },
     { id: 'strategies', title: 'Investing Strategies & Dollar-Cost Averaging', icon: Shield },
@@ -32,13 +38,13 @@ export const EducationalLibrary: React.FC = () => {
       <div className="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md border border-slate-800">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-800 text-blue-200 rounded-md text-xs font-bold mb-3">
           <BookOpen className="w-3.5 h-3.5" />
-          <span>OFFICIAL VBSP EDUCATION & GUIDANCE</span>
+          <span>OFFICIAL CCSP EDUCATION & GUIDANCE</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-          Vertex Bullion Sovereign Plan Resource Center
+          {siteName} Resource Center
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
-          Comprehensive guidance for sovereign participants across all stages of their career. Learn how contributions, investments, loans, and withdrawals work under VBSP custodial frameworks.
+          Comprehensive guidance for sovereign participants across all stages of their career. Learn how contributions, investments, loans, and withdrawals work under {siteName} (CCSP) custodial frameworks.
         </p>
       </div>
 
@@ -86,13 +92,13 @@ export const EducationalLibrary: React.FC = () => {
             <div className="space-y-6 text-slate-800">
               <div className="border-b border-slate-200 pb-4">
                 <span className="text-xs font-bold text-blue-800 uppercase tracking-wider">Module 1</span>
-                <h2 className="text-2xl font-black text-slate-900 mt-1">VBSP Basics & Bullion Custody</h2>
-                <p className="text-xs text-slate-500 mt-1">Foundational principles of the Vertex Bullion Sovereign Custodial System</p>
+                <h2 className="text-2xl font-black text-slate-900 mt-1">CCSP Basics & Bullion Custody</h2>
+                <p className="text-xs text-slate-500 mt-1">Foundational principles of the {siteName} Custodial System</p>
               </div>
 
               <div className="prose prose-sm max-w-none space-y-4 text-xs sm:text-sm leading-relaxed text-slate-700">
                 <p>
-                  The <strong>Vertex Bullion Sovereign Plan (VBSP)</strong> is a defined sovereign bullion and reserve custodial plan providing direct ownership of LBMA physical gold and silver reserves within segregated vault facilities.
+                  The <strong>{siteName} (CCSP)</strong> is a defined sovereign bullion and reserve custodial plan providing direct ownership of LBMA physical gold and silver reserves within segregated vault facilities.
                 </p>
 
                 <h3 className="text-base font-bold text-slate-900 mt-4">Who is Eligible?</h3>
@@ -233,7 +239,7 @@ export const EducationalLibrary: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-900 mt-1">Life Events & Portfolio Transitions</h2>
               </div>
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                Whether you relocate, transfer between custodial partners, enter active duty, or separate from institutional service, your VBSP sovereign vault account travels with you. Rollovers from traditional 401(k)s, IRAs, and cash accounts into VBSP allocated bullion are accepted at any time.
+                Whether you relocate, transfer between custodial partners, enter active duty, or separate from institutional service, your CCSP sovereign vault account travels with you. Rollovers from traditional 401(k)s, IRAs, and cash accounts into CCSP allocated bullion are accepted at any time.
               </p>
             </div>
           )}
@@ -246,7 +252,7 @@ export const EducationalLibrary: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-900 mt-1">Death & Beneficiary Information</h2>
               </div>
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                Designating beneficiaries ensures your VBSP sovereign vault balance is distributed according to your exact wishes rather than statutory intestacy laws. You can manage primary and contingent beneficiaries with 100% total allocation online inside your Participant My Account portal or by filing Form VBSP-3.
+                Designating beneficiaries ensures your CCSP sovereign vault balance is distributed according to your exact wishes rather than statutory intestacy laws. You can manage primary and contingent beneficiaries with 100% total allocation online inside your Participant My Account portal or by filing Form CCSP-3.
               </p>
             </div>
           )}

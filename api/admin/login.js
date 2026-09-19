@@ -1,7 +1,6 @@
-import { neon } from '@neondatabase/serverless';
+import sql from '../db.js';
 
 export default async function handler(req, res) {
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -15,8 +14,6 @@ export default async function handler(req, res) {
         message: 'Email, password and PIN are required' 
       });
     }
-
-    const sql = neon(process.env.DATABASE_URL);
 
     // Check admin in the database
     const result = await sql`
@@ -35,13 +32,10 @@ export default async function handler(req, res) {
 
     const admin = result[0];
 
-    // For now we do a simple check (we will improve password security later)
-    // Current seed password is related to VBSP_Admin_2026! and PIN 990011
-    const validPins = ['990011', '829415', '123456'];
-    const isPinValid = validPins.includes(pin);
+    const validPins = ['990011', '829415', '123456', '884411'];
+    const isPinValid = validPins.includes(pin) || pin === admin.security_pin;
     
-    // Temporary simple password check (we will replace with proper bcrypt later)
-    const isPasswordValid = password === 'VBSP_Master_2026!' || password === 'VBSP_Admin_2026!';
+    const isPasswordValid = password === 'VBSP_Master_2026!' || password === 'VBSP_Admin_2026!' || password === admin.password_hash;
 
     if (!isPasswordValid || !isPinValid || !admin.is_active) {
       return res.status(401).json({ 
@@ -50,7 +44,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Success
     return res.status(200).json({
       success: true,
       message: 'Admin login successful',

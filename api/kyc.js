@@ -1,8 +1,6 @@
-import { neon } from '@neondatabase/serverless';
+import sql from './db.js';
 
 export default async function handler(req, res) {
-  const sql = neon(process.env.DATABASE_URL);
-
   try {
     // GET - Fetch KYC documents
     if (req.method === 'GET') {

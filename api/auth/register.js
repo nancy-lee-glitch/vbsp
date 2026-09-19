@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import sql from '../db.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -26,8 +26,6 @@ export default async function handler(req, res) {
         message: 'Password must be at least 8 characters' 
       });
     }
-
-    const sql = neon(process.env.DATABASE_URL);
 
     // Check if email already exists
     const existing = await sql`

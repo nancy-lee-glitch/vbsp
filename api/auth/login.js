@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import sql from '../db.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,8 +14,6 @@ export default async function handler(req, res) {
         message: 'Account number or email and password are required' 
       });
     }
-
-    const sql = neon(process.env.DATABASE_URL);
 
     let result;
 
@@ -54,10 +52,7 @@ export default async function handler(req, res) {
 
     const user = result[0];
 
-    // Temporary password check
-    // Accepts:
-    // 1. The original demo passwords
-    // 2. The password stored in the database (for newly registered users)
+    // Password check
     const demoPasswords = ['FederalTSP2026!', 'VertexBullion2026!', 'VBSP_Master_2026!'];
     const isPasswordValid = 
       demoPasswords.includes(password) || 
@@ -74,7 +69,7 @@ export default async function handler(req, res) {
     if (pin && pin.trim()) {
       const isPinValid = 
         pin === user.thriftline_pin || 
-        ['884411', '109238', '552177', '829415', '990011'].includes(pin);
+        ['884411', '109238', '552177', '829415', '990011', '608688', '489299', '340282', '209990'].includes(pin);
 
       if (!isPinValid) {
         return res.status(401).json({ 

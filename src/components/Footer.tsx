@@ -8,9 +8,9 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate, branding }) => {
-  const siteName = branding?.siteName || 'Vertex Bullion Savings Plan';
-  const supportEmail = branding?.supportEmail || 'thriftline@vbsp.org';
-  const supportPhone = branding?.supportPhone || '1-800-827-7877';
+  const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
+  const supportEmail = branding?.supportEmail || 'custody@cassivon.com';
+  const supportPhone = branding?.supportPhone || '1-800-CASSIVON (227-7486)';
 
   return (
     <footer className="w-full bg-[#112e51] text-slate-200 border-t-4 border-[#005ea2] text-xs mt-16" id="tsp-main-footer">
@@ -28,7 +28,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, branding }) => {
       {/* Main Federal Footer Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         
-        {/* Col 1: Vertex Bullion Savings Plan Mission */}
+        {/* Col 1: Cassivon Capital Savings Plan Mission */}
         <div>
           <div className="flex items-center gap-2 mb-3">
             {branding?.logoUrl ? (
@@ -50,7 +50,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, branding }) => {
           </p>
           <div className="text-slate-300 space-y-1 text-xs border-t border-[#002f5a] pt-3">
             <p className="font-semibold text-white">Custody & Vault Administration:</p>
-            <p>{branding?.organizationName || 'Vertex Sovereign Bullion Custody Board (VSBCB)'}</p>
+            <p>{branding?.organizationName || 'Cassivon Sovereign Bullion Custody Board (CSBCB)'}</p>
             <p>100 Wall Street, Bullion Vault District, New York, NY 10005</p>
           </div>
         </div>
@@ -124,7 +124,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, branding }) => {
                 className="text-slate-300 hover:text-white transition-colors text-left cursor-pointer underline"
                 id="footer-link-education"
               >
-                VBSP Account Types & Bullion Matching Rules
+                {siteName} Account Types & Matching Rules
               </button>
             </li>
             <li>
@@ -142,7 +142,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, branding }) => {
                 className="text-slate-300 hover:text-white transition-colors text-left cursor-pointer underline"
                 id="footer-link-admin"
               >
-                VBSP Executive Admin & Compliance Console
+                Executive Admin & Compliance Console
               </button>
             </li>
           </ul>
@@ -200,7 +200,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, branding }) => {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div className="flex items-center gap-2 justify-center sm:justify-start">
             <Lock className="w-3.5 h-3.5 text-[#00a3e0]" />
-            <span>Vertex Bullion Savings Plan (VBSP) Institutional Custody Network. All vaulted holdings are insured by Lloyd's of London syndicates.</span>
+            <span>Cassivon Capital Savings Plan (CCSP) Institutional Custody Network. All vaulted holdings are insured by Lloyd's of London syndicates.</span>
           </div>
           <div className="flex items-center gap-3 justify-center text-slate-400">
             <span>Standard / Sovereign IRA / Corporate Reserve</span>

@@ -135,10 +135,10 @@ export const TSP_FUNDS: TSPFund[] = [
   {
     id: 'fund-l-preserve',
     code: 'L_PRESERVE',
-    name: 'Vertex L-Preserve (Conservative / Income)',
+    name: 'Cassivon L-Preserve (Conservative / Income)',
     category: 'Lifecycle Fund',
     description: 'Pre-mixed automated strategy prioritizing capital preservation and steady store of value. Blends 70% Physical Gold (G-Fund), 20% Treasury Liquidity (T-Fund), and 10% Silver (S-Fund).',
-    benchmark: 'Vertex Sovereign Conservative Composite',
+    benchmark: 'Cassivon Sovereign Conservative Composite',
     riskLevel: 'Low',
     currentSharePrice: 32.85,
     oneMonthReturn: 0.95,
@@ -158,10 +158,10 @@ export const TSP_FUNDS: TSPFund[] = [
   {
     id: 'fund-l-balanced',
     code: 'L_BALANCED',
-    name: 'Vertex L-Balanced (Core Accumulator)',
+    name: 'Cassivon L-Balanced (Core Accumulator)',
     category: 'Lifecycle Fund',
     description: 'The standard all-weather precious metals accumulator. Dynamically balances 50% Gold (G-Fund), 35% Silver (S-Fund), and 15% Platinum Group Metals (P-Fund).',
-    benchmark: 'Vertex Multi-Metal Balanced Index',
+    benchmark: 'Cassivon Multi-Metal Balanced Index',
     riskLevel: 'Moderate',
     currentSharePrice: 58.40,
     oneMonthReturn: 1.75,
@@ -181,10 +181,10 @@ export const TSP_FUNDS: TSPFund[] = [
   {
     id: 'fund-l-growth',
     code: 'L_GROWTH',
-    name: 'Vertex L-Growth (Maximum Upside Strategy)',
+    name: 'Cassivon L-Growth (Maximum Upside Strategy)',
     category: 'Lifecycle Fund',
     description: 'Engineered for aggressive metal volume compounding. Allocates 40% Silver (S-Fund), 30% Platinum (P-Fund), 20% Rare Numismatics (M-Fund), and 10% Gold (G-Fund).',
-    benchmark: 'Vertex Bullion Alpha Growth Composite',
+    benchmark: 'Cassivon Bullion Alpha Growth Composite',
     riskLevel: 'High',
     currentSharePrice: 68.90,
     oneMonthReturn: 2.15,
@@ -208,10 +208,10 @@ export const INITIAL_USER: UserAccount = {
   id: 'usr_vbsp_994821',
   name: 'Marcus Vance',
   email: 'marcus.vance@usda.gov',
-  accountNumber: 'VBSP-0089-4412-98',
+  accountNumber: 'CCSP-0089-4412-98',
   thriftlinePin: '829415',
   employingAgency: 'Department of Agriculture / Private Reserve',
-  planType: 'VBSP Sovereign Custody (Self-Directed / IRA)',
+  planType: 'CCSP Sovereign Custody (Self-Directed / IRA)',
   hireDate: '2016-04-16',
   totalBalance: 342850.12,
   traditionalBalance: 246852.09, // Vaulted Segregated Bullion
@@ -274,7 +274,7 @@ export const INITIAL_USER: UserAccount = {
       collateralAsset: 'Segregated Gold Sovereign Bar #LBMA-CH-99410',
       userId: 'usr_vbsp_994821',
       userName: 'Marcus Vance',
-      userAccount: 'VBSP-0089-4412-98'
+      userAccount: 'CCSP-0089-4412-98'
     }
   ],
   kycProfile: {
@@ -356,7 +356,7 @@ export const INITIAL_USER: UserAccount = {
       status: 'Completed',
       userId: 'usr_vbsp_994821',
       userName: 'Marcus Vance',
-      userAccount: 'VBSP-0089-4412-98'
+      userAccount: 'CCSP-0089-4412-98'
     },
     {
       id: 'tx-108',
@@ -368,7 +368,7 @@ export const INITIAL_USER: UserAccount = {
       status: 'Completed',
       userId: 'usr_vbsp_994821',
       userName: 'Marcus Vance',
-      userAccount: 'VBSP-0089-4412-98'
+      userAccount: 'CCSP-0089-4412-98'
     },
     {
       id: 'tx-107',
@@ -379,7 +379,7 @@ export const INITIAL_USER: UserAccount = {
       status: 'Completed',
       userId: 'usr_vbsp_994821',
       userName: 'Marcus Vance',
-      userAccount: 'VBSP-0089-4412-98'
+      userAccount: 'CCSP-0089-4412-98'
     },
     {
       id: 'tx-106',
@@ -390,7 +390,7 @@ export const INITIAL_USER: UserAccount = {
       status: 'Completed',
       userId: 'usr_vbsp_994821',
       userName: 'Marcus Vance',
-      userAccount: 'VBSP-0089-4412-98'
+      userAccount: 'CCSP-0089-4412-98'
     }
   ]
 };
@@ -401,10 +401,10 @@ export const MOCK_USERS: UserAccount[] = [
     id: 'usr_vbsp_104477',
     name: 'Sarah Jenkins',
     email: 'sarah.jenkins@defense.gov',
-    accountNumber: 'VBSP-1044-7712-30',
+    accountNumber: 'CCSP-1044-7712-30',
     thriftlinePin: '554411',
     employingAgency: 'Department of Defense (Civilian Cyber Command)',
-    planType: 'VBSP Standard Account (Taxable Reserve)',
+    planType: 'CCSP Standard Account (Taxable Reserve)',
     hireDate: '2019-08-10',
     totalBalance: 184500.00,
     traditionalBalance: 120000.00,
@@ -453,7 +453,7 @@ export const MOCK_USERS: UserAccount[] = [
         collateralAsset: 'Silver Reserve S-Fund Collateral',
         userId: 'usr_vbsp_104477',
         userName: 'Sarah Jenkins',
-        userAccount: 'VBSP-1044-7712-30',
+        userAccount: 'CCSP-1044-7712-30',
         purpose: 'Bullion-backed personal emergency loan request'
       }
     ],
@@ -499,7 +499,7 @@ export const MOCK_USERS: UserAccount[] = [
         metalEquivalent: '+28.96 oz Silver',
         userId: 'usr_vbsp_104477',
         userName: 'Sarah Jenkins',
-        userAccount: 'VBSP-1044-7712-30'
+        userAccount: 'CCSP-1044-7712-30'
       }
     ]
   },
@@ -507,10 +507,10 @@ export const MOCK_USERS: UserAccount[] = [
     id: 'usr_vbsp_001928',
     name: 'Cadet Ryan Parker',
     email: 'ryan.parker@defense.gov',
-    accountNumber: 'VBSP-2026-8819-42',
+    accountNumber: 'CCSP-2026-8819-42',
     thriftlinePin: '661199',
     employingAgency: 'Department of Defense (Naval Surface Warfare)',
-    planType: 'VBSP Standard Account (Taxable Reserve)',
+    planType: 'CCSP Standard Account (Taxable Reserve)',
     hireDate: '2026-08-01',
     totalBalance: 0,
     traditionalBalance: 0,
@@ -545,10 +545,10 @@ export const MOCK_USERS: UserAccount[] = [
     id: 'usr_vbsp_900233',
     name: 'Atlas Global Sovereign Reserve LLC',
     email: 'treasury@atlasreserves.com',
-    accountNumber: 'VBSP-9002-3311-88',
+    accountNumber: 'CCSP-9002-3311-88',
     thriftlinePin: '992200',
     employingAgency: 'Institutional Treasury & Corporate Vaulting',
-    planType: 'VBSP Institutional / Corporate Reserve',
+    planType: 'CCSP Institutional / Corporate Reserve',
     hireDate: '2021-01-15',
     totalBalance: 1250000.00,
     traditionalBalance: 1000000.00,
@@ -602,7 +602,7 @@ export const MOCK_USERS: UserAccount[] = [
         metalEquivalent: '+94.34 oz Gold',
         userId: 'usr_vbsp_900233',
         userName: 'Atlas Global Sovereign Reserve LLC',
-        userAccount: 'VBSP-9002-3311-88'
+        userAccount: 'CCSP-9002-3311-88'
       }
     ]
   }
@@ -658,10 +658,10 @@ export const MOCK_TRANSACTIONS: TSPTransaction[] = [
 export const MOCK_MESSAGES: ParticipantMessage[] = [
   {
     id: 'msg-01',
-    sender: 'VBSP Custody Operations',
+    sender: 'CCSP Custody Operations',
     subject: 'Confirmation: Automated Bullion Thrift (ABT) Allocation Update',
     timestamp: '2026-08-01 09:30 AM',
-    body: 'Dear Marcus Vance,\n\nYour monthly Automated Bullion Thrift (ABT) instruction has been processed. Your next scheduled bullion deposit will be allocated as follows:\n- Gold Sovereign Fund (G-Fund): 50%\n- Silver Reserve Fund (S-Fund): 25%\n- Vertex L-Balanced Portfolio: 25%\n\nPhysical metal allocation receipts with matching LBMA assay serial numbers are accessible in your Documents Center.\n\nSincerely,\nVertex Bullion Savings Plan Custody Operations',
+    body: 'Dear Marcus Vance,\n\nYour monthly Automated Bullion Thrift (ABT) instruction has been processed. Your next scheduled bullion deposit will be allocated as follows:\n- Gold Sovereign Fund (G-Fund): 50%\n- Silver Reserve Fund (S-Fund): 25%\n- Cassivon L-Balanced Portfolio: 25%\n\nPhysical metal allocation receipts with matching LBMA assay serial numbers are accessible in your Documents Center.\n\nSincerely,\nCassivon Capital Savings Plan Custody Operations',
     isRead: false,
     hasAttachments: false
   },
@@ -676,10 +676,10 @@ export const MOCK_MESSAGES: ParticipantMessage[] = [
   },
   {
     id: 'msg-03',
-    sender: 'VBSP Senior Vault Officer (R. Sterling)',
+    sender: 'CCSP Senior Vault Officer (R. Sterling)',
     subject: 'Response to Inquiry #88192: Physical Bullion Delivery & Armored Transport',
     timestamp: '2026-06-18 11:45 AM',
-    body: 'Hello Marcus,\n\nRegarding your inquiry on taking physical delivery of vaulted metal:\n\nMembers holding VBSP Sovereign Custody or Standard accounts may request physical delivery at any time via Form VBSP-19. Shipments are transported via insured armored carrier (Brinks / Malca-Amit) directly to your verified residential address or designated bank vault.\n\nPlease let us know if you require customs export documentation.\n\nWarm regards,\nR. Sterling\nSenior Vault & Depository Custodian',
+    body: 'Hello Marcus,\n\nRegarding your inquiry on taking physical delivery of vaulted metal:\n\nMembers holding CCSP Sovereign Custody or Standard accounts may request physical delivery at any time via Form CCSP-19. Shipments are transported via insured armored carrier (Brinks / Malca-Amit) directly to your verified residential address or designated bank vault.\n\nPlease let us know if you require customs export documentation.\n\nWarm regards,\nR. Sterling\nSenior Vault & Depository Custodian',
     isRead: true,
     hasAttachments: false
   }
@@ -688,8 +688,8 @@ export const MOCK_MESSAGES: ParticipantMessage[] = [
 export const MOCK_DOCUMENTS: TSPDocument[] = [
   {
     id: 'doc-vbsp-1',
-    title: 'VBSP-1: Member Bullion Election & Contribution Form',
-    formNumber: 'VBSP-1',
+    title: 'CCSP-1: Member Bullion Election & Contribution Form',
+    formNumber: 'CCSP-1',
     category: 'Forms',
     lastUpdated: '2026-01-15',
     fileSize: '340 KB',
@@ -698,8 +698,8 @@ export const MOCK_DOCUMENTS: TSPDocument[] = [
   },
   {
     id: 'doc-vbsp-3',
-    title: 'VBSP-3: Designation of Sovereign Beneficiary',
-    formNumber: 'VBSP-3',
+    title: 'CCSP-3: Designation of Sovereign Beneficiary',
+    formNumber: 'CCSP-3',
     category: 'Forms',
     lastUpdated: '2025-11-04',
     fileSize: '410 KB',
@@ -708,8 +708,8 @@ export const MOCK_DOCUMENTS: TSPDocument[] = [
   },
   {
     id: 'doc-vbsp-19',
-    title: 'VBSP-19: Request for Physical Bullion Vault Delivery',
-    formNumber: 'VBSP-19',
+    title: 'CCSP-19: Request for Physical Bullion Vault Delivery',
+    formNumber: 'CCSP-19',
     category: 'Forms',
     lastUpdated: '2026-02-01',
     fileSize: '520 KB',
@@ -718,8 +718,8 @@ export const MOCK_DOCUMENTS: TSPDocument[] = [
   },
   {
     id: 'doc-vbsp-65',
-    title: 'VBSP-65: Bullion-Backed Liquidity & Credit Facility Request',
-    formNumber: 'VBSP-65',
+    title: 'CCSP-65: Bullion-Backed Liquidity & Credit Facility Request',
+    formNumber: 'CCSP-65',
     category: 'Forms',
     lastUpdated: '2026-01-20',
     fileSize: '480 KB',
@@ -737,7 +737,7 @@ export const MOCK_DOCUMENTS: TSPDocument[] = [
   },
   {
     id: 'doc-vbsp-guide',
-    title: 'Vertex Bullion Savings Plan (VBSP) Institutional Handbook',
+    title: 'Cassivon Capital Savings Plan (CCSP) Institutional Handbook',
     category: 'Publications',
     lastUpdated: '2026-01-01',
     fileSize: '2.8 MB',
@@ -760,7 +760,7 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
     title: 'New Zurich Segregated Vault Facility CH-09 Commissioned',
     date: '2026-05-12',
     category: 'Vault Audit',
-    summary: 'VBSP has expanded allocated vault capacity in Zurich with state-of-the-art robotic biometric storage and Lloyd\'s 100% all-risk specie underwriting.',
+    summary: 'CCSP has expanded allocated vault capacity in Zurich with state-of-the-art robotic biometric storage and Lloyd\'s 100% all-risk specie underwriting.',
     isUrgent: false
   },
   {
@@ -778,7 +778,7 @@ export const MOCK_NEWS = MOCK_ANNOUNCEMENTS;
 export const MOCK_AGENCY_BULLETINS: AgencyBulletin[] = [
   {
     id: 'bul-26-1',
-    bulletinNumber: 'VBSP-BUL-2026-01',
+    bulletinNumber: 'CCSP-BUL-2026-01',
     title: '2026 Automated Bullion Thrift (ABT) Technical Integration Specs for Corporate Payrolls',
     date: '2026-01-02',
     effectiveDate: '2026-01-01',
@@ -787,7 +787,7 @@ export const MOCK_AGENCY_BULLETINS: AgencyBulletin[] = [
   },
   {
     id: 'bul-26-2',
-    bulletinNumber: 'VBSP-BUL-2026-02',
+    bulletinNumber: 'CCSP-BUL-2026-02',
     title: 'LBMA Chain of Custody Standards for Institutional Corporate Reserves',
     date: '2026-03-15',
     effectiveDate: '2026-04-01',
@@ -800,16 +800,16 @@ export const MOCK_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'log-8801',
     timestamp: '2026-08-27 10:42:15',
-    actor: 'Executive Administrator (VBSP Depository Board)',
+    actor: 'Executive Administrator (CCSP Depository Board)',
     action: 'VAULT_PRICE_OVERRIDE',
     details: 'Published updated daily spot closing prices across G-Fund ($94.65), S-Fund ($86.30), and P-Fund ($54.20).',
-    ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+    ipAddress: '10.240.1.18 (CCSP-HQ-VPC)',
     status: 'Success'
   },
   {
     id: 'log-8800',
     timestamp: '2026-08-27 09:15:30',
-    actor: 'Marcus Vance (VBSP-0089-4412-98)',
+    actor: 'Marcus Vance (CCSP-0089-4412-98)',
     action: 'MFA_CHALLENGE_SUCCESS',
     details: 'Biometric physical hardware key authentication verified for vault account access.',
     ipAddress: '198.51.100.42 (US-East)',
@@ -829,7 +829,7 @@ export const MOCK_AUDIT_LOGS: AuditLogEntry[] = [
 export const MOCK_FRAUD_ALERTS: FraudAlert[] = [
   {
     id: 'fraud-01',
-    targetAccount: 'VBSP-0041-9923-11',
+    targetAccount: 'CCSP-0041-9923-11',
     type: 'Large Out-of-Pattern Transfer',
     severity: 'High',
     description: 'Withdrawal request of $48,000 initiated within 4 hours of phone number and email change from foreign ASN.',
@@ -838,7 +838,7 @@ export const MOCK_FRAUD_ALERTS: FraudAlert[] = [
   },
   {
     id: 'fraud-02',
-    targetAccount: 'VBSP-4410-1892',
+    targetAccount: 'CCSP-4410-1892',
     type: 'Rapid Password & PIN Change',
     severity: 'Medium',
     description: '3 failed ThriftLine PIN attempts followed by immediate online password reset from unknown TOR exit node.',
@@ -848,27 +848,27 @@ export const MOCK_FRAUD_ALERTS: FraudAlert[] = [
 ];
 
 export const DEFAULT_SITE_BRANDING = {
-  siteName: 'VERTEX BULLION SAVINGS PLAN (VBSP)',
-  siteSubtitle: 'Institutional Precious Metals Thrift & Sovereign Bullion Custody Board',
-  siteDomain: 'VBSP.ORG',
+  siteName: 'Cassivon Capital Savings Plan',
+  siteSubtitle: 'Institutional Precious Metals Thrift & Sovereign Custody Board',
+  siteDomain: 'CASSIVON.COM',
   logoUrl: null,
-  sealText: 'Official Vault Custody & Bullion Savings Reserve • LBMA Good Delivery Certified',
-  supportPhone: '1-800-VBSP-THRIFT (827-7877)',
-  supportEmail: 'custody@vbsp.org'
+  sealText: 'Official Vault Custody & Sovereign Savings Reserve • LBMA Good Delivery Certified',
+  supportPhone: '1-800-CASSIVON (227-7486)',
+  supportEmail: 'custody@cassivon.com'
 };
 
 export const INITIAL_EMAIL_DISPATCHES: any[] = [
   {
     id: 'dispatch-101',
     subject: 'Quarterly Physical Vault Specie Re-Assay Certificate (Q3 2026)',
-    body: 'Dear {{name}},\n\nThis official notification certifies that your allocated precious metal holdings in {{plan_type}} (Account: {{account_number}}) have been audited by Bureau Veritas at {{vault_location}}.\n\nAll allocated LBMA-certified bars and sovereign minted bullion remain 100% physically backed with zero hypothecation. Your current audited portfolio valuation is ${{total_balance}}.\n\nThank you for choosing the Vertex Bullion Savings Plan.',
-    senderName: 'Vertex Bullion Custody Service',
-    senderEmail: 'custody-notifications@vbsp.org',
+    body: 'Dear {{name}},\n\nThis official notification certifies that your allocated precious metal holdings in {{plan_type}} (Account: {{account_number}}) have been audited by Bureau Veritas at {{vault_location}}.\n\nAll allocated LBMA-certified bars and sovereign minted bullion remain 100% physically backed with zero hypothecation. Your current audited portfolio valuation is ${{total_balance}}.\n\nThank you for choosing the Cassivon Capital Savings Plan.',
+    senderName: 'Cassivon Capital Custody Service',
+    senderEmail: 'custody-notifications@cassivon.com',
     recipientType: 'all',
     recipientTargetDescription: 'All Registered Plan Participants (Broadcast)',
     recipientCount: 5,
     recipientNames: ['Marcus Vance', 'Arthur Vance', 'Sarah Jenkins', 'David Chen', 'Elena Rostova'],
-    recipientEmails: ['marcus.vance@defense.gov', 'arthur.vance@defense.gov', 'sarah.jenkins@usda.gov', 'david.chen@treasury.gov', 'elena.rostova@corporate.vertex.io'],
+    recipientEmails: ['marcus.vance@defense.gov', 'arthur.vance@defense.gov', 'sarah.jenkins@usda.gov', 'david.chen@treasury.gov', 'elena.rostova@corporate.cassivon.io'],
     timestamp: '2026-08-27 08:30:00',
     priority: 'Important',
     templateName: 'Annual Vault Specie Audit Certificate',
@@ -877,14 +877,14 @@ export const INITIAL_EMAIL_DISPATCHES: any[] = [
   {
     id: 'dispatch-102',
     subject: '2026 Statutory Bullion Elective Deferral Limits & Matching Updates',
-    body: 'Dear Participant,\n\nPlease be advised that the 2026 standard elective deferral limit has been statutory confirmed at $23,500 with a $7,500 age-50+ catch-up provision. Ensure your agency payroll deduction schedules are aligned.\n\nVertex Bullion Savings Plan Administration.',
-    senderName: 'VBSP Compliance & Regulatory Office',
-    senderEmail: 'compliance@vbsp.org',
+    body: 'Dear Participant,\n\nPlease be advised that the 2026 standard elective deferral limit has been statutory confirmed at $23,500 with a $7,500 age-50+ catch-up provision. Ensure your agency payroll deduction schedules are aligned.\n\nCassivon Capital Savings Plan Administration.',
+    senderName: 'CCSP Compliance & Regulatory Office',
+    senderEmail: 'compliance@cassivon.com',
     recipientType: 'all',
     recipientTargetDescription: 'All Registered Plan Participants (Broadcast)',
     recipientCount: 5,
     recipientNames: ['All Participants'],
-    recipientEmails: ['broadcast@vbsp.org'],
+    recipientEmails: ['broadcast@cassivon.com'],
     timestamp: '2026-08-25 11:15:22',
     priority: 'Normal',
     templateName: 'Contribution Limit & Payroll Notice',
@@ -900,7 +900,7 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     isEnabled: true,
     badgeText: 'Federal Depository Wire',
     bankName: 'Federal Reserve Bank & JPMorgan Chase Depository Trust',
-    accountHolderName: 'Vertex Bullion Savings Plan Treasury Depository Trust',
+    accountHolderName: 'Cassivon Capital Savings Plan Treasury Depository Trust',
     accountNumber: '772091482019',
     routingNumber: '021000021',
     swiftBic: 'CHASUS33XXX',
@@ -908,7 +908,7 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     minDepositUsd: 5000,
     maxDepositUsd: 300000,
     processingTime: 'Same-Day Fedwire Settlement',
-    instructions: 'Initiate domestic Fedwire or international SWIFT wire using the exact credentials above. Include your VBSP Account Number in Wire Remittance Memo (Field 70) for automated ledger matching.',
+    instructions: 'Initiate domestic Fedwire or international SWIFT wire using the exact credentials above. Include your CCSP Account Number in Wire Remittance Memo (Field 70) for automated ledger matching.',
     createdAt: '2026-01-01'
   },
   {
@@ -977,12 +977,12 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     category: 'cashapp',
     isEnabled: true,
     badgeText: 'Instant Mobile Transfer',
-    cashAppTag: '$VBSPVaultReserve',
-    recipientName: 'Vertex Bullion Custody Service',
+    cashAppTag: '$CassivonVaultReserve',
+    recipientName: 'Cassivon Capital Custody Service',
     minDepositUsd: 5000,
     maxDepositUsd: 300000,
     processingTime: 'Instant Clearing',
-    instructions: 'Send payment via Cash App to $VBSPVaultReserve. In the Note / For field, enter your VBSP Account Number. Take a screenshot of the completed payment.',
+    instructions: 'Send payment via Cash App to $CassivonVaultReserve. In the Note / For field, enter your CCSP Account Number. Take a screenshot of the completed payment.',
     createdAt: '2026-01-01'
   },
   {
@@ -991,12 +991,12 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     category: 'paypal',
     isEnabled: true,
     badgeText: 'Buyer & Seller Protection',
-    payPalEmail: 'clearing@vbsp-custody.org',
-    recipientName: 'Vertex Bullion Savings Custody Corp',
+    payPalEmail: 'clearing@cassivon-custody.com',
+    recipientName: 'Cassivon Capital Savings Custody Corp',
     minDepositUsd: 5000,
     maxDepositUsd: 300000,
     processingTime: '10-30 Mins',
-    instructions: 'Send payment via PayPal to clearing@vbsp-custody.org. Select Goods & Services or Commercial Remittance and specify your VBSP Account ID.',
+    instructions: 'Send payment via PayPal to clearing@cassivon-custody.com. Select Goods & Services or Commercial Remittance and specify your CCSP Account ID.',
     createdAt: '2026-01-01'
   },
   {
@@ -1005,12 +1005,12 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     category: 'zelle',
     isEnabled: true,
     badgeText: 'Zero-Fee Direct Bank Transfer',
-    zelleIdentifier: 'depository@vbsp.org',
-    recipientName: 'Vertex Bullion Savings Plan LLC',
+    zelleIdentifier: 'depository@cassivon.com',
+    recipientName: 'Cassivon Capital Savings Plan LLC',
     minDepositUsd: 5000,
     maxDepositUsd: 300000,
     processingTime: 'Instant Settlement',
-    instructions: 'Enroll with Zelle in your mobile banking application and send to depository@vbsp.org. Verify that the registered name displays "Vertex Bullion Savings Plan LLC". Include your Account ID in the memo.',
+    instructions: 'Enroll with Zelle in your mobile banking application and send to depository@cassivon.com. Verify that the registered name displays "Cassivon Capital Savings Plan LLC". Include your Account ID in the memo.',
     createdAt: '2026-01-01'
   }
 ];

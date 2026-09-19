@@ -60,7 +60,7 @@ import { AdminBrandingManager } from './AdminBrandingManager';
 import { AdminPaymentMethodsManager } from './AdminPaymentMethodsManager';
 import { AdminApprovalsHub } from './AdminApprovalsHub';
 import { NeonDatabaseInspector } from './NeonDatabaseInspector';
-import { saveFundPrice } from '../../services/supabaseService';
+import { saveFundPrice } from '../../services/dbService';
 
 interface AdminPortalViewProps {
   onAdminLogout: () => void;
@@ -115,7 +115,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [newUserPhone, setNewUserPhone] = useState('+1 (202) 555-0199');
   const [newUserAddress, setNewUserAddress] = useState('1000 Pennsylvania Ave NW, Washington, DC 20004');
   const [newUserAgency, setNewUserAgency] = useState('Department of the Treasury / Federal Reserve Custody');
-  const [newUserPlanType, setNewUserPlanType] = useState<VBSPAccountType>('VBSP Standard Account (Taxable Reserve)');
+  const [newUserPlanType, setNewUserPlanType] = useState<VBSPAccountType>('CCSP Standard Account (Taxable Reserve)');
   const [newUserDeposit, setNewUserDeposit] = useState<number>(50000);
   const [newUserPin, setNewUserPin] = useState<string>('884411');
   const [newUserVault, setNewUserVault] = useState('Zurich FreePort / Delaware Depository Segregated Vault');
@@ -185,10 +185,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     const newLog: AuditLogEntry = {
       id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-      actor: 'Executive Administrator (VBSP-Board)',
+      actor: 'Executive Administrator (CCSP-Board)',
       action: 'BULLION_PRICE_OVERRIDE',
       details: `Daily fund share prices updated across all core bullion funds and lifecycle portfolios. G: $${editableFunds.find(f => f.code === 'G')?.currentSharePrice}, S: $${editableFunds.find(f => f.code === 'S')?.currentSharePrice}`,
-      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+      ipAddress: '10.240.1.18 (CCSP-HQ-VPC)',
       status: 'Success'
     };
     setAuditLogs([newLog, ...auditLogs]);
@@ -246,10 +246,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     const silverOunces = Number((sBal / 31.5).toFixed(2));
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const generatedAccountNum = `VBSP-${Math.floor(1000 + Math.random() * 9000)}-${randomSuffix}-${Math.floor(10 + Math.random() * 89)}`;
+    const generatedAccountNum = `CCSP-${Math.floor(1000 + Math.random() * 9000)}-${randomSuffix}-${Math.floor(10 + Math.random() * 89)}`;
 
     const newUser: UserAccount = {
-      id: `usr_vbsp_${Date.now()}`,
+      id: `usr_ccsp_${Date.now()}`,
       name: newUserName,
       email: newUserEmail,
       accountNumber: generatedAccountNum,
@@ -303,10 +303,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     const newLog: AuditLogEntry = {
       id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-      actor: 'Executive Administrator (VBSP-Board)',
+      actor: 'Executive Administrator (CCSP-Board)',
       action: 'PARTICIPANT_REGISTERED',
       details: `Registered new participant: ${newUser.name} (${newUser.accountNumber}) under ${newUser.planType}. Initial vault balance: $${newUser.totalBalance.toLocaleString()}.`,
-      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+      ipAddress: '10.240.1.18 (CCSP-HQ-VPC)',
       status: 'Success'
     };
     setAuditLogs([newLog, ...auditLogs]);
@@ -343,10 +343,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     const newLog: AuditLogEntry = {
       id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-      actor: 'Executive Administrator (VBSP-Board)',
+      actor: 'Executive Administrator (CCSP-Board)',
       action: 'VAULT_BALANCE_ADJUST',
       details: `Adjusted balances for ${updated.name} (${updated.accountNumber}). Total: $${updated.totalBalance.toLocaleString()}, Traditional: $${updated.traditionalBalance.toLocaleString()}, Roth: $${updated.rothBalance.toLocaleString()}.`,
-      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+      ipAddress: '10.240.1.18 (CCSP-HQ-VPC)',
       status: 'Success'
     };
     setAuditLogs([newLog, ...auditLogs]);
@@ -464,7 +464,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       actor: 'Executive Compliance Officer (AML-KYC)',
       action: 'KYC_DOCUMENT_AUDIT',
       details: `Updated KYC status for ${updatedUser.name} (${updatedUser.accountNumber}) to "${kycSelectedStatus}". ${kycAuditNotes}`,
-      ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+      ipAddress: '10.240.1.18 (CCSP-HQ-VPC)',
       status: 'Success'
     };
     setAuditLogs([newLog, ...auditLogs]);
@@ -498,7 +498,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       title: newAnnounceTitle,
       date: new Date().toISOString().split('T')[0],
       category: newAnnounceCategory,
-      summary: 'Administrative bulletin published by VBSP Sovereign Custody Operations.',
+      summary: `Administrative bulletin published by ${branding.siteName || 'CCSP'} Sovereign Custody Operations.`,
       isUrgent: false
     };
 
@@ -532,10 +532,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#002f5a] text-[#f2a900] rounded-xs text-xs font-bold mb-2 border border-[#004f87]">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>AUTHENTICATED VBSP EXECUTIVE ACCESS • FIPS 140-2 LEVEL 3 • NIST SP 800-53</span>
+            <span>AUTHENTICATED {branding.siteName ? branding.siteName.toUpperCase() : 'CCSP'} EXECUTIVE ACCESS • FIPS 140-2 LEVEL 3 • NIST SP 800-53</span>
           </div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
-            VBSP Master Administrative & Custody Control Center
+            {branding.siteName || 'Cassivon Capital Savings Plan'} Master Administrative & Custody Control Center
           </h1>
           <p className="text-xs text-slate-300 max-w-2xl mt-1">
             Real-time bullion price fixing terminal, multi-account CRUD registry, segregated vault audits, and statutory parameters.
@@ -545,7 +545,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right hidden sm:block text-xs">
             <span className="text-slate-300 block">Logged in as:</span>
-            <strong className="text-white font-bold">admin@vbsp.org (Super Admin)</strong>
+            <strong className="text-white font-bold">{branding.supportEmail || 'admin@cassivon.com'} (Super Admin)</strong>
           </div>
           <button 
             onClick={onAdminLogout}
@@ -734,7 +734,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   <span>Participant Accounts & Sovereign Custody Registry</span>
                 </h2>
                 <p className="text-xs text-slate-600">
-                  Manage all participant records, create new accounts across the 3 VBSP classifications, adjust balances, and launch participant test sessions.
+                  Manage all participant records, create new accounts across the 3 CCSP classifications, adjust balances, and launch participant test sessions.
                 </p>
               </div>
 
@@ -755,7 +755,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   type="text" 
                   value={searchAccount}
                   onChange={(e) => setSearchAccount(e.target.value)}
-                  placeholder="Search by participant name, account # (e.g. VBSP-0089), email, agency..."
+                  placeholder="Search by participant name, account # (e.g. CCSP-0089), email, agency..."
                   className="w-full bg-slate-50 border border-slate-300 rounded-xs pl-9 pr-4 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                 />
               </div>
@@ -768,9 +768,9 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   className="bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white"
                 >
                   <option value="ALL">All Account Types ({users.length})</option>
-                  <option value="VBSP Standard Account (Taxable Reserve)">VBSP Standard (Taxable)</option>
-                  <option value="VBSP Sovereign Custody (Self-Directed / IRA)">VBSP Sovereign Custody (IRA)</option>
-                  <option value="VBSP Institutional / Corporate Reserve">VBSP Institutional / Corporate</option>
+                  <option value="CCSP Standard Account (Taxable Reserve)">CCSP Standard (Taxable)</option>
+                  <option value="CCSP Sovereign Custody (Self-Directed / IRA)">CCSP Sovereign Custody (IRA)</option>
+                  <option value="CCSP Institutional / Corporate Reserve">CCSP Institutional / Corporate</option>
                 </select>
               </div>
             </div>
@@ -950,10 +950,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               const newLog: AuditLogEntry = {
                 id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
                 timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
-                actor: 'Executive Administrator (VBSP-Board)',
+                actor: 'Executive Administrator (CCSP-Board)',
                 action: 'PAYMENT_GATEWAY_CONFIG',
                 details: logDetails,
-                ipAddress: '10.240.1.18 (VBSP-HQ-VPC)',
+                ipAddress: '10.240.1.18 (CCSP-HQ-VPC)',
                 status: 'Success'
               };
               setAuditLogs([newLog, ...auditLogs]);
@@ -1330,9 +1330,9 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     onChange={(e: any) => setNewUserPlanType(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-300 rounded-xs px-3 py-2 font-bold text-slate-800"
                   >
-                    <option value="VBSP Standard Account (Taxable Reserve)">VBSP Standard Account (Taxable Reserve)</option>
-                    <option value="VBSP Sovereign Custody (Self-Directed / IRA)">VBSP Sovereign Custody (Self-Directed / IRA)</option>
-                    <option value="VBSP Institutional / Corporate Reserve">VBSP Institutional / Corporate Reserve</option>
+                    <option value="CCSP Standard Account (Taxable Reserve)">CCSP Standard Account (Taxable Reserve)</option>
+                    <option value="CCSP Sovereign Custody (Self-Directed / IRA)">CCSP Sovereign Custody (Self-Directed / IRA)</option>
+                    <option value="CCSP Institutional / Corporate Reserve">CCSP Institutional / Corporate Reserve</option>
                   </select>
                 </div>
 

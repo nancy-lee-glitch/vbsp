@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Mail, 
   Send, 
@@ -18,10 +18,14 @@ import {
   Check,
   Calendar,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  MessageSquare,
+  Reply,
+  Inbox,
+  User
 } from 'lucide-react';
 import { UserAccount, AdminEmailDispatch, SiteBrandingSettings, VBSPAccountType } from '../../types';
-import { sendLiveMessage } from '../../services/supabaseService';
+import { sendLiveMessage, fetchAllMessagesAdmin, DbMessage, markMessageAsRead } from '../../services/dbService';
 
 interface AdminEmailCenterProps {
   users: UserAccount[];
@@ -50,12 +54,12 @@ AUDIT SUMMARY & SPECIE RECONCILIATION:
 Your bar serial registry and vault weight certificates remain safely recorded on the sovereign ledger. You may log into your vault dashboard at any time to verify bar serial numbers or request physical delivery.
 
 Custodial Administration Desk,
-Vertex Bullion Savings Plan`
+Cassivon Capital Savings Plan`
   },
   {
     id: 'quarterly-statement',
     name: 'Quarterly Bullion Reserve Statement',
-    subject: 'Your Quarterly VBSP Sovereign Bullion Reserve Statement is Ready',
+    subject: 'Your Quarterly CCSP Sovereign Bullion Reserve Statement is Ready',
     priority: 'Normal' as const,
     body: `Dear {{name}},
 
@@ -66,10 +70,10 @@ PORTFOLIO HIGHLIGHTS:
 - Primary Metals: G-Fund (Gold), S-Fund (Silver), P-Fund (Platinum)
 - Registered Depository: {{vault_location}}
 
-To review your complete transaction history, dividend reinvestments, and spot price performance, please authenticate through the secure VBSP portal.
+To review your complete transaction history, dividend reinvestments, and spot price performance, please authenticate through the secure CCSP portal.
 
 Sincerely,
-Vertex Bullion Custodial Services`
+Cassivon Capital Custodial Services`
   },
   {
     id: 'statutory-limits',
@@ -82,7 +86,7 @@ The 2026 statutory elective deferral limit has been set at $23,500 with a standa
 
 Please confirm your payroll deductions or corporate bullion allocations with your payroll officer to ensure full matching capture.
 
-Vertex Bullion Compliance & Legal Office`
+Cassivon Capital Compliance & Legal Office`
   },
   {
     id: 'security-fips',
@@ -93,14 +97,14 @@ Vertex Bullion Compliance & Legal Office`
 
 As part of our continuous NIST SP 800-53 security protocol, all participants with active holdings in {{plan_type}} must review their 6-Digit ThriftLine PIN and registered recovery credentials.
 
-If you did not initiate any recent profile changes on account {{account_number}}, contact our 24/7 Security Vault Desk immediately at 1-800-VBSP-THRIFT.
+If you did not initiate any recent profile changes on account {{account_number}}, contact our 24/7 Security Vault Desk immediately.
 
-Vertex Bullion Cyber & Physical Vault Defense Team`
+Cassivon Capital Cyber & Physical Vault Defense Team`
   },
   {
     id: 'custom-blank',
     name: 'Custom Administrative Notice',
-    subject: 'Official Notice from Vertex Bullion Savings Plan Administration',
+    subject: 'Official Notice from Cassivon Capital Savings Plan Administration',
     priority: 'Normal' as const,
     body: `Dear {{name}},
 
@@ -108,9 +112,9 @@ We are writing to notify you regarding important updates to your {{plan_type}} a
 
 [Enter your custom message here]
 
-Thank you for trusting the Vertex Bullion Savings Plan for your sovereign precious metals thrift.
+Thank you for trusting the Cassivon Capital Savings Plan for your sovereign precious metals thrift.
 
-Vertex Bullion Custody Board`
+Cassivon Capital Custody Board`
   }
 ];
 
@@ -129,17 +133,85 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
 
   // Email Content State
   const [selectedTemplate, setSelectedTemplate] = useState<string>('vault-audit');
-  const [senderName, setSenderName] = useState('Vertex Bullion Custody Service');
-  const [senderEmail, setSenderEmail] = useState('custody-notifications@vbsp.org');
+  const [senderName, setSenderName] = useState(branding.siteName ? `${branding.siteName} Custody Service` : 'Cassivon Capital Custody Service');
+  const [senderEmail, setSenderEmail] = useState(branding.supportEmail || 'custody@cassivon.com');
   const [subject, setSubject] = useState(EMAIL_TEMPLATES[0].subject);
   const [priority, setPriority] = useState<'Normal' | 'Important' | 'Urgent Vault Notice'>('Important');
   const [emailBody, setEmailBody] = useState(EMAIL_TEMPLATES[0].body);
 
   // UI state
+  const [activeSubTab, setActiveSubTab] = useState<'broadcast' | 'inbox'>('broadcast');
+  const [inboxMessages, setInboxMessages] = useState<DbMessage[]>([]);
+  const [selectedMessage, setSelectedMessage] = useState<DbMessage | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+  const [replyNotification, setReplyNotification] = useState<string | null>(null);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendSuccessMessage, setSendSuccessMessage] = useState('');
   const [previewUser, setPreviewUser] = useState<UserAccount>(users[0]);
   const [viewingDispatch, setViewingDispatch] = useState<AdminEmailDispatch | null>(null);
+
+  // Load live messages from Neon PostgreSQL
+  const loadLiveMessages = async () => {
+    setIsLoadingMessages(true);
+    try {
+      const msgs = await fetchAllMessagesAdmin();
+      setInboxMessages(msgs);
+      if (!selectedMessage && msgs.length > 0) {
+        setSelectedMessage(msgs[0]);
+      }
+    } catch (err) {
+      console.warn('Failed to load admin live messages:', err);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLiveMessages();
+  }, []);
+
+  const handleSelectInboxMessage = async (msg: DbMessage) => {
+    setSelectedMessage(msg);
+    if (!msg.is_read && msg.id) {
+      await markMessageAsRead(msg.id);
+      setInboxMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_read: true } : m));
+    }
+  };
+
+  const handleSendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMessage || !replyText.trim()) return;
+
+    setIsReplying(true);
+    const targetUser = users.find(u => 
+      u.id === String(selectedMessage.participant_id) || 
+      u.email === selectedMessage.sender_email ||
+      u.email === selectedMessage.recipient_email
+    ) || users[0];
+
+    try {
+      const saved = await sendLiveMessage(targetUser, {
+        sender_type: 'admin',
+        sender_name: senderName || branding.siteName || 'VBSP Custodial Administration Desk',
+        sender_email: senderEmail || 'custody@vbsp.org',
+        recipient_email: selectedMessage.sender_email || targetUser.email,
+        subject: selectedMessage.subject.startsWith('Re:') ? selectedMessage.subject : `Re: ${selectedMessage.subject}`,
+        body: replyText,
+        category: 'official'
+      });
+
+      setInboxMessages(prev => [saved, ...prev]);
+      setReplyText('');
+      setReplyNotification('Reply successfully transmitted to participant mailbox and stored in Neon DB.');
+      setTimeout(() => setReplyNotification(null), 4000);
+    } catch (err) {
+      console.error('Failed to transmit admin reply:', err);
+    } finally {
+      setIsReplying(false);
+    }
+  };
 
   // Calculate matching recipients based on mode
   const getTargetRecipients = (): UserAccount[] => {
@@ -237,8 +309,8 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
         const personalized = renderPersonalizedContent(emailBody, u);
         sendLiveMessage(u, {
           sender_type: 'admin',
-          sender_name: senderName || branding.siteName || 'VBSP Depository Administration',
-          sender_email: senderEmail || 'custody@vertexbullion.com',
+          sender_name: senderName || branding.siteName || 'CCSP Depository Administration',
+          sender_email: senderEmail || 'custody@cassivon.com',
           recipient_email: u.email,
           subject: subject,
           body: personalized,
@@ -282,8 +354,224 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
             <span>{sendSuccessMessage}</span>
           </div>
         )}
+
+        {replyNotification && (
+          <div className="mt-4 p-4 bg-blue-50 border-l-4 border-[#005ea2] rounded-xs text-xs text-[#112e51] font-bold flex items-center gap-2 shadow-2xs">
+            <CheckCircle2 className="w-5 h-5 text-[#005ea2] shrink-0" />
+            <span>{replyNotification}</span>
+          </div>
+        )}
       </div>
 
+      {/* SUB-TABS: Broadcast Campaigns vs Live Participant Inquiries */}
+      <div className="flex border-b border-slate-300 bg-white px-4 pt-2 gap-6 rounded-t-sm shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('broadcast')}
+          className={`pb-3 text-xs font-black flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+            activeSubTab === 'broadcast'
+              ? 'border-[#005ea2] text-[#005ea2]'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Mail className="w-4 h-4" />
+          <span>Outbound Campaigns & Broadcasts</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSubTab('inbox');
+            loadLiveMessages();
+          }}
+          className={`pb-3 text-xs font-black flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+            activeSubTab === 'inbox'
+              ? 'border-[#005ea2] text-[#005ea2]'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Participant Inquiries & Live Chat</span>
+          {inboxMessages.filter(m => !m.is_read && m.sender_type !== 'admin').length > 0 && (
+            <span className="px-2 py-0.5 bg-red-600 text-white rounded-full text-[10px] font-black animate-pulse">
+              {inboxMessages.filter(m => !m.is_read && m.sender_type !== 'admin').length} new
+            </span>
+          )}
+        </button>
+      </div>
+
+      {activeSubTab === 'inbox' ? (
+        /* ---------------------------------------------------- */
+        /* LIVE PARTICIPANT INQUIRIES & TWO-WAY CHAT           */
+        /* ---------------------------------------------------- */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left: Message Threads List (5 cols) */}
+          <div className="lg:col-span-5 bg-white border border-slate-300 rounded-sm p-4 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="text-xs font-black text-[#112e51] flex items-center gap-2">
+                  <Inbox className="w-4 h-4 text-[#005ea2]" />
+                  <span>Participant Messages ({inboxMessages.length})</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Real-time incoming user inquiries</p>
+              </div>
+              <button
+                type="button"
+                onClick={loadLiveMessages}
+                disabled={isLoadingMessages}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-xs border border-slate-300 cursor-pointer"
+              >
+                {isLoadingMessages ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+              {inboxMessages.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-500">
+                  <Inbox className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  No messages recorded in database yet.
+                </div>
+              ) : (
+                inboxMessages.map(msg => {
+                  const isFromUser = msg.sender_type !== 'admin';
+                  const isSelected = selectedMessage?.id === msg.id;
+
+                  return (
+                    <div
+                      key={msg.id || Math.random()}
+                      onClick={() => handleSelectInboxMessage(msg)}
+                      className={`p-3 rounded-xs border text-xs cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-blue-50 border-[#005ea2]'
+                          : !msg.is_read && isFromUser
+                          ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
+                          : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${isFromUser ? 'bg-amber-500' : 'bg-[#005ea2]'}`} />
+                          <span className="font-bold text-slate-900 truncate max-w-[150px]">
+                            {msg.sender_name || 'Participant'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400">
+                          {msg.created_at ? new Date(msg.created_at).toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+                      <div className="font-semibold text-slate-800 truncate mb-1">
+                        {msg.subject || '(No Subject)'}
+                      </div>
+                      <div className="text-[11px] text-slate-600 line-clamp-2">
+                        {msg.body}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-[10px]">
+                        <span className={`px-1.5 py-0.5 rounded-2xs font-bold ${
+                          isFromUser 
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                            : 'bg-blue-100 text-blue-800 border border-blue-200'
+                        }`}>
+                          {isFromUser ? 'Incoming User Inquiry' : 'Admin Response'}
+                        </span>
+                        {!msg.is_read && isFromUser && (
+                          <span className="text-red-600 font-black tracking-wide">UNREAD</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right: Message Detail & Reply Box (7 cols) */}
+          <div className="lg:col-span-7 space-y-4">
+            {selectedMessage ? (
+              <div className="bg-white border border-slate-300 rounded-sm p-6 shadow-2xs space-y-5">
+                <div className="border-b border-slate-200 pb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-base font-black text-[#112e51]">
+                      {selectedMessage.subject}
+                    </h3>
+                    <span className="text-xs text-slate-500">
+                      {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : ''}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xs border border-slate-200">
+                    <div>
+                      <span className="text-slate-500">Sender:</span>{' '}
+                      <strong className="text-slate-900">{selectedMessage.sender_name}</strong> ({selectedMessage.sender_email || 'member@vbsp.org'})
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Participant ID:</span>{' '}
+                      <strong className="text-slate-900">#{selectedMessage.participant_id}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Channel Type:</span>{' '}
+                      <span className="capitalize font-bold text-slate-800">{selectedMessage.category || 'General Inquiry'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Recipient:</span>{' '}
+                      <span className="text-slate-800">{selectedMessage.recipient_email || 'VBSP Custodial Desk'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Message Body:</h4>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xs text-xs text-slate-900 whitespace-pre-wrap leading-relaxed font-sans min-h-[120px]">
+                    {selectedMessage.body}
+                  </div>
+                </div>
+
+                {/* Direct Admin Reply Form */}
+                <form onSubmit={handleSendReply} className="border-t border-slate-200 pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-[#112e51] flex items-center gap-1.5">
+                      <Reply className="w-4 h-4 text-[#005ea2]" />
+                      <span>Reply to Participant (Live Chat / Mailbox Sync):</span>
+                    </label>
+                    <span className="text-[11px] text-slate-500">
+                      Delivered to user portal instantly
+                    </span>
+                  </div>
+
+                  <textarea
+                    rows={4}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Type official custodial response to the participant..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xs p-3 text-xs text-slate-900 focus:bg-white focus:border-[#112e51] outline-none"
+                    required
+                  />
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500 italic">
+                      Transmitted under VBSP Custodial Protocol (NIST SP 800-53)
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={isReplying || !replyText.trim()}
+                      className="px-5 py-2.5 bg-[#112e51] hover:bg-[#002f5a] disabled:bg-slate-300 text-white text-xs font-bold rounded-xs flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>{isReplying ? 'Transmitting...' : 'Send Live Reply to User'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-300 rounded-sm p-12 text-center text-xs text-slate-500 shadow-2xs">
+                Select an inquiry from the left to read and transmit a live reply.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+      /* ---------------------------------------------------- */
+      /* OUTBOUND CAMPAIGNS & BROADCAST COMPOSER             */
+      /* ---------------------------------------------------- */
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* LEFT COLUMN: COMPOSER (7 cols) */}
@@ -654,7 +942,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
 
               {/* Official Disclaimer Footer */}
               <div className="pt-4 border-t border-slate-200 text-[10px] text-slate-400 space-y-1 leading-normal text-center">
-                <p>Vertex Bullion Savings Plan (VBSP) • Physical Bullion Specie Custody Board</p>
+                <p>{branding.siteName || 'Cassivon Capital Savings Plan (CCSP)'} • Physical Bullion Specie Custody Board</p>
                 <p>100 Wall Street, New York, NY 10005 • Inquiries: {branding.supportEmail} • {branding.supportPhone}</p>
                 <p>This automated message was generated by the executive custody ledger. FIPS 140-2 compliance verified.</p>
               </div>
@@ -695,6 +983,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
         </div>
 
       </div>
+      )}
 
       {/* VIEW SENT MESSAGE MODAL */}
       {viewingDispatch && (

