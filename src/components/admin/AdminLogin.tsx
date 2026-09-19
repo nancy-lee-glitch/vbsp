@@ -124,7 +124,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                   type="text" 
                   value={adminUsername}
                   onChange={(e) => setAdminUsername(e.target.value)}
-                  placeholder="admin@vbsp.org"
+                  placeholder="admin@cassivon.com"
                   className="w-full bg-slate-50 border border-slate-300 rounded-xs pl-9 pr-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:border-[#005ea2] focus:outline-none"
                   required
                 />
