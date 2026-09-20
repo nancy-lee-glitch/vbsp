@@ -126,7 +126,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
 }) => {
   // Recipient Selection State
   const [recipientMode, setRecipientMode] = useState<'all' | 'classification' | 'single' | 'selected'>('all');
-  const [selectedPlanType, setSelectedPlanType] = useState<VBSPAccountType>('VBSP Standard Account (Taxable Reserve)');
+  const [selectedPlanType, setSelectedPlanType] = useState<VBSPAccountType>('CCSP Standard Account (Taxable Reserve)');
   const [singleUserId, setSingleUserId] = useState<string>(users[0]?.id || '');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([users[0]?.id || '']);
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -194,8 +194,8 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
     try {
       const saved = await sendLiveMessage(targetUser, {
         sender_type: 'admin',
-        sender_name: senderName || branding.siteName || 'VBSP Custodial Administration Desk',
-        sender_email: senderEmail || 'custody@vbsp.org',
+        sender_name: senderName || branding.siteName || 'CCSP Custodial Administration Desk',
+        sender_email: senderEmail || branding.supportEmail || 'custody@cassivon.com',
         recipient_email: selectedMessage.sender_email || targetUser.email,
         subject: selectedMessage.subject.startsWith('Re:') ? selectedMessage.subject : `Re: ${selectedMessage.subject}`,
         body: replyText,
@@ -501,7 +501,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
                   <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xs border border-slate-200">
                     <div>
                       <span className="text-slate-500">Sender:</span>{' '}
-                      <strong className="text-slate-900">{selectedMessage.sender_name}</strong> ({selectedMessage.sender_email || 'member@vbsp.org'})
+                      <strong className="text-slate-900">{selectedMessage.sender_name}</strong> ({selectedMessage.sender_email || 'member@cassivon.com'})
                     </div>
                     <div>
                       <span className="text-slate-500">Participant ID:</span>{' '}
@@ -513,7 +513,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
                     </div>
                     <div>
                       <span className="text-slate-500">Recipient:</span>{' '}
-                      <span className="text-slate-800">{selectedMessage.recipient_email || 'VBSP Custodial Desk'}</span>
+                      <span className="text-slate-800">{selectedMessage.recipient_email || branding.siteName || 'CCSP Custodial Desk'}</span>
                     </div>
                   </div>
                 </div>
@@ -548,7 +548,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
 
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-slate-500 italic">
-                      Transmitted under VBSP Custodial Protocol (NIST SP 800-53)
+                      Transmitted under CCSP Custodial Protocol (NIST SP 800-53)
                     </span>
                     <button
                       type="submit"
@@ -653,9 +653,9 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
                   onChange={(e: any) => setSelectedPlanType(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-xs p-2 text-xs font-bold text-slate-900"
                 >
-                  <option value="VBSP Standard Account (Taxable Reserve)">VBSP Standard Account (Taxable Reserve) — {users.filter(u => u.planType === 'VBSP Standard Account (Taxable Reserve)').length} users</option>
-                  <option value="VBSP Sovereign Custody (Self-Directed / IRA)">VBSP Sovereign Custody (Self-Directed / IRA) — {users.filter(u => u.planType === 'VBSP Sovereign Custody (Self-Directed / IRA)').length} users</option>
-                  <option value="VBSP Institutional / Corporate Reserve">VBSP Institutional / Corporate Reserve — {users.filter(u => u.planType === 'VBSP Institutional / Corporate Reserve)').length} users</option>
+                  <option value="CCSP Standard Account (Taxable Reserve)">CCSP Standard Account (Taxable Reserve) — {users.filter(u => u.planType?.includes('Standard')).length} users</option>
+                  <option value="CCSP Sovereign Custody (Self-Directed / IRA)">CCSP Sovereign Custody (Self-Directed / IRA) — {users.filter(u => u.planType?.includes('Sovereign')).length} users</option>
+                  <option value="CCSP Institutional / Corporate Reserve">CCSP Institutional / Corporate Reserve — {users.filter(u => u.planType?.includes('Institutional')).length} users</option>
                 </select>
               </div>
             )}
@@ -887,7 +887,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
                   className="bg-[#002f5a] text-white rounded-xs px-1.5 py-0.5 text-[11px] font-bold border border-[#004f87]"
                 >
                   {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.name.split(' ')[0]} ({u.planType.split(' ')[1] || 'VBSP'})</option>
+                    <option key={u.id} value={u.id}>{u.name.split(' ')[0]} ({u.planType.split(' ')[1] || 'CCSP'})</option>
                   ))}
                 </select>
               </div>

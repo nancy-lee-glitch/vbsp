@@ -84,7 +84,20 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
       setFormData(DEFAULT_SITE_BRANDING);
       onUpdateBranding(DEFAULT_SITE_BRANDING);
       saveSiteBranding(DEFAULT_SITE_BRANDING).catch(e => console.warn(e));
+      window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'branding', branding: DEFAULT_SITE_BRANDING } }));
       window.dispatchEvent(new CustomEvent('vbsp_db_sync', { detail: { type: 'branding', branding: DEFAULT_SITE_BRANDING } }));
+      fetch('/api/audit-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SITE_BRANDING_RESET',
+          details: `Reset site branding and platform title to default: "${DEFAULT_SITE_BRANDING.siteName}".`,
+          actor: 'Super Administrator (Compliance Officer)',
+          targetAccount: 'SYSTEM_BRANDING',
+          previousState: branding.siteName,
+          newState: DEFAULT_SITE_BRANDING.siteName
+        })
+      }).catch(e => console.warn(e));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 4000);
     }
@@ -96,7 +109,20 @@ export const AdminBrandingManager: React.FC<AdminBrandingManagerProps> = ({
     onUpdateBranding(formData);
     try {
       await saveSiteBranding(formData);
+      window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'branding', branding: formData } }));
       window.dispatchEvent(new CustomEvent('vbsp_db_sync', { detail: { type: 'branding', branding: formData } }));
+      await fetch('/api/audit-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SITE_BRANDING_EDIT',
+          details: `Updated platform name to "${formData.siteName}", emblem title: "${formData.emblemTitle}", domain: "${formData.domainName}".`,
+          actor: 'Super Administrator (Compliance Officer)',
+          targetAccount: 'SYSTEM_BRANDING',
+          previousState: branding.siteName,
+          newState: formData.siteName
+        })
+      });
     } catch (err) {
       console.warn('Failed to save branding to database:', err);
     }

@@ -147,14 +147,14 @@ export type ContrastMode = 'normal' | 'high-contrast' | 'sepia' | 'high';
 export type FontSize = 'small' | 'normal' | 'large' | 'xlarge';
 export type Language = 'en' | 'es';
 
-export type VBSPAccountType = 
+export type CCSPAccountType = 
   | 'CCSP Standard Account (Taxable Reserve)'
   | 'CCSP Sovereign Custody (Self-Directed / IRA)'
   | 'CCSP Institutional / Corporate Reserve'
-  | 'VBSP Standard Account (Taxable Reserve)'
-  | 'VBSP Sovereign Custody (Self-Directed / IRA)'
-  | 'VBSP Institutional / Corporate Reserve'
+  | 'CCSP Trust & Family Office Vault'
   | string;
+
+export type VBSPAccountType = CCSPAccountType;
 
 export interface TSPFund {
   id: string;

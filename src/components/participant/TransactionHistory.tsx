@@ -26,7 +26,7 @@ interface TransactionHistoryProps {
 
 export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   transactions = [],
-  accountNumber = 'VBSP-0089-4412-98',
+  accountNumber = 'CCSP-0089-4412-98',
   userName = 'Marcus Vance',
   onOpenDepositModal
 }) => {
@@ -59,7 +59,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `VBSP_Depository_Ledger_${accountNumber}.csv`);
+    link.setAttribute('download', `CCSP_Depository_Ledger_${accountNumber}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

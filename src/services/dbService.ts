@@ -1309,3 +1309,96 @@ export async function savePaymentMethod(method: PaymentMethodConfig): Promise<bo
 
   return true;
 }
+
+// =============================================================================
+// 9. AUDIT LOGS (NEON POSTGRESQL + LOCAL SYNC)
+// =============================================================================
+
+export interface LiveAuditLogRecord {
+  id: string;
+  dbId?: number;
+  timestamp: string;
+  actor: string;
+  action: string;
+  details: string;
+  ipAddress: string;
+  status: 'Success' | 'Flagged' | 'Blocked';
+  targetAccount?: string;
+  previousState?: string;
+  newState?: string;
+}
+
+export async function fetchAuditLogs(): Promise<LiveAuditLogRecord[]> {
+  try {
+    const res = await fetch('/api/audit-logs');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.auditLogs)) {
+        return data.auditLogs;
+      }
+    }
+  } catch (e) {
+    console.warn('fetchAuditLogs error:', e);
+  }
+  return [];
+}
+
+export async function recordAuditLog(log: {
+  action: string;
+  details: string;
+  actor?: string;
+  ipAddress?: string;
+  status?: 'Success' | 'Flagged' | 'Blocked';
+  targetAccount?: string;
+  previousState?: string;
+  newState?: string;
+}): Promise<boolean> {
+  try {
+    const res = await fetch('/api/audit-logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: log.action,
+        details: log.details,
+        actor: log.actor || 'Super Administrator (Compliance Officer)',
+        ipAddress: log.ipAddress || '10.240.1.18 (CCSP-HQ-VPC)',
+        status: log.status || 'Success',
+        targetAccount: log.targetAccount || '',
+        previousState: log.previousState || '',
+        newState: log.newState || ''
+      })
+    });
+    if (res.ok) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'audit' } }));
+        window.dispatchEvent(new CustomEvent('vbsp_db_sync', { detail: { type: 'audit' } }));
+      }
+      return true;
+    }
+  } catch (e) {
+    console.warn('recordAuditLog error:', e);
+  }
+  return false;
+}
+
+// =============================================================================
+// 10. PARTICIPANT LOAN & WITHDRAWAL HELPERS
+// =============================================================================
+
+export async function fetchUserLoans(participantId?: string | number, accountNumber?: string): Promise<DbLoanApplication[]> {
+  const allLoans = await fetchLoanApplicationsAdmin();
+  if (!participantId && !accountNumber) return allLoans;
+  return allLoans.filter(l => 
+    (participantId && (String(l.participant_id) === String(participantId) || String(l.id) === String(participantId))) ||
+    (accountNumber && l.user_account_number && l.user_account_number.toLowerCase() === accountNumber.toLowerCase())
+  );
+}
+
+export async function fetchUserWithdrawals(participantId?: string | number, accountNumber?: string): Promise<DbWithdrawalRequest[]> {
+  const allWdls = await fetchWithdrawalsAdmin();
+  if (!participantId && !accountNumber) return allWdls;
+  return allWdls.filter(w => 
+    (participantId && (String(w.participant_id) === String(participantId) || String(w.id) === String(participantId))) ||
+    (accountNumber && w.user_account_number && w.user_account_number.toLowerCase() === accountNumber.toLowerCase())
+  );
+}

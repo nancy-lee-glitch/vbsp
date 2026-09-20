@@ -197,7 +197,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
     setNewMinDeposit(5000);
     setNewMaxDeposit(300000);
     setNewProcessingTime('Instant - 15 Mins');
-    setNewInstructions('Transfer funds to the specified address/account. Enter your VBSP Account Number in the transaction memo.');
+    setNewInstructions('Transfer funds to the specified address/account. Enter your CCSP Account Number in the transaction memo.');
     setNewIsEnabled(true);
 
     setNewBankName('');
@@ -945,7 +945,7 @@ export const AdminPaymentMethodsManager: React.FC<AdminPaymentMethodsManagerProp
                         required
                         value={newCashAppTag}
                         onChange={(e) => setNewCashAppTag(e.target.value)}
-                        placeholder="$VBSPVaultReserve"
+                        placeholder="$CCSPVaultReserve"
                         className="w-full bg-white border border-slate-300 rounded-xs px-3 py-2 font-mono font-bold text-emerald-800"
                       />
                     </div>

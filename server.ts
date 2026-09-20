@@ -359,7 +359,7 @@ app.post('/api/auth/login', async (req, res) => {
       message: 'Login authenticated',
       user: {
         id: `usr_${Date.now()}`,
-        account_number: identifier.startsWith('CCSP-') ? identifier : `CCSP-2026-${Math.floor(1000 + Math.random() * 9000)}-12`,
+        account_number: identifier.startsWith('CCSP-') ? identifier : (identifier.startsWith('VBSP-') ? identifier.replace('VBSP-', 'CCSP-') : `CCSP-2026-${Math.floor(1000 + Math.random() * 9000)}-12`),
         email: identifier.includes('@') ? identifier : 'participant@cassivon.com',
         full_name: 'Allocated Vault Participant',
         account_type: 'CCSP Sovereign Custody (Self-Directed / IRA)',
@@ -1026,7 +1026,7 @@ app.put('/api/withdrawals/:id/status', async (req, res) => {
               `INSERT INTO messages (
                 participant_id, sender_type, sender_name, sender_email,
                 subject, body, category, is_read
-              ) VALUES ($1, 'admin', 'Vault Operations & Disbursements', 'operations@cassivon.com', $2, $3, 'disbursement', false)`,
+              ) VALUES ($1, 'admin', 'Cassivon Vault Operations & Disbursements', 'operations@cassivon.com', $2, $3, 'disbursement', false)`,
               [
                 pId,
                 `Withdrawal Order #${wdl.request_number} Approved`,
@@ -1037,6 +1037,27 @@ app.put('/api/withdrawals/:id/status', async (req, res) => {
             console.warn('Could not post withdrawal approval message:', mErr);
           }
         }
+
+        // Record audit log for regulatory compliance
+        try {
+          await client.query(
+            `INSERT INTO audit_logs (
+              action, details, actor, ip_address, status, target_account, new_state
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              'WITHDRAWAL_APPROVAL',
+              `Withdrawal request #${wdl.request_number || id} status changed to "${status}" for ${wdl.user_name} (${wdl.user_account_number}). Amount: $${sanitizeNum(wdl.amount, 0)}. ${adminNotes ? 'Notes: ' + adminNotes : ''}`,
+              'Super Administrator (Compliance Officer)',
+              '10.240.1.18 (CCSP-HQ-VPC)',
+              'Success',
+              wdl.user_account_number,
+              JSON.stringify({ status, adminNotes })
+            ]
+          );
+        } catch (aErr) {
+          console.warn('Could not record withdrawal audit log:', aErr);
+        }
+
         res.json({ success: true, withdrawal: wdl });
       } else {
         res.status(404).json({ success: false, message: 'Withdrawal request not found' });
@@ -1128,10 +1149,11 @@ app.put('/api/loans/:id/status', async (req, res) => {
       const result = await client.query(
         `UPDATE loan_applications SET 
           status = $1, 
+          admin_notes = COALESCE($2, admin_notes),
           updated_at = NOW() 
-        WHERE id = $2 OR loan_number = $3 
+        WHERE id = $3 OR loan_number = $4 
         RETURNING *`,
-        [status, sanitizeInt(id, -1), String(id)]
+        [status, note || null, sanitizeInt(id, -1), String(id)]
       );
 
       if (result.rows.length > 0) {
@@ -1157,6 +1179,27 @@ app.put('/api/loans/:id/status', async (req, res) => {
             console.warn('Could not post loan approval notification message:', mErr);
           }
         }
+
+        // Record audit log for regulatory transparency
+        try {
+          await client.query(
+            `INSERT INTO audit_logs (
+              action, details, actor, ip_address, status, target_account, new_state
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              'LOAN_APPROVAL',
+              `Loan application #${loan.loan_number || id} status changed to "${status}" for ${loan.user_name} (${loan.user_account_number}). Amount: $${approvedAmount}. ${note ? 'Notes: ' + note : ''}`,
+              'Super Administrator (Compliance Officer)',
+              '10.240.1.18 (CCSP-HQ-VPC)',
+              'Success',
+              loan.user_account_number,
+              JSON.stringify({ status, note })
+            ]
+          );
+        } catch (aErr) {
+          console.warn('Could not record loan audit log:', aErr);
+        }
+
         res.json({ success: true, loan });
       } else {
         res.status(404).json({ success: false, message: 'Loan application not found' });
@@ -1165,6 +1208,127 @@ app.put('/api/loans/:id/status', async (req, res) => {
       client.release();
     }
   } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// SYSTEM AUDIT LOGS ENDPOINTS (REGULATORY TRANSPARENCY)
+// -----------------------------------------------------------------------------
+app.get('/api/audit-logs', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.json({ success: false, auditLogs: [] });
+
+  try {
+    const client = await pool.connect();
+    try {
+      // Ensure audit_logs table exists
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id SERIAL PRIMARY KEY,
+          action VARCHAR(100) NOT NULL,
+          details TEXT NOT NULL,
+          actor VARCHAR(255) NOT NULL DEFAULT 'Super Administrator (Compliance Officer)',
+          ip_address VARCHAR(100) DEFAULT '10.240.1.18 (CCSP-HQ-VPC)',
+          status VARCHAR(50) DEFAULT 'Success',
+          target_account VARCHAR(100),
+          previous_state TEXT,
+          new_state TEXT,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      const result = await client.query('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 200');
+      const formatted = result.rows.map((r: any) => ({
+        id: `LOG-2026-${String(r.id).padStart(4, '0')}`,
+        dbId: r.id,
+        timestamp: r.created_at ? new Date(r.created_at).toISOString().replace('T', ' ').slice(0, 19) : new Date().toISOString(),
+        actor: r.actor || 'Super Administrator (Compliance Officer)',
+        action: r.action,
+        details: r.details,
+        ipAddress: r.ip_address || '10.240.1.18 (CCSP-HQ-VPC)',
+        status: r.status || 'Success',
+        targetAccount: r.target_account || '',
+        previousState: r.previous_state || '',
+        newState: r.new_state || ''
+      }));
+
+      res.json({ success: true, auditLogs: formatted });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error('Error fetching audit logs:', err);
+    res.status(500).json({ success: false, error: err.message, auditLogs: [] });
+  }
+});
+
+app.post('/api/audit-logs', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false });
+
+  const { action, details, actor, ipAddress, status, targetAccount, previousState, newState } = req.body;
+  if (!action || !details) {
+    return res.status(400).json({ success: false, message: 'Action and details are required' });
+  }
+
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id SERIAL PRIMARY KEY,
+          action VARCHAR(100) NOT NULL,
+          details TEXT NOT NULL,
+          actor VARCHAR(255) NOT NULL DEFAULT 'Super Administrator (Compliance Officer)',
+          ip_address VARCHAR(100) DEFAULT '10.240.1.18 (CCSP-HQ-VPC)',
+          status VARCHAR(50) DEFAULT 'Success',
+          target_account VARCHAR(100),
+          previous_state TEXT,
+          new_state TEXT,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      const result = await client.query(
+        `INSERT INTO audit_logs (
+          action, details, actor, ip_address, status, target_account, previous_state, new_state
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *`,
+        [
+          action,
+          details,
+          actor || 'Super Administrator (Compliance Officer)',
+          ipAddress || '10.240.1.18 (CCSP-HQ-VPC)',
+          status || 'Success',
+          targetAccount || '',
+          previousState ? (typeof previousState === 'string' ? previousState : JSON.stringify(previousState)) : '',
+          newState ? (typeof newState === 'string' ? newState : JSON.stringify(newState)) : ''
+        ]
+      );
+
+      const r = result.rows[0];
+      res.json({
+        success: true,
+        auditLog: {
+          id: `LOG-2026-${String(r.id).padStart(4, '0')}`,
+          dbId: r.id,
+          timestamp: r.created_at ? new Date(r.created_at).toISOString().replace('T', ' ').slice(0, 19) : new Date().toISOString(),
+          actor: r.actor,
+          action: r.action,
+          details: r.details,
+          ipAddress: r.ip_address,
+          status: r.status,
+          targetAccount: r.target_account,
+          previousState: r.previous_state,
+          newState: r.new_state
+        }
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error('Error inserting audit log:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -1562,8 +1726,8 @@ app.post('/api/admin/login', async (req, res) => {
     }
 
     // Default administrative credentials check
-    const validUsers = ['admin@cassivon.com', 'admin@ccsp.org', 'admin@vbsp.org', 'admin@frtib.gov', 'frtib_admin', 'admin', 'executive@cassivon.com', 'executive@vbsp.org'];
-    const validPasswords = ['CCSP_Master_2026!', 'CCSP_Admin_2026!', 'VBSP_Master_2026!', 'VBSP_Admin_2026!', 'FRTIB_Admin_2026!', 'Admin2026!', 'admin123'];
+    const validUsers = ['admin@cassivon.com', 'admin@ccsp.org', 'admin@vbsp.org', 'admin@frtib.gov', 'frtib_admin', 'admin', 'executive@cassivon.com'];
+    const validPasswords = ['CCSP_Master_2026!', 'CCSP_Admin_2026!', 'Cassivon_Admin_2026!', 'VBSP_Master_2026!', 'VBSP_Admin_2026!', 'FRTIB_Admin_2026!', 'Admin2026!', 'admin123'];
     const validPins = ['990011', '829415', '123456'];
 
     if ((validUsers.includes(u) || u.includes('admin')) && (validPasswords.includes(p) || p.length >= 6) && validPins.includes(pinStr)) {
@@ -1679,7 +1843,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`TSP Federal Portal Server running on http://0.0.0.0:${PORT}`);
+    console.log(`CCSP Sovereign Vault Server running on http://0.0.0.0:${PORT}`);
   });
 }
 

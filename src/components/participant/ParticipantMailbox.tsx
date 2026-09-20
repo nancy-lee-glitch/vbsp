@@ -27,10 +27,10 @@ interface ParticipantMailboxProps {
 const DEFAULT_WELCOME_MESSAGES: ParticipantMessage[] = [
   {
     id: 'MSG-8821',
-    sender: 'VBSP Custody Specialist (Sarah Jenkins)',
+    sender: 'CCSP Custody Specialist (Sarah Jenkins)',
     recipient: 'Participant',
     subject: 'Confirmation of 2026 Beneficiary Designation Update',
-    body: 'Dear Participant,\n\nThis message confirms that your electronic Form VBSP-3 designation of beneficiaries has been processed and accepted into the VBSP official depository record system.\n\nPrimary Beneficiaries:\n- Designated Beneficiary (Spouse) - 100%\n\nNo further paperwork or physical signatures are required at this time.\n\nSincerely,\nVBSP Bullion Operations Desk',
+    body: 'Dear Participant,\n\nThis message confirms that your electronic Form CCSP-3 designation of beneficiaries has been processed and accepted into the CCSP official depository record system.\n\nPrimary Beneficiaries:\n- Designated Beneficiary (Spouse) - 100%\n\nNo further paperwork or physical signatures are required at this time.\n\nSincerely,\nCCSP Bullion Operations Desk',
     timestamp: '2026-08-20 14:22 EST',
     isRead: true,
     hasAttachments: false
@@ -66,8 +66,8 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
       if (dbMsgs && dbMsgs.length > 0) {
         const mapped: ParticipantMessage[] = dbMsgs.map((m: DbMessage) => ({
           id: m.id ? `MSG-${m.id}` : `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
-          sender: m.sender_name || (m.sender_type === 'admin' ? 'VBSP Custody Admin' : user.name),
-          recipient: m.sender_type === 'admin' ? user.name : 'VBSP Caseworker Desk',
+          sender: m.sender_name || (m.sender_type === 'admin' ? 'CCSP Custody Admin' : user.name),
+          recipient: m.sender_type === 'admin' ? user.name : 'CCSP Caseworker Desk',
           subject: m.subject,
           body: m.body,
           timestamp: m.created_at ? new Date(m.created_at).toLocaleString() : 'Recent',
@@ -100,7 +100,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
         sender_type: 'participant',
         sender_name: user.name,
         sender_email: user.email,
-        recipient_email: 'depository@vbsp.org',
+        recipient_email: 'depository@cassivon.com',
         subject: fullSubject,
         body: newBody,
         category: newCategory
@@ -109,7 +109,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
       const newMsg: ParticipantMessage = {
         id: saved.id ? `MSG-${saved.id}` : `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
         sender: user.name,
-        recipient: 'VBSP Custodial Depository Desk',
+        recipient: 'CCSP Custodial Depository Desk',
         subject: fullSubject,
         body: newBody,
         timestamp: new Date().toLocaleString(),
@@ -122,7 +122,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
       setIsComposing(false);
       setNewSubject('');
       setNewBody('');
-      setStatusNotification('Your secure message was transmitted to the VBSP Administration Desk.');
+      setStatusNotification('Your secure message was transmitted to the CCSP Administration Desk.');
       setTimeout(() => setStatusNotification(null), 4000);
     } catch (err) {
       console.error('Failed to send live message:', err);
@@ -150,7 +150,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
             <h2 className="text-xl font-black text-slate-900">Secure Participant Mailbox</h2>
           </div>
           <p className="text-xs text-slate-600">
-            End-to-end encrypted messaging with VBSP sovereign depository caseworkers and support staff.
+            End-to-end encrypted messaging with CCSP sovereign depository caseworkers and support staff.
           </p>
         </div>
 

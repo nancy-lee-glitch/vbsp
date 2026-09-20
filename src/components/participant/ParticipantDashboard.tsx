@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   UserAccount, 
   TSPLoan, 
@@ -46,6 +46,12 @@ import { BankingContactSettings } from './BankingContactSettings';
 import { DepositFundsModal } from './DepositFundsModal';
 import { KYCPopupReminder } from './KYCPopupReminder';
 import { SimpleKYCUpload } from './SimpleKYCUpload';
+import { 
+  fetchUserLoans, 
+  fetchUserWithdrawals, 
+  DbLoanApplication, 
+  DbWithdrawalRequest 
+} from '../../services/dbService';
 
 interface ParticipantDashboardProps {
   user: UserAccount;
@@ -71,6 +77,42 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   const [isWithdrawalWizardOpen, setIsWithdrawalWizardOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string>('');
+
+  // Neon DB live loans and withdrawals
+  const [dbLoans, setDbLoans] = useState<DbLoanApplication[]>([]);
+  const [dbWithdrawals, setDbWithdrawals] = useState<DbWithdrawalRequest[]>([]);
+  const [loadingDbRequests, setLoadingDbRequests] = useState(false);
+
+  const loadDbRequests = async () => {
+    setLoadingDbRequests(true);
+    try {
+      const [loans, wdls] = await Promise.all([
+        fetchUserLoans(user.id, user.accountNumber),
+        fetchUserWithdrawals(user.id, user.accountNumber)
+      ]);
+      setDbLoans(loans);
+      setDbWithdrawals(wdls);
+    } catch (err) {
+      console.warn('Failed to load user loans/withdrawals:', err);
+    } finally {
+      setLoadingDbRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDbRequests();
+
+    const handleSync = () => {
+      loadDbRequests();
+    };
+
+    window.addEventListener('ccsp_db_sync', handleSync);
+    window.addEventListener('vbsp_db_sync', handleSync);
+    return () => {
+      window.removeEventListener('ccsp_db_sync', handleSync);
+      window.removeEventListener('vbsp_db_sync', handleSync);
+    };
+  }, [user.id, user.accountNumber]);
 
   const isKycVerified = user.kycProfile?.overallStatus === 'Verified (Tier 1 Allocated)';
   const kycStatusLabel = user.kycProfile?.overallStatus || 'Not Verified';
@@ -116,6 +158,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
     };
     onUpdateUser(updated, msg);
     showNotification(msg);
+    loadDbRequests();
   };
 
   const handleWithdrawalSubmitted = (amount: number, type: string, msg: string) => {
@@ -138,6 +181,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
     };
     onUpdateUser(updated, msg);
     showNotification(msg);
+    loadDbRequests();
   };
 
   const handleBeneficiaryUpdate = (updatedBen: TSPBeneficiary[], msg: string) => {
@@ -160,7 +204,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-400 text-[#0f2942] font-bold text-[11px] rounded-2xs uppercase tracking-wider">
                 <Shield className="w-3 h-3 text-[#0f2942]" />
-                <span>VBSP Depository Account</span>
+                <span>CCSP Depository Account</span>
               </span>
               <span className="text-[11px] text-slate-300 font-medium border-l border-slate-600 pl-2">
                 {user.planType} | {user.employingAgency}
@@ -448,7 +492,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                   <span>Annual Account Verification Due</span>
                 </div>
                 <p className="text-[11px] leading-relaxed text-amber-800">
-                  Please verify that your beneficiary designation (Form VBSP-3) and primary address are up to date for 2026.
+                  Please verify that your beneficiary designation (Form CCSP-3) and primary address are up to date for 2026.
                 </p>
               </div>
             </div>
@@ -512,14 +556,20 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
             </div>
           </div>
 
-          {/* Active Loans Section */}
-          {user.activeLoans.length > 0 && (
+          {/* Active Loans Section (Live Neon DB connected) */}
+          {(user.activeLoans.length > 0 || dbLoans.length > 0) && (
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-emerald-700" />
-                  <span>VBSP Participant Loans ({user.activeLoans.length})</span>
-                </h3>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    CCSP Participant Loans ({dbLoans.length > 0 ? dbLoans.length : user.activeLoans.length})
+                  </h3>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Neon Live Synced</span>
+                  </span>
+                </div>
                 <button 
                   onClick={() => setIsLoanWizardOpen(true)}
                   className="text-xs text-blue-800 hover:underline font-bold cursor-pointer"
@@ -529,33 +579,63 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {user.activeLoans.map((loan) => (
-                  <div key={loan.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-900">{loan.type} Loan ({loan.id})</span>
-                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                        loan.status === 'Active' ? 'bg-emerald-100 text-emerald-800' :
-                        loan.status === 'Processing' ? 'bg-amber-100 text-amber-800' :
-                        loan.status === 'Under Review' ? 'bg-blue-100 text-blue-800' :
-                        'bg-slate-100 text-slate-800'
-                      }`}>
-                        {loan.status}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-slate-600">
-                      <div>Current Balance: <strong className="text-slate-900">${loan.currentBalance.toLocaleString()}</strong></div>
-                      <div>Original: <strong>${loan.originalAmount.toLocaleString()}</strong></div>
-                      <div>Interest Rate: <strong>{loan.interestRate}% Fixed</strong></div>
-                      <div>Payroll Deduction: <strong className="text-blue-900">${loan.repaymentPerPayPeriod}/paycheck</strong></div>
-                    </div>
-                    {loan.status === 'Processing' && (
-                      <div className="text-[11px] text-amber-700 font-medium pt-1 border-t border-slate-200 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-amber-600" />
-                        <span>Awaiting Super Admin Depository Sign-off and wire issuance.</span>
+                {dbLoans.length > 0 ? (
+                  dbLoans.map((loan) => (
+                    <div key={loan.id || loan.loan_number} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900">{loan.loan_type || 'General Purpose'} ({loan.loan_number || `LN-${loan.id}`})</span>
+                        <span className={`px-2 py-0.5 rounded font-bold text-[10px] flex items-center gap-1 ${
+                          loan.status === 'Active' || loan.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                          loan.status === 'Processing' || loan.status === 'Pending Review' || loan.status === 'Under Review' ? 'bg-amber-100 text-amber-800' :
+                          loan.status === 'Rejected' ? 'bg-rose-100 text-rose-800' :
+                          'bg-slate-100 text-slate-800'
+                        }`}>
+                          {(loan.status === 'Active' || loan.status === 'Approved') && <CheckCircle2 className="w-3 h-3" />}
+                          {(loan.status === 'Processing' || loan.status === 'Pending Review' || loan.status === 'Under Review') && <Clock className="w-3 h-3" />}
+                          {loan.status}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div className="grid grid-cols-2 gap-2 text-slate-600">
+                        <div>Principal: <strong className="text-slate-900">${(loan.amount || loan.requested_amount || 0).toLocaleString()}</strong></div>
+                        <div>Term: <strong>{loan.term_months ? Math.round(loan.term_months / 12) : 3} Years ({loan.term_months || 36} Mos)</strong></div>
+                        <div>Interest Rate: <strong>{loan.interest_rate || 4.25}% Fixed</strong></div>
+                        <div>Est. Monthly: <strong className="text-blue-900">${(loan.monthly_payment || 0).toLocaleString()}</strong></div>
+                      </div>
+                      <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200 flex items-center justify-between">
+                        <span>Collateral: {loan.collateral_asset || 'Segregated LBMA Bullion'}</span>
+                        <span className="text-[10px] text-slate-400">{loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'Active'}</span>
+                      </div>
+                      {(loan.status === 'Processing' || loan.status === 'Pending Review') && (
+                        <div className="text-[11px] text-amber-700 font-medium pt-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-600" />
+                          <span>Awaiting Super Admin Depository Sign-off. Status updates in real time.</span>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  user.activeLoans.map((loan) => (
+                    <div key={loan.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900">{loan.type} Loan ({loan.id})</span>
+                        <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                          loan.status === 'Active' || loan.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                          loan.status === 'Processing' ? 'bg-amber-100 text-amber-800' :
+                          loan.status === 'Under Review' ? 'bg-blue-100 text-blue-800' :
+                          'bg-slate-100 text-slate-800'
+                        }`}>
+                          {loan.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-slate-600">
+                        <div>Current Balance: <strong className="text-slate-900">${loan.currentBalance.toLocaleString()}</strong></div>
+                        <div>Original: <strong>${loan.originalAmount.toLocaleString()}</strong></div>
+                        <div>Interest Rate: <strong>{loan.interestRate}% Fixed</strong></div>
+                        <div>Payroll Deduction: <strong className="text-blue-900">${loan.repaymentPerPayPeriod}/paycheck</strong></div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -597,15 +677,109 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         <div className="space-y-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900">VBSP Loan Services</h2>
-              <p className="text-xs text-slate-600">Borrow against your own vested balance without credit checks or commercial bank underwriting.</p>
+              <div className="flex items-center gap-2 mb-1">
+                <DollarSign className="w-5 h-5 text-emerald-700" />
+                <h2 className="text-lg font-black text-slate-900">CCSP Loan Services</h2>
+              </div>
+              <p className="text-xs text-slate-600">Borrow against your own vested bullion balance without credit checks or commercial bank underwriting.</p>
             </div>
-            <button 
-              onClick={() => setIsLoanWizardOpen(true)}
-              className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
-            >
-              Apply for Loan
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loadDbRequests}
+                disabled={loadingDbRequests}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-300"
+                title="Refresh from Neon DB"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingDbRequests ? 'animate-spin' : ''}`} />
+                <span>Sync</span>
+              </button>
+              <button 
+                onClick={() => setIsLoanWizardOpen(true)}
+                className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <DollarSign className="w-4 h-4 text-amber-400" />
+                <span>Apply for Loan</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Metrics Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase">Available Borrowing Cap</span>
+              <p className="text-lg font-black text-slate-900 mt-0.5">
+                ${Math.min(50000, Math.round(user.totalBalance * 0.5)).toLocaleString()}
+              </p>
+              <span className="text-[10px] text-slate-400">Max 50% of vested portfolio</span>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase">Current Fixed Rate</span>
+              <p className="text-lg font-black text-emerald-700 mt-0.5">4.25% APR</p>
+              <span className="text-[10px] text-slate-400">Fixed G-Fund statutory benchmark</span>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase">Active / Pending Applications</span>
+              <p className="text-lg font-black text-blue-950 mt-0.5">{dbLoans.length > 0 ? dbLoans.length : user.activeLoans.length}</p>
+              <span className="text-[10px] text-emerald-600 font-bold">Instant status sync</span>
+            </div>
+          </div>
+
+          {/* Applications Table / Cards */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wide">
+                Your Loan Applications & Facilities
+              </h3>
+              <span className="text-[11px] text-slate-500">
+                {dbLoans.length} total on record
+              </span>
+            </div>
+
+            {dbLoans.length > 0 ? (
+              <div className="divide-y divide-slate-100">
+                {dbLoans.map((loan) => (
+                  <div key={loan.id || loan.loan_number} className="p-4 sm:p-5 hover:bg-slate-50/70 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">{loan.loan_type || 'General Purpose Loan'}</span>
+                        <span className="font-mono text-xs text-slate-400">({loan.loan_number || `LN-${loan.id}`})</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${
+                          loan.status === 'Active' || loan.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                          loan.status === 'Processing' || loan.status === 'Pending Review' || loan.status === 'Under Review' ? 'bg-amber-100 text-amber-800' :
+                          loan.status === 'Rejected' ? 'bg-rose-100 text-rose-800' :
+                          'bg-slate-100 text-slate-800'
+                        }`}>
+                          {(loan.status === 'Active' || loan.status === 'Approved') && <CheckCircle2 className="w-3 h-3" />}
+                          {(loan.status === 'Processing' || loan.status === 'Pending Review' || loan.status === 'Under Review') && <Clock className="w-3 h-3" />}
+                          {loan.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        {loan.reason || loan.purpose || 'Institutional Bullion Backed Liquidity Facility'}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 pt-1">
+                        <span>Term: <strong>{loan.term_months} Months</strong></span>
+                        <span>Rate: <strong>{loan.interest_rate}% Fixed</strong></span>
+                        <span>Monthly: <strong className="text-blue-900">${(loan.monthly_payment || 0).toFixed(2)}</strong></span>
+                        <span>Submitted: <strong>{loan.created_at ? new Date(loan.created_at).toLocaleDateString() : 'Recent'}</strong></span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xl font-black text-slate-900">
+                        ${(loan.amount || loan.requested_amount || 0).toLocaleString()}
+                      </div>
+                      <span className="text-[11px] text-slate-400">Collateral: {loan.collateral_asset || 'LBMA Vault Gold'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-slate-500 space-y-2">
+                <DollarSign className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="text-xs font-bold text-slate-700">No loan applications on record</p>
+                <p className="text-[11px] text-slate-400">You can borrow up to $50,000 against your vested bullion balance. Click "Apply for Loan" to begin.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -614,15 +788,111 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         <div className="space-y-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900">In-Service & Post-Separation Distributions</h2>
+              <div className="flex items-center gap-2 mb-1">
+                <LifeBuoy className="w-5 h-5 text-rose-700" />
+                <h2 className="text-lg font-black text-slate-900">In-Service & Post-Separation Distributions</h2>
+              </div>
               <p className="text-xs text-slate-600">Access funds for documented financial hardship, age-based distributions, or separation rollovers.</p>
             </div>
-            <button 
-              onClick={() => setIsWithdrawalWizardOpen(true)}
-              className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
-            >
-              Start Distribution Request
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loadDbRequests}
+                disabled={loadingDbRequests}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-300"
+                title="Refresh from Neon DB"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingDbRequests ? 'animate-spin' : ''}`} />
+                <span>Sync</span>
+              </button>
+              <button 
+                onClick={() => setIsWithdrawalWizardOpen(true)}
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <LifeBuoy className="w-4 h-4 text-rose-200" />
+                <span>Start Distribution Request</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase">Available Vested Balance</span>
+              <p className="text-lg font-black text-slate-900 mt-0.5">${user.totalBalance.toLocaleString()}</p>
+              <span className="text-[10px] text-slate-400">100% physically allocated</span>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase">Statutory Withholding</span>
+              <p className="text-lg font-black text-amber-700 mt-0.5">20% Federal</p>
+              <span className="text-[10px] text-slate-400">Mandatory on eligible rollover distributions</span>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase">Distribution Requests</span>
+              <p className="text-lg font-black text-blue-950 mt-0.5">{dbWithdrawals.length}</p>
+              <span className="text-[10px] text-emerald-600 font-bold">Updated via Neon DB</span>
+            </div>
+          </div>
+
+          {/* Distribution Requests List */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wide">
+                Distribution Requests & History
+              </h3>
+              <span className="text-[11px] text-slate-500">{dbWithdrawals.length} on file</span>
+            </div>
+
+            {dbWithdrawals.length > 0 ? (
+              <div className="divide-y divide-slate-100">
+                {dbWithdrawals.map((wdl) => (
+                  <div key={wdl.id || wdl.request_id} className="p-4 sm:p-5 hover:bg-slate-50/70 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">
+                          {wdl.withdrawal_type || 'Financial Hardship Distribution'}
+                        </span>
+                        <span className="font-mono text-xs text-slate-400">({wdl.request_id || `WDL-${wdl.id}`})</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${
+                          wdl.status === 'Approved' || wdl.status === 'Paid' || wdl.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
+                          wdl.status === 'Pending Review' || wdl.status === 'Processing' || wdl.status === 'Under Review' ? 'bg-amber-100 text-amber-800' :
+                          wdl.status === 'Rejected' ? 'bg-rose-100 text-rose-800' :
+                          'bg-slate-100 text-slate-800'
+                        }`}>
+                          {(wdl.status === 'Approved' || wdl.status === 'Paid' || wdl.status === 'Completed') && <CheckCircle2 className="w-3 h-3" />}
+                          {(wdl.status === 'Pending Review' || wdl.status === 'Processing' || wdl.status === 'Under Review') && <Clock className="w-3 h-3" />}
+                          {wdl.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Reason: {wdl.reason || 'Documented Emergency Hardship'}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 pt-1">
+                        <span>Method: <strong>{wdl.disbursement_method || 'ACH Wire'}</strong></span>
+                        {wdl.bank_name && <span>Bank: <strong>{wdl.bank_name}</strong></span>}
+                        <span>Requested: <strong>{wdl.created_at ? new Date(wdl.created_at).toLocaleDateString() : 'Recent'}</strong></span>
+                      </div>
+                      {wdl.admin_notes && (
+                        <div className="text-[11px] text-slate-600 bg-slate-100 p-2 rounded mt-1 border border-slate-200">
+                          <strong>Admin Note:</strong> {wdl.admin_notes}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xl font-black text-rose-700">
+                        ${(wdl.amount || 0).toLocaleString()}
+                      </div>
+                      <span className="text-[11px] text-slate-400">Net after tax withheld</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-slate-500 space-y-2">
+                <LifeBuoy className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="text-xs font-bold text-slate-700">No distribution requests on file</p>
+                <p className="text-[11px] text-slate-400">Submit an in-service hardship or separation rollover when eligible.</p>
+              </div>
+            )}
           </div>
         </div>
       )}

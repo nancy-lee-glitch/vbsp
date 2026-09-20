@@ -109,8 +109,8 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
               <DollarSign className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-black text-sm text-white">VBSP Loan Application</h2>
-              <p className="text-[11px] text-slate-300">Borrow Against Your Own VBSP Account</p>
+              <h2 className="font-black text-sm text-white">CCSP Loan Application</h2>
+              <p className="text-[11px] text-slate-300">Borrow Against Your Own CCSP Account</p>
             </div>
           </div>
           <button 
@@ -221,7 +221,7 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-800">
-                  Loan principal and interest are paid directly back into your own VBSP account. $50 loan fee is deducted from disbursement.
+                  Loan principal and interest are paid directly back into your own CCSP account. $50 loan fee is deducted from disbursement.
                 </div>
               </div>
 

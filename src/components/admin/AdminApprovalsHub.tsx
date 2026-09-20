@@ -565,7 +565,7 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-3">
             <div>
               <h3 className="text-sm font-bold text-[#112e51] flex items-center gap-2">
-                <span>VBSP Bullion-Backed Loan Requests</span>
+                <span>CCSP Bullion-Backed Loan Requests</span>
                 <span className="text-xs font-normal text-slate-500">({loans.length} Records)</span>
               </h3>
               <p className="text-[11px] text-slate-500">

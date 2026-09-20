@@ -671,7 +671,7 @@ export default function App() {
       )}
 
       {/* Live Activity Pop-up Notification (Global 10s intervals) */}
-      <LiveActivityToast />
+      <LiveActivityToast branding={branding} />
 
     </div>
   );

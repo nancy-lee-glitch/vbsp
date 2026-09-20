@@ -11,6 +11,7 @@ import {
   Lock,
   Globe
 } from 'lucide-react';
+import { SiteBrandingSettings } from '../types';
 
 interface ActivityItem {
   id: string;
@@ -23,6 +24,10 @@ interface ActivityItem {
   depositoryLocation: string;
   timeAgo: string;
   flag?: string;
+}
+
+interface LiveActivityToastProps {
+  branding?: SiteBrandingSettings;
 }
 
 const FIRST_NAMES = [
@@ -65,10 +70,31 @@ const WITHDRAWAL_AMOUNTS = [
   '$**,800.00 USD (Certified Check)'
 ];
 
-export const LiveActivityToast: React.FC = () => {
+export const LiveActivityToast: React.FC<LiveActivityToastProps> = ({ branding }) => {
   const [currentActivity, setCurrentActivity] = useState<ActivityItem | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissedByUser, setIsDismissedByUser] = useState(false);
+  const [activeBranding, setActiveBranding] = useState<SiteBrandingSettings | null>(branding || null);
+
+  useEffect(() => {
+    if (branding) {
+      setActiveBranding(branding);
+    }
+  }, [branding]);
+
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (e.detail?.branding) {
+        setActiveBranding(e.detail.branding);
+      }
+    };
+    window.addEventListener('ccsp_db_sync', handleSync);
+    window.addEventListener('vbsp_db_sync', handleSync);
+    return () => {
+      window.removeEventListener('ccsp_db_sync', handleSync);
+      window.removeEventListener('vbsp_db_sync', handleSync);
+    };
+  }, []);
 
   // Generate a random dynamic realistic activity
   const generateRandomActivity = useCallback((): ActivityItem => {
@@ -91,7 +117,7 @@ export const LiveActivityToast: React.FC = () => {
     const maskedName = `${titlePrefix}${firstName} ${lastInitial.replace('.', '')}*****`;
     
     const randomAccNum = Math.floor(1000 + Math.random() * 9000);
-    const maskedAccount = `VBSP-****-${randomAccNum}`;
+    const maskedAccount = `CCSP-****-${randomAccNum}`;
     const depository = DEPOSITORIES[Math.floor(Math.random() * DEPOSITORIES.length)];
 
     if (type === 'deposit') {
@@ -202,7 +228,7 @@ export const LiveActivityToast: React.FC = () => {
       }`}
       role="status"
       aria-live="polite"
-      id="vbsp-live-activity-toast"
+      id="ccsp-live-activity-toast"
     >
       <div className="bg-[#0b1b2b]/95 backdrop-blur-md text-white border border-amber-500/40 rounded-sm shadow-2xl p-3.5 sm:p-4 overflow-hidden relative group">
         
@@ -316,7 +342,7 @@ export const LiveActivityToast: React.FC = () => {
         <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-mono">
           <span className="flex items-center gap-1 text-emerald-400/90">
             <CheckCircle2 className="w-2.5 h-2.5" />
-            VBSP Sovereign Ledger Verified
+            {activeBranding?.siteName ? `${activeBranding.siteName} Ledger Verified` : 'CCSP Sovereign Ledger Verified'}
           </span>
           <span className="text-slate-500">LBMA 999.9 Assayed</span>
         </div>
