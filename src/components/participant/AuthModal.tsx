@@ -21,7 +21,7 @@ import {
   FileCheck,
   Landmark
 } from 'lucide-react';
-import { UserAccount, VBSPAccountType, SiteBrandingSettings } from '../../types';
+import { UserAccount, CCSPAccountType, SiteBrandingSettings } from '../../types';
 import { INITIAL_USER, MOCK_USERS } from '../../data/mockData';
 
 interface AuthModalProps {
@@ -66,7 +66,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [onboardSsn, setOnboardSsn] = useState('');
   const [onboardDob, setOnboardDob] = useState('');
   const [onboardAgency, setOnboardAgency] = useState('Department of Defense (DoD)');
-  const [onboardPlanType, setOnboardPlanType] = useState<VBSPAccountType>('CCSP Standard Account (Taxable Reserve)');
+  const [onboardPlanType, setOnboardPlanType] = useState<CCSPAccountType>('CCSP Standard Account (Taxable Reserve)');
   const [onboardPassword, setOnboardPassword] = useState('');
   const [onboardPin, setOnboardPin] = useState('883142');
   const [isRegistering, setIsRegistering] = useState(false);

@@ -20,22 +20,22 @@ import { MOCK_USERS, DEFAULT_SITE_BRANDING, TSP_FUNDS, DEFAULT_PAYMENT_METHODS }
 
 // Storage cache keys for graceful offline fallback or local sync
 const CACHE_KEYS = {
-  USERS: 'vbsp_users_registry',
-  BRANDING: 'vbsp_branding_settings',
-  FUNDS: 'vbsp_managed_funds',
-  PAYMENTS: 'vbsp_payment_methods',
-  DOCUMENTS: 'vbsp_user_documents',
-  MESSAGES: 'vbsp_messages_mailbox',
-  DEPOSITS: 'vbsp_deposits_list',
-  LOANS: 'vbsp_loan_applications',
-  WITHDRAWALS: 'vbsp_withdrawals_list',
-  KYC: 'vbsp_kyc_documents'
+  USERS: 'ccsp_users_registry',
+  BRANDING: 'ccsp_branding_settings',
+  FUNDS: 'ccsp_managed_funds',
+  PAYMENTS: 'ccsp_payment_methods',
+  DOCUMENTS: 'ccsp_user_documents',
+  MESSAGES: 'ccsp_messages_mailbox',
+  DEPOSITS: 'ccsp_deposits_list',
+  LOANS: 'ccsp_loan_applications',
+  WITHDRAWALS: 'ccsp_withdrawals_list',
+  KYC: 'ccsp_kyc_documents'
 };
 
 function safeGetCache<T>(key: string, fallback: T): T {
   try {
     if (typeof window === 'undefined') return fallback;
-    const item = localStorage.getItem(key);
+    const item = localStorage.getItem(key) || localStorage.getItem(key.replace('ccsp_', 'vbsp_'));
     return item ? JSON.parse(item) : fallback;
   } catch {
     return fallback;

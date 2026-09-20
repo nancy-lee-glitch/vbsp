@@ -46,7 +46,7 @@ import {
   FraudAlert, 
   UserAccount, 
   TSPFund, 
-  VBSPAccountType, 
+  CCSPAccountType, 
   AdminTab,
   SiteBrandingSettings,
   AdminEmailDispatch,
@@ -115,7 +115,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [newUserPhone, setNewUserPhone] = useState('+1 (202) 555-0199');
   const [newUserAddress, setNewUserAddress] = useState('1000 Pennsylvania Ave NW, Washington, DC 20004');
   const [newUserAgency, setNewUserAgency] = useState('Department of the Treasury / Federal Reserve Custody');
-  const [newUserPlanType, setNewUserPlanType] = useState<VBSPAccountType>('CCSP Standard Account (Taxable Reserve)');
+  const [newUserPlanType, setNewUserPlanType] = useState<CCSPAccountType>('CCSP Standard Account (Taxable Reserve)');
   const [newUserDeposit, setNewUserDeposit] = useState<number>(50000);
   const [newUserPin, setNewUserPin] = useState<string>('884411');
   const [newUserVault, setNewUserVault] = useState('Zurich FreePort / Delaware Depository Segregated Vault');

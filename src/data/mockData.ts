@@ -205,7 +205,7 @@ export const TSP_FUNDS: TSPFund[] = [
 ];
 
 export const INITIAL_USER: UserAccount = {
-  id: 'usr_vbsp_994821',
+  id: 'usr_ccsp_994821',
   name: 'Marcus Vance',
   email: 'marcus.vance@usda.gov',
   accountNumber: 'CCSP-0089-4412-98',
@@ -272,7 +272,7 @@ export const INITIAL_USER: UserAccount = {
       repaymentPerPayPeriod: 170.11,
       status: 'Active',
       collateralAsset: 'Segregated Gold Sovereign Bar #LBMA-CH-99410',
-      userId: 'usr_vbsp_994821',
+      userId: 'usr_ccsp_994821',
       userName: 'Marcus Vance',
       userAccount: 'CCSP-0089-4412-98'
     }
@@ -354,7 +354,7 @@ export const INITIAL_USER: UserAccount = {
       amount: 1250.00,
       metalEquivalent: '+0.472 oz Gold (.9999 LBMA)',
       status: 'Completed',
-      userId: 'usr_vbsp_994821',
+      userId: 'usr_ccsp_994821',
       userName: 'Marcus Vance',
       userAccount: 'CCSP-0089-4412-98'
     },
@@ -366,7 +366,7 @@ export const INITIAL_USER: UserAccount = {
       amount: 500.00,
       metalEquivalent: '+5.79 oz Pure Silver',
       status: 'Completed',
-      userId: 'usr_vbsp_994821',
+      userId: 'usr_ccsp_994821',
       userName: 'Marcus Vance',
       userAccount: 'CCSP-0089-4412-98'
     },
@@ -377,7 +377,7 @@ export const INITIAL_USER: UserAccount = {
       description: 'Lloyd\'s of London all-risk specie custody fee (0.004% per month)',
       amount: -13.71,
       status: 'Completed',
-      userId: 'usr_vbsp_994821',
+      userId: 'usr_ccsp_994821',
       userName: 'Marcus Vance',
       userAccount: 'CCSP-0089-4412-98'
     },
@@ -388,7 +388,7 @@ export const INITIAL_USER: UserAccount = {
       description: 'Rebalanced 15% from T-Fund (Cash) into G-Fund (Gold Sovereign)',
       amount: 0.00,
       status: 'Completed',
-      userId: 'usr_vbsp_994821',
+      userId: 'usr_ccsp_994821',
       userName: 'Marcus Vance',
       userAccount: 'CCSP-0089-4412-98'
     }
@@ -398,7 +398,7 @@ export const INITIAL_USER: UserAccount = {
 export const MOCK_USERS: UserAccount[] = [
   INITIAL_USER,
   {
-    id: 'usr_vbsp_104477',
+    id: 'usr_ccsp_104477',
     name: 'Sarah Jenkins',
     email: 'sarah.jenkins@defense.gov',
     accountNumber: 'CCSP-1044-7712-30',
@@ -451,7 +451,7 @@ export const MOCK_USERS: UserAccount[] = [
         repaymentPerPayPeriod: 144.20,
         status: 'Processing',
         collateralAsset: 'Silver Reserve S-Fund Collateral',
-        userId: 'usr_vbsp_104477',
+        userId: 'usr_ccsp_104477',
         userName: 'Sarah Jenkins',
         userAccount: 'CCSP-1044-7712-30',
         purpose: 'Bullion-backed personal emergency loan request'
@@ -497,14 +497,14 @@ export const MOCK_USERS: UserAccount[] = [
         amount: 2500.00,
         status: 'Pending',
         metalEquivalent: '+28.96 oz Silver',
-        userId: 'usr_vbsp_104477',
+        userId: 'usr_ccsp_104477',
         userName: 'Sarah Jenkins',
         userAccount: 'CCSP-1044-7712-30'
       }
     ]
   },
   {
-    id: 'usr_vbsp_001928',
+    id: 'usr_ccsp_001928',
     name: 'Cadet Ryan Parker',
     email: 'ryan.parker@defense.gov',
     accountNumber: 'CCSP-2026-8819-42',
@@ -542,7 +542,7 @@ export const MOCK_USERS: UserAccount[] = [
     }
   },
   {
-    id: 'usr_vbsp_900233',
+    id: 'usr_ccsp_900233',
     name: 'Atlas Global Sovereign Reserve LLC',
     email: 'treasury@atlasreserves.com',
     accountNumber: 'CCSP-9002-3311-88',
@@ -600,7 +600,7 @@ export const MOCK_USERS: UserAccount[] = [
         amount: 250000.00,
         status: 'Completed',
         metalEquivalent: '+94.34 oz Gold',
-        userId: 'usr_vbsp_900233',
+        userId: 'usr_ccsp_900233',
         userName: 'Atlas Global Sovereign Reserve LLC',
         userAccount: 'CCSP-9002-3311-88'
       }
@@ -687,7 +687,7 @@ export const MOCK_MESSAGES: ParticipantMessage[] = [
 
 export const MOCK_DOCUMENTS: TSPDocument[] = [
   {
-    id: 'doc-vbsp-1',
+    id: 'doc-ccsp-1',
     title: 'CCSP-1: Member Bullion Election & Contribution Form',
     formNumber: 'CCSP-1',
     category: 'Forms',
@@ -697,7 +697,7 @@ export const MOCK_DOCUMENTS: TSPDocument[] = [
     description: 'Used by account holders to start, modify, or pause Automated Bullion Thrift (ABT) monthly recurring allocations.'
   },
   {
-    id: 'doc-vbsp-3',
+    id: 'doc-ccsp-3',
     title: 'CCSP-3: Designation of Sovereign Beneficiary',
     formNumber: 'CCSP-3',
     category: 'Forms',
@@ -707,7 +707,7 @@ export const MOCK_DOCUMENTS: TSPDocument[] = [
     description: 'Designate primary and contingent beneficiaries for immediate physical metal title transfer upon passing.'
   },
   {
-    id: 'doc-vbsp-19',
+    id: 'doc-ccsp-19',
     title: 'CCSP-19: Request for Physical Bullion Vault Delivery',
     formNumber: 'CCSP-19',
     category: 'Forms',
@@ -717,7 +717,7 @@ export const MOCK_DOCUMENTS: TSPDocument[] = [
     description: 'Request physical withdrawal and insured armored transport (Brinks/Loomis) of allocated gold or silver bars.'
   },
   {
-    id: 'doc-vbsp-65',
+    id: 'doc-ccsp-65',
     title: 'CCSP-65: Bullion-Backed Liquidity & Credit Facility Request',
     formNumber: 'CCSP-65',
     category: 'Forms',
@@ -736,7 +736,7 @@ export const MOCK_DOCUMENTS: TSPDocument[] = [
     description: 'Bureau Veritas certified physical bar list, purity assays, and Lloyd\'s of London $1B specie insurance certificate.'
   },
   {
-    id: 'doc-vbsp-guide',
+    id: 'doc-ccsp-guide',
     title: 'Cassivon Capital Savings Plan (CCSP) Institutional Handbook',
     category: 'Publications',
     lastUpdated: '2026-01-01',

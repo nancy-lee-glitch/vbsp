@@ -51,7 +51,7 @@ export default function App() {
 
   // Site Branding & Custom Name/Logo State
   const [branding, setBranding] = useState<SiteBrandingSettings>(() => {
-    const saved = localStorage.getItem('vbsp_branding_settings');
+    const saved = localStorage.getItem('ccsp_branding_settings') || localStorage.getItem('vbsp_branding_settings');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -64,7 +64,7 @@ export default function App() {
 
   // Admin Email Dispatch Log State
   const [emailDispatches, setEmailDispatches] = useState<AdminEmailDispatch[]>(() => {
-    const saved = localStorage.getItem('vbsp_admin_email_dispatches');
+    const saved = localStorage.getItem('ccsp_admin_email_dispatches') || localStorage.getItem('vbsp_admin_email_dispatches');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -77,7 +77,7 @@ export default function App() {
 
   // Global Live Fund Prices State (Editable by Admin)
   const [funds, setFunds] = useState<TSPFund[]>(() => {
-    const saved = localStorage.getItem('vbsp_managed_funds');
+    const saved = localStorage.getItem('ccsp_managed_funds') || localStorage.getItem('vbsp_managed_funds');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -90,7 +90,7 @@ export default function App() {
 
   // Payment Gateways & Crypto Wallets Configuration (Managed by Admin)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(() => {
-    const saved = localStorage.getItem('vbsp_payment_methods');
+    const saved = localStorage.getItem('ccsp_payment_methods') || localStorage.getItem('vbsp_payment_methods');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -103,13 +103,13 @@ export default function App() {
 
   const handleUpdatePaymentMethods = (updated: PaymentMethodConfig[]) => {
     setPaymentMethods(updated);
-    localStorage.setItem('vbsp_payment_methods', JSON.stringify(updated));
+    localStorage.setItem('ccsp_payment_methods', JSON.stringify(updated));
     updated.forEach(m => savePaymentMethod(m).catch(e => console.warn(e)));
   };
 
   // Participant Accounts Registry State (Full CRUD managed by Admin & Self-Service)
   const [users, setUsers] = useState<UserAccount[]>(() => {
-    const saved = localStorage.getItem('vbsp_users_registry');
+    const saved = localStorage.getItem('ccsp_users_registry') || localStorage.getItem('vbsp_users_registry');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -140,7 +140,7 @@ export default function App() {
             if (!prevUser) return null;
             const freshUser = pList.find(p => p.id === prevUser.id || p.accountNumber === prevUser.accountNumber);
             if (freshUser) {
-              localStorage.setItem('vbsp_participant_session', JSON.stringify(freshUser));
+              localStorage.setItem('ccsp_participant_session', JSON.stringify(freshUser));
               return freshUser;
             }
             return prevUser;
@@ -168,7 +168,7 @@ export default function App() {
 
   // Admin Auth State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('vbsp_admin_logged_in') === 'true';
+    return localStorage.getItem('ccsp_admin_logged_in') === 'true' || localStorage.getItem('vbsp_admin_logged_in') === 'true';
   });
 
   // Navigation State
@@ -181,7 +181,7 @@ export default function App() {
 
   // Participant User Active Session State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    const saved = localStorage.getItem('vbsp_participant_session');
+    const saved = localStorage.getItem('ccsp_participant_session') || localStorage.getItem('vbsp_participant_session');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -288,7 +288,7 @@ export default function App() {
   // Branding Settings Handler
   const handleUpdateBranding = (updated: SiteBrandingSettings) => {
     setBranding(updated);
-    localStorage.setItem('vbsp_branding_settings', JSON.stringify(updated));
+    localStorage.setItem('ccsp_branding_settings', JSON.stringify(updated));
     document.title = `${updated.siteName} | ${updated.siteSubtitle}`;
     saveSiteBranding(updated).catch(err => console.warn('Neon database branding sync notice:', err));
   };
@@ -297,19 +297,19 @@ export default function App() {
   const handleSendEmail = (dispatch: AdminEmailDispatch) => {
     const updated = [dispatch, ...emailDispatches];
     setEmailDispatches(updated);
-    localStorage.setItem('vbsp_admin_email_dispatches', JSON.stringify(updated));
+    localStorage.setItem('ccsp_admin_email_dispatches', JSON.stringify(updated));
   };
 
   // Participant Account Handlers (CRUD)
   const handleLoginSuccess = (user: UserAccount) => {
     setCurrentUser(user);
-    localStorage.setItem('vbsp_participant_session', JSON.stringify(user));
+    localStorage.setItem('ccsp_participant_session', JSON.stringify(user));
 
     // Ensure new user exists in the central users registry
     if (!users.some(u => u.id === user.id)) {
       const updatedList = [user, ...users];
       setUsers(updatedList);
-      localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+      localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
       upsertParticipantAccount(user).catch(err => console.warn('Neon database user create notice:', err));
     }
 
@@ -320,7 +320,7 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('vbsp_participant_session');
+    localStorage.removeItem('ccsp_participant_session');
     setCurrentView('public_home');
     window.location.hash = 'home';
   };
@@ -328,18 +328,18 @@ export default function App() {
   const handleCreateUser = (newUser: UserAccount) => {
     const updatedList = [newUser, ...users];
     setUsers(updatedList);
-    localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+    localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
     upsertParticipantAccount(newUser).catch(err => console.warn('Neon database user create notice:', err));
   };
 
   const handleUpdateUser = (updated: UserAccount) => {
     const updatedList = users.map(u => u.id === updated.id ? updated : u);
     setUsers(updatedList);
-    localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+    localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
 
     if (currentUser?.id === updated.id) {
       setCurrentUser(updated);
-      localStorage.setItem('vbsp_participant_session', JSON.stringify(updated));
+      localStorage.setItem('ccsp_participant_session', JSON.stringify(updated));
     }
     upsertParticipantAccount(updated).catch(err => console.warn('Neon database user update notice:', err));
   };
@@ -347,18 +347,18 @@ export default function App() {
   const handleDeleteUser = (userId: string) => {
     const updatedList = users.filter(u => u.id !== userId);
     setUsers(updatedList);
-    localStorage.setItem('vbsp_users_registry', JSON.stringify(updatedList));
+    localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
 
     if (currentUser?.id === userId) {
       setCurrentUser(null);
-      localStorage.removeItem('vbsp_participant_session');
+      localStorage.removeItem('ccsp_participant_session');
     }
     deleteParticipantAccount(userId).catch(err => console.warn('Neon database user delete notice:', err));
   };
 
   const handleImpersonateUser = (user: UserAccount) => {
     setCurrentUser(user);
-    localStorage.setItem('vbsp_participant_session', JSON.stringify(user));
+    localStorage.setItem('ccsp_participant_session', JSON.stringify(user));
     setCurrentView('participant_dashboard');
     window.location.hash = 'myaccount';
     setParticipantSubView('overview');
@@ -368,12 +368,12 @@ export default function App() {
   // Admin Authentication Handlers
   const handleAdminLoginSuccess = () => {
     setIsAdminAuthenticated(true);
-    localStorage.setItem('vbsp_admin_logged_in', 'true');
+    localStorage.setItem('ccsp_admin_logged_in', 'true');
   };
 
   const handleAdminLogout = () => {
     setIsAdminAuthenticated(false);
-    localStorage.removeItem('vbsp_admin_logged_in');
+    localStorage.removeItem('ccsp_admin_logged_in');
     setCurrentView('public_home');
     window.location.hash = 'home';
   };
@@ -381,7 +381,7 @@ export default function App() {
   // Update Fund Prices across entire platform & dynamically recalculate participant portfolios
   const handleUpdateFundPrices = (updatedFunds: TSPFund[]) => {
     setFunds(updatedFunds);
-    localStorage.setItem('vbsp_managed_funds', JSON.stringify(updatedFunds));
+    localStorage.setItem('ccsp_managed_funds', JSON.stringify(updatedFunds));
 
     const gPrice = updatedFunds.find(f => f.code === 'G')?.currentSharePrice || 94.65;
     const sPrice = updatedFunds.find(f => f.code === 'S')?.currentSharePrice || 86.30;
@@ -424,13 +424,13 @@ export default function App() {
     });
 
     setUsers(recalculatedUsers);
-    localStorage.setItem('vbsp_users_registry', JSON.stringify(recalculatedUsers));
+    localStorage.setItem('ccsp_users_registry', JSON.stringify(recalculatedUsers));
 
     if (currentUser) {
       const updatedCurrentUser = recalculatedUsers.find(u => u.id === currentUser.id);
       if (updatedCurrentUser) {
         setCurrentUser(updatedCurrentUser);
-        localStorage.setItem('vbsp_participant_session', JSON.stringify(updatedCurrentUser));
+        localStorage.setItem('ccsp_participant_session', JSON.stringify(updatedCurrentUser));
       }
     }
   };
@@ -465,7 +465,7 @@ export default function App() {
       } ${
         fontSize === 'large' ? 'text-lg' : fontSize === 'xlarge' ? 'text-xl' : 'text-sm'
       }`}
-      id="vbsp-app-root"
+      id="ccsp-app-root"
     >
       {/* Sovereign Federal Bullion Preloader */}
       {isPreloaderActive && (
@@ -600,7 +600,7 @@ export default function App() {
         onNavigate={handleNavigate}
         currentUser={currentUser}
         onOpenAuth={handleOpenAuth}
-        onOpenMenu={() => window.dispatchEvent(new CustomEvent('open-vbsp-drawer'))}
+        onOpenMenu={() => window.dispatchEvent(new CustomEvent('open-ccsp-drawer'))}
       />
 
       {/* Participant Authentication Modal (Login / MFA / ID.me / User Switcher) */}

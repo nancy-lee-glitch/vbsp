@@ -77,9 +77,13 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     const handleToggleDrawer = () => setSideDrawerOpen(prev => !prev);
     const handleOpenDrawer = () => setSideDrawerOpen(true);
+    window.addEventListener('open-ccsp-drawer', handleOpenDrawer);
+    window.addEventListener('toggle-ccsp-drawer', handleToggleDrawer);
     window.addEventListener('open-vbsp-drawer', handleOpenDrawer);
     window.addEventListener('toggle-vbsp-drawer', handleToggleDrawer);
     return () => {
+      window.removeEventListener('open-ccsp-drawer', handleOpenDrawer);
+      window.removeEventListener('toggle-ccsp-drawer', handleToggleDrawer);
       window.removeEventListener('open-vbsp-drawer', handleOpenDrawer);
       window.removeEventListener('toggle-vbsp-drawer', handleToggleDrawer);
     };
@@ -242,7 +246,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div 
           onClick={() => handleNavClick('public_home')}
           className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none min-w-0"
-          id="vbsp-agency-identity"
+          id="ccsp-agency-identity"
           role="button"
           tabIndex={0}
           onKeyDown={(e) => e.key === 'Enter' && handleNavClick('public_home')}
@@ -382,7 +386,7 @@ export const Header: React.FC<HeaderProps> = ({
       <nav 
         ref={dropdownRef}
         className="hidden md:block bg-[#112e51] text-white border-t border-[#002f5a] shadow-xs relative" 
-        id="vbsp-main-nav" 
+        id="ccsp-main-nav" 
         aria-label="Main Navigation"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs font-bold">

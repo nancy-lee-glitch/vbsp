@@ -363,7 +363,7 @@ export interface UserAccount {
   phone: string;
   address: string;
   employingAgency: string;
-  planType: VBSPAccountType;
+  planType: CCSPAccountType;
   hireDate: string;
   totalBalance: number;
   traditionalBalance: number; // Vaulted Segregated Bullion

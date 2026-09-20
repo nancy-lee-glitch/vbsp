@@ -24,7 +24,7 @@ import {
   Inbox,
   User
 } from 'lucide-react';
-import { UserAccount, AdminEmailDispatch, SiteBrandingSettings, VBSPAccountType } from '../../types';
+import { UserAccount, AdminEmailDispatch, SiteBrandingSettings, CCSPAccountType } from '../../types';
 import { sendLiveMessage, fetchAllMessagesAdmin, DbMessage, markMessageAsRead } from '../../services/dbService';
 
 interface AdminEmailCenterProps {
@@ -126,7 +126,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
 }) => {
   // Recipient Selection State
   const [recipientMode, setRecipientMode] = useState<'all' | 'classification' | 'single' | 'selected'>('all');
-  const [selectedPlanType, setSelectedPlanType] = useState<VBSPAccountType>('CCSP Standard Account (Taxable Reserve)');
+  const [selectedPlanType, setSelectedPlanType] = useState<CCSPAccountType>('CCSP Standard Account (Taxable Reserve)');
   const [singleUserId, setSingleUserId] = useState<string>(users[0]?.id || '');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([users[0]?.id || '']);
   const [userSearchQuery, setUserSearchQuery] = useState('');
