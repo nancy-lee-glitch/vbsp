@@ -34,7 +34,10 @@ import {
   fetchWithdrawalsAdmin,
   updateWithdrawalStatus,
   DbWithdrawalRequest,
-  updateParticipantBalances
+  updateParticipantBalances,
+  fetchAllKycDocumentsAdmin,
+  updateKycDocumentStatus,
+  DbKycDocument
 } from '../../services/dbService';
 
 interface AdminApprovalsHubProps {
@@ -42,7 +45,7 @@ interface AdminApprovalsHubProps {
   onRefreshUsers?: () => void;
 }
 
-type SubTab = 'deposits' | 'documents' | 'loans' | 'withdrawals';
+type SubTab = 'deposits' | 'documents' | 'kyc' | 'loans' | 'withdrawals';
 
 export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onRefreshUsers }) => {
   const [subTab, setSubTab] = useState<SubTab>('deposits');
@@ -52,6 +55,7 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
   // Data states
   const [deposits, setDeposits] = useState<DepositProofRecord[]>([]);
   const [documents, setDocuments] = useState<DbUserDocument[]>([]);
+  const [kycDocs, setKycDocs] = useState<DbKycDocument[]>([]);
   const [loans, setLoans] = useState<DbLoanApplication[]>([]);
   const [withdrawals, setWithdrawals] = useState<DbWithdrawalRequest[]>([]);
 
@@ -68,27 +72,29 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
   } | null>(null);
 
   const loadAllData = async () => {
-    setIsLoading(true);
     try {
-      const [depList, docList, loanList, wdlList] = await Promise.all([
+      const [depList, docList, kycList, loanList, wdlList] = await Promise.all([
         fetchDeposits(),
         fetchAllDocumentsAdmin(),
+        fetchAllKycDocumentsAdmin(),
         fetchLoanApplicationsAdmin(),
         fetchWithdrawalsAdmin()
       ]);
       setDeposits(depList || []);
       setDocuments(docList || []);
+      setKycDocs(kycList || []);
       setLoans(loanList || []);
       setWithdrawals(wdlList || []);
     } catch (e) {
       console.warn('Error loading approvals data:', e);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAllData();
+    setIsLoading(true);
+    loadAllData().finally(() => setIsLoading(false));
+    const interval = setInterval(loadAllData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const showNotification = (msg: string) => {
@@ -98,15 +104,12 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
 
   // --- Handlers ---
   const handleApproveDeposit = async (dep: DepositProofRecord) => {
-    if (!dep.id) return;
-    const ok = confirm(`Approve deposit of $${dep.amount.toLocaleString()} for ${dep.participant_name}? This will mark the deposit Approved and credit the participant's balance.`);
-    if (!ok) return;
-
+    if (!dep.id && !dep.reference_id) return;
     setIsLoading(true);
-    await updateDepositStatus(dep.id, 'Approved', 'Approved by Executive Admin. Vault depository custody confirmed.');
+    await updateDepositStatus(dep.id || dep.reference_id, 'Approved', 'Approved by Executive Admin. Vault depository custody confirmed.');
     
     // Also update in-memory participant balances if matching
-    const matchedUser = users.find(u => u.accountNumber === dep.account_number);
+    const matchedUser = users.find(u => u.accountNumber === dep.account_number || u.accountNumber === dep.user_account_number);
     if (matchedUser) {
       const newTotal = matchedUser.totalBalance + dep.amount;
       const newTrad = matchedUser.traditionalBalance + dep.amount;
@@ -118,37 +121,56 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
       if (onRefreshUsers) onRefreshUsers();
     }
 
-    showNotification(`Deposit ${dep.tx_id} ($${dep.amount.toLocaleString()}) approved and credited to ${dep.participant_name}!`);
+    showNotification(`Deposit ${dep.tx_id || dep.reference_id} ($${dep.amount.toLocaleString()}) approved and credited to ${dep.participant_name || 'Participant'}!`);
     await loadAllData();
+    setIsLoading(false);
   };
 
   const handleRejectDeposit = async (dep: DepositProofRecord) => {
-    if (!dep.id) return;
-    const reason = prompt(`Reason for rejecting deposit ${dep.tx_id}:`, 'Unverified remittance trace or receipt mismatch');
-    if (reason === null) return;
-
+    if (!dep.id && !dep.reference_id) return;
     setIsLoading(true);
-    await updateDepositStatus(dep.id, 'Rejected', reason);
-    showNotification(`Deposit ${dep.tx_id} marked as Rejected.`);
+    await updateDepositStatus(dep.id || dep.reference_id, 'Rejected', 'Unverified remittance trace or receipt mismatch');
+    showNotification(`Deposit ${dep.tx_id || dep.reference_id} marked as Rejected.`);
     await loadAllData();
+    setIsLoading(false);
   };
 
   const handleApproveDoc = async (doc: DbUserDocument) => {
-    if (!doc.id) return;
+    if (!doc.id && !doc.doc_id) return;
     setIsLoading(true);
-    await updateDocumentStatus(doc.id, 'Approved', 'Verified and cleared by Compliance Auditor');
+    await updateDocumentStatus(doc.id || doc.doc_id, 'Approved', 'Verified and cleared by Compliance Auditor');
     showNotification(`Document "${doc.title || doc.file_name}" marked as Approved.`);
     await loadAllData();
+    setIsLoading(false);
   };
 
   const handleRejectDoc = async (doc: DbUserDocument) => {
-    if (!doc.id) return;
-    const reason = prompt(`Reason for rejecting document:`, 'Legibility issue or incomplete certification');
-    if (reason === null) return;
+    if (!doc.id && !doc.doc_id) return;
     setIsLoading(true);
-    await updateDocumentStatus(doc.id, 'Rejected', reason);
+    await updateDocumentStatus(doc.id || doc.doc_id, 'Rejected', 'Legibility issue or incomplete certification');
     showNotification(`Document marked as Rejected.`);
     await loadAllData();
+    setIsLoading(false);
+  };
+
+  const handleApproveKycDoc = async (doc: DbKycDocument) => {
+    if (!doc.id) return;
+    setIsLoading(true);
+    await updateKycDocumentStatus(doc.id, 'Verified', 'Verified by Compliance Auditor');
+    showNotification(`KYC Document "${doc.document_type || doc.file_name}" verified & approved! Participant account status updated.`);
+    if (onRefreshUsers) onRefreshUsers();
+    await loadAllData();
+    setIsLoading(false);
+  };
+
+  const handleRejectKycDoc = async (doc: DbKycDocument) => {
+    if (!doc.id) return;
+    setIsLoading(true);
+    await updateKycDocumentStatus(doc.id, 'Rejected', 'Document unreadable, expired, or invalid');
+    showNotification(`KYC Document marked as Rejected.`);
+    if (onRefreshUsers) onRefreshUsers();
+    await loadAllData();
+    setIsLoading(false);
   };
 
   const handleApproveLoan = async (loan: DbLoanApplication) => {
@@ -160,17 +182,17 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     await updateLoanStatus(loanKey, 'Approved', 'Board approval granted. Disbursed via payroll custodial authorization.');
     showNotification(`Loan ${loan.loan_id || (loan as any).loan_number || loanKey} ($${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}) Approved by Admin!`);
     await loadAllData();
+    setIsLoading(false);
   };
 
   const handleRejectLoan = async (loan: DbLoanApplication) => {
     const loanKey = loan.id || (loan as any).loan_number || loan.loan_id;
     if (!loanKey) return;
-    const reason = prompt('Reason for rejecting loan application:', 'Collateral tier ceiling exceeded or pending credit verification');
-    if (reason === null) return;
     setIsLoading(true);
-    await updateLoanStatus(loanKey, 'Rejected', reason);
+    await updateLoanStatus(loanKey, 'Rejected', 'Collateral tier ceiling exceeded or pending credit verification');
     showNotification(`Loan ${loan.loan_id || (loan as any).loan_number || loanKey} marked as Rejected.`);
     await loadAllData();
+    setIsLoading(false);
   };
 
   const handleApproveWithdrawal = async (wdl: DbWithdrawalRequest) => {
@@ -178,28 +200,28 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     if (!wdlKey) return;
     const rawAmt = Number(wdl.amount);
     const safeAmt = (isNaN(rawAmt) || Number.isNaN(rawAmt)) ? 0 : rawAmt;
-    const ok = confirm(`Approve in-service distribution of $${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })} for participant? Fedwire release will be queued.`);
-    if (!ok) return;
     setIsLoading(true);
     await updateWithdrawalStatus(wdlKey, 'Approved', 'Authorized for custodial bank wire distribution.');
     showNotification(`Withdrawal ${wdl.request_id || (wdl as any).request_number || wdlKey} ($${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}) Approved by Admin!`);
+    if (onRefreshUsers) onRefreshUsers();
     await loadAllData();
+    setIsLoading(false);
   };
 
   const handleRejectWithdrawal = async (wdl: DbWithdrawalRequest) => {
     const wdlKey = wdl.id || (wdl as any).request_number || wdl.request_id;
     if (!wdlKey) return;
-    const reason = prompt('Reason for rejecting withdrawal request:', 'Statutory hardship criteria not established or IRS documentation missing');
-    if (reason === null) return;
     setIsLoading(true);
-    await updateWithdrawalStatus(wdlKey, 'Rejected', reason);
+    await updateWithdrawalStatus(wdlKey, 'Rejected', 'Statutory hardship criteria not established or IRS documentation missing');
     showNotification(`Withdrawal ${wdl.request_id || (wdl as any).request_number || wdlKey} marked as Rejected.`);
     await loadAllData();
+    setIsLoading(false);
   };
 
   // Counts for pending badges
   const pendingDepositsCount = deposits.filter(d => d.status === 'Pending' || d.status === 'Pending Review').length;
   const pendingDocsCount = documents.filter(d => d.status === 'Pending' || d.status === 'Pending Review').length;
+  const pendingKycCount = kycDocs.filter(k => k.status === 'Pending Review' || k.status === 'Pending').length;
   const pendingLoansCount = loans.filter(l => l.status === 'Pending' || l.status === 'Pending Review' || l.status === 'Processing').length;
   const pendingWdlCount = withdrawals.filter(w => w.status === 'Pending' || w.status === 'Pending Review').length;
 
@@ -273,6 +295,23 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
           </button>
 
           <button
+            onClick={() => setSubTab('kyc')}
+            className={`px-3 py-2 text-xs font-bold rounded-xs border transition-colors flex items-center gap-2 cursor-pointer ${
+              subTab === 'kyc' 
+                ? 'bg-[#112e51] text-white border-[#112e51]' 
+                : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>3. KYC & ID Verifications</span>
+            {pendingKycCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-rose-600 text-white text-[10px] rounded-full font-mono">
+                {pendingKycCount}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setSubTab('loans')}
             className={`px-3 py-2 text-xs font-bold rounded-xs border transition-colors flex items-center gap-2 cursor-pointer ${
               subTab === 'loans' 
@@ -281,7 +320,7 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
             }`}
           >
             <CreditCard className="w-4 h-4 text-indigo-400" />
-            <span>3. Loan Applications</span>
+            <span>4. Loan Applications</span>
             {pendingLoansCount > 0 && (
               <span className="px-1.5 py-0.2 bg-purple-600 text-white text-[10px] rounded-full font-mono">
                 {pendingLoansCount}
@@ -298,7 +337,7 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
             }`}
           >
             <Building className="w-4 h-4 text-emerald-400" />
-            <span>4. In-Service Withdrawals</span>
+            <span>5. In-Service Withdrawals</span>
             {pendingWdlCount > 0 && (
               <span className="px-1.5 py-0.2 bg-rose-600 text-white text-[10px] rounded-full font-mono">
                 {pendingWdlCount}
@@ -558,7 +597,126 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
       )}
 
       {/* --------------------------------------------------------------------- */}
-      {/* 3. LOAN APPLICATIONS */}
+      {/* 3. KYC & ID VERIFICATIONS */}
+      {/* --------------------------------------------------------------------- */}
+      {subTab === 'kyc' && (
+        <div className="bg-white border border-slate-300 rounded-sm overflow-hidden shadow-2xs">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-black text-[#112e51] text-sm flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Participant Identification & KYC Documents</span>
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Audit uploaded Government IDs, Social Security Cards, Driver Licenses, and Passports. Approving will officially verify the participant's account status.
+              </p>
+            </div>
+            <span className="text-xs font-mono font-bold text-slate-600">
+              Total Submissions: {kycDocs.length}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-[#112e51] text-white">
+                  <th className="p-3">Doc ID</th>
+                  <th className="p-3">Participant</th>
+                  <th className="p-3">Document Type</th>
+                  <th className="p-3">File Attachment</th>
+                  <th className="p-3">Uploaded Date</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3 text-right">Verification Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {kycDocs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-500 italic">
+                      No identification documents uploaded yet.
+                    </td>
+                  </tr>
+                ) : (
+                  kycDocs.map((doc, idx) => (
+                    <tr key={doc.id || idx} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3 font-mono font-bold text-slate-900">
+                        #{doc.id}
+                      </td>
+
+                      <td className="p-3 font-semibold text-slate-800">
+                        {(doc as any).full_name || `Participant #${doc.participant_id}`}
+                        <div className="text-[10px] text-slate-500 font-mono">{(doc as any).account_number || `PID: ${doc.participant_id}`}</div>
+                      </td>
+
+                      <td className="p-3 text-slate-700 capitalize font-medium">
+                        {String(doc.document_type || 'ID').replace(/_/g, ' ')}
+                      </td>
+
+                      <td className="p-3 text-slate-600">
+                        <button
+                          onClick={() => {
+                            setViewingProof({
+                              title: `KYC: ${String(doc.document_type).replace(/_/g, ' ').toUpperCase()}`,
+                              fileName: doc.file_name || 'id_document.pdf',
+                              fileData: doc.file_data,
+                              participant: (doc as any).full_name || `Participant #${doc.participant_id}`,
+                              details: `Status: ${doc.status} | Uploaded: ${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : 'Recent'}`
+                            });
+                          }}
+                          className="text-blue-700 hover:text-blue-900 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-blue-600" />
+                          <span>{doc.file_name || 'View Document'}</span>
+                        </button>
+                      </td>
+
+                      <td className="p-3 text-slate-500 font-mono text-[11px]">
+                        {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'Recent'}
+                      </td>
+
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded-2xs text-[10px] font-bold ${
+                          doc.status === 'Verified' || doc.status === 'Approved' ? 'bg-emerald-100 text-emerald-900' :
+                          doc.status === 'Rejected' || doc.status === 'Action Required' ? 'bg-rose-100 text-rose-900' :
+                          'bg-amber-100 text-amber-900'
+                        }`}>
+                          {doc.status}
+                        </span>
+                      </td>
+
+                      <td className="p-3 text-right">
+                        {doc.status === 'Pending Review' || doc.status === 'Pending' ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleApproveKycDoc(doc)}
+                              className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xs text-[11px] flex items-center gap-1 cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Verify & Approve</span>
+                            </button>
+                            <button
+                              onClick={() => handleRejectKycDoc(doc)}
+                              className="px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white font-bold rounded-xs text-[11px] flex items-center gap-1 cursor-pointer"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              <span>Reject</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-500 italic">Audited</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* 4. LOAN APPLICATIONS */}
       {/* --------------------------------------------------------------------- */}
       {subTab === 'loans' && (
         <div className="bg-white border border-slate-300 rounded-sm p-6 shadow-2xs space-y-4">

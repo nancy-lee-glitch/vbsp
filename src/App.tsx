@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   PortalView, 
   ParticipantSubView, 
@@ -138,7 +138,11 @@ export default function App() {
           // Keep active participant session in sync with fresh Neon database record
           setCurrentUser(prevUser => {
             if (!prevUser) return null;
-            const freshUser = pList.find(p => p.id === prevUser.id || p.accountNumber === prevUser.accountNumber);
+            const freshUser = pList.find(p => 
+              String(p.id) === String(prevUser.id) || 
+              (p.accountNumber && p.accountNumber === prevUser.accountNumber) ||
+              (p.email && p.email.toLowerCase() === prevUser.email?.toLowerCase())
+            );
             if (freshUser) {
               localStorage.setItem('ccsp_participant_session', JSON.stringify(freshUser));
               return freshUser;
@@ -203,17 +207,64 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Synchronize URL Hash / Routing
+  // Keep refs up-to-date for stable hash routing without effect re-triggers
+  const currentUserRef = useRef<UserAccount | null>(currentUser);
+  currentUserRef.current = currentUser;
+  const currentViewRef = useRef<PortalView>(currentView);
+  currentViewRef.current = currentView;
+
+  // Active 5-second polling sync: keeps participant data, balances, and status in sync with Neon PostgreSQL
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(async () => {
+      try {
+        const pList = await fetchAllParticipants();
+        if (pList && pList.length > 0) {
+          setUsers(pList);
+          setCurrentUser(prevUser => {
+            if (!prevUser) return null;
+            const fresh = pList.find(p => 
+              String(p.id) === String(prevUser.id) ||
+              (p.accountNumber && p.accountNumber === prevUser.accountNumber) ||
+              (p.email && p.email.toLowerCase() === prevUser.email?.toLowerCase())
+            );
+            if (fresh) {
+              localStorage.setItem('ccsp_participant_session', JSON.stringify(fresh));
+              return fresh;
+            }
+            return prevUser;
+          });
+        }
+      } catch (e) {
+        // silent sync fallback
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id, currentUser?.accountNumber]);
+
+  // Synchronize URL Hash / Routing - Stable, no redirect loops on state changes
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
+      const hash = window.location.hash.replace('#', '').trim();
+      const participantSubViews: ParticipantSubView[] = [
+        'overview', 'investments', 'loans', 'withdrawals', 
+        'beneficiaries', 'kyc', 'documents', 'history', 'messages', 'settings'
+      ];
+
       if (hash === 'admin' || hash === 'admin_portal') {
         setCurrentView('admin_portal');
       } else if (hash === 'participant' || hash === 'myaccount') {
-        if (!currentUser) {
+        if (!currentUserRef.current) {
           setIsAuthModalOpen(true);
         } else {
           setCurrentView('participant_dashboard');
+        }
+      } else if (participantSubViews.includes(hash as ParticipantSubView)) {
+        if (!currentUserRef.current) {
+          setIsAuthModalOpen(true);
+        } else {
+          setCurrentView('participant_dashboard');
+          setParticipantSubView(hash as ParticipantSubView);
         }
       } else if (hash === 'agency') {
         setCurrentView('agency_portal');
@@ -229,19 +280,28 @@ export default function App() {
         setCurrentView('public_contact');
       } else if (hash === 'security') {
         setCurrentView('public_security');
-      } else if (hash === '' || hash === 'home') {
+      } else if (hash === 'home') {
         setCurrentView('public_home');
+      } else if (hash === '') {
+        // Only reset to public_home if user is NOT logged in or not on participant dashboard
+        if (!currentUserRef.current && currentViewRef.current !== 'participant_dashboard') {
+          setCurrentView('public_home');
+        }
       }
     };
 
-    // Check initial hash
+    // Check initial hash on mount
     if (window.location.hash) {
       handleHashChange();
+    } else if (currentUserRef.current) {
+      // If returning with valid session and no hash, keep user on dashboard
+      setCurrentView('participant_dashboard');
+      window.location.hash = 'myaccount';
     }
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [currentUser]);
+  }, []); // Run ONCE on mount - will not kick user out when currentUser updates!
 
   // Global Keybindings (Cmd+K / Ctrl+K for search, Esc to close modals)
   useEffect(() => {
@@ -333,11 +393,18 @@ export default function App() {
   };
 
   const handleUpdateUser = (updated: UserAccount) => {
-    const updatedList = users.map(u => u.id === updated.id ? updated : u);
+    const updatedList = users.map(u => 
+      (String(u.id) === String(updated.id) || u.accountNumber === updated.accountNumber) ? updated : u
+    );
     setUsers(updatedList);
     localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
 
-    if (currentUser?.id === updated.id) {
+    if (
+      currentUser && 
+      (String(currentUser.id) === String(updated.id) || 
+       (currentUser.accountNumber && currentUser.accountNumber === updated.accountNumber) ||
+       (currentUser.email && currentUser.email.toLowerCase() === updated.email.toLowerCase()))
+    ) {
       setCurrentUser(updated);
       localStorage.setItem('ccsp_participant_session', JSON.stringify(updated));
     }

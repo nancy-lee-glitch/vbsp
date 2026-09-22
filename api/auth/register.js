@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     // Generate a unique account number
     const randomPart = Math.floor(1000 + Math.random() * 9000);
     const randomPart2 = Math.floor(1000 + Math.random() * 9000);
-    const accountNumber = `VBSP-${randomPart}-${randomPart2}-${Math.floor(10 + Math.random() * 90)}`;
+    const accountNumber = `CCSP-${randomPart}-${randomPart2}-${Math.floor(10 + Math.random() * 90)}`;
 
     // Generate a simple ThriftLine PIN
     const thriftlinePin = String(Math.floor(100000 + Math.random() * 900000));

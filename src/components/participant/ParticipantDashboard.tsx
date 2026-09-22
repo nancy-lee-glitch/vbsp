@@ -42,7 +42,7 @@ import { ParticipantMailbox } from './ParticipantMailbox';
 import { TransactionHistory } from './TransactionHistory';
 import { DocumentsCenter } from './DocumentsCenter';
 import { BankingContactSettings } from './BankingContactSettings';
-// import { IdentificationKYCManager } from './IdentificationKYCManager';
+import { IdentificationKYCManager } from './IdentificationKYCManager';
 import { DepositFundsModal } from './DepositFundsModal';
 import { KYCPopupReminder } from './KYCPopupReminder';
 import { SimpleKYCUpload } from './SimpleKYCUpload';
@@ -299,7 +299,10 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSubView(tab.id as ParticipantSubView)}
+              onClick={() => {
+                setActiveSubView(tab.id as ParticipantSubView);
+                window.location.hash = tab.id;
+              }}
               className={`px-3 py-2 rounded-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap min-h-[40px] ${
                 isSelected 
                   ? 'bg-[#0f2942] text-white shadow-xs' 
@@ -904,8 +907,11 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         />
       )}
 
-     {activeSubView === 'kyc' && (
-        <SimpleKYCUpload user={user} />
+      {activeSubView === 'kyc' && (
+        <IdentificationKYCManager 
+          user={user} 
+          onUpdateUser={(up, msg) => onUpdateUser(up, msg)} 
+        />
       )}
 
       {activeSubView === 'documents' && (

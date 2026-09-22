@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShieldCheck, 
   Upload, 
@@ -26,6 +26,10 @@ import {
   IdentificationDocType, 
   KYCVerificationProfile 
 } from '../../types';
+import { 
+  fetchKycDocumentsForParticipant, 
+  submitKycDocument 
+} from '../../services/dbService';
 
 interface IdentificationKYCManagerProps {
   user: UserAccount;
@@ -36,13 +40,61 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
   user,
   onUpdateUser
 }) => {
-  // Default KYC profile if none exists
-  const kycProfile: KYCVerificationProfile = user.kycProfile || {
-    overallStatus: 'Not Verified',
-    riskTier: 'Tier 1 Individual',
-    ssnMasked: 'Unverified - Action Required',
-    additionalDocuments: []
-  };
+  const isDemoVance = user.email === 'marcus.vance@usda.gov' || user.accountNumber === 'CCSP-0089-4412-98';
+
+  // For non-Vance users, start clean without mock documents
+  const initialKycProfile: KYCVerificationProfile = isDemoVance 
+    ? (user.kycProfile || { overallStatus: 'Verified (Tier 1 Allocated)', riskTier: 'Tier 1 Individual', ssnMasked: '***-**-4412', additionalDocuments: [] })
+    : (user.kycProfile && user.kycProfile.ssnDocument?.fileName !== 'SSA_Card_Vance_M.pdf' 
+        ? user.kycProfile 
+        : { overallStatus: user.kycStatus === 'Verified (Tier 1 Allocated)' ? 'Verified (Tier 1 Allocated)' : 'Not Verified', riskTier: 'Tier 1 Individual', ssnMasked: user.ssnLast4 ? `***-**-${user.ssnLast4}` : 'Unverified - Action Required', additionalDocuments: [] }
+      );
+
+  const [kycProfile, setKycProfile] = useState<KYCVerificationProfile>(initialKycProfile);
+
+  // Sync KYC documents from database
+  useEffect(() => {
+    let isMounted = true;
+    const syncKycFromDb = async () => {
+      try {
+        const docs = await fetchKycDocumentsForParticipant(user);
+        if (!isMounted) return;
+        if (docs && docs.length > 0) {
+          const updatedProfile: KYCVerificationProfile = {
+            overallStatus: user.kycStatus === 'Verified (Tier 1 Allocated)' ? 'Verified (Tier 1 Allocated)' : 'Pending Review',
+            riskTier: 'Tier 1 Individual',
+            ssnMasked: user.ssnLast4 ? `***-**-${user.ssnLast4}` : 'Unverified - Action Required',
+            additionalDocuments: []
+          };
+          for (const d of docs) {
+            const docObj: IdentificationDocument = {
+              id: `doc-${d.id}`,
+              type: (d.document_type as IdentificationDocType) || 'other',
+              title: d.file_name || d.document_type || 'Identity Document',
+              fileName: d.file_name || 'document.pdf',
+              fileSize: '1.85 MB',
+              fileDataUrl: d.file_data,
+              uploadedAt: d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString() : 'Recent',
+              status: (d.status as any) || 'Pending Review',
+              notes: d.admin_notes || 'Submitted for compliance verification'
+            };
+            if (d.document_type === 'ssn_card') updatedProfile.ssnDocument = docObj;
+            else if (d.document_type === 'driver_license_front') updatedProfile.driverLicenseFront = docObj;
+            else if (d.document_type === 'driver_license_back') updatedProfile.driverLicenseBack = docObj;
+            else if (d.document_type === 'passport') updatedProfile.passportDocument = docObj;
+            else if (d.document_type === 'proof_of_address') updatedProfile.proofOfAddressDocument = docObj;
+            else updatedProfile.additionalDocuments?.push(docObj);
+          }
+          setKycProfile(updatedProfile);
+        }
+      } catch (e) {
+        console.warn('KYC load error:', e);
+      }
+    };
+    syncKycFromDb();
+    const interval = setInterval(syncKycFromDb, 5000);
+    return () => { isMounted = false; clearInterval(interval); };
+  }, [user.id, user.accountNumber]);
 
   // Upload Modal State
   const [activeUploadType, setActiveUploadType] = useState<IdentificationDocType | null>(null);
@@ -155,9 +207,23 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
       updatedProfile.overallStatus = 'Pending Review';
     }
 
+    setKycProfile(updatedProfile);
+
+    // Persist directly to Neon PostgreSQL /api/kyc
+    submitKycDocument(user, {
+      documentType: currentUploadType,
+      fileName: currentFileName,
+      fileData: selectedFile?.dataUrl || '',
+      file_size: selectedFile?.size || '1.85 MB',
+      doc_number_masked: docNumber ? (docNumber.length > 4 ? `••••${docNumber.slice(-4)}` : docNumber) : undefined,
+      issuing_authority: issuingAuth || 'Government Authority',
+      expiration_date: expDate || undefined
+    }).catch(err => console.warn('Neon KYC upload sync notice:', err));
+
     const updatedUser: UserAccount = {
       ...user,
-      kycProfile: updatedProfile
+      kycProfile: updatedProfile,
+      kycStatus: updatedProfile.overallStatus
     };
 
     // Close upload modal immediately

@@ -22,10 +22,12 @@ interface DocumentsCenterProps {
 }
 
 export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
-  const [uploadedFiles, setUploadedFiles] = useState<{ id?: number; name: string; size: string; date: string; status: string; data?: string }[]>([
-    { name: 'Marriage_Certificate_Vance.pdf', size: '1.2 MB', date: '2026-06-12', status: 'Approved' },
-    { name: 'Home_Purchase_Closing_Disclosure.pdf', size: '3.4 MB', date: '2026-03-01', status: 'Approved' }
-  ]);
+  const [uploadedFiles, setUploadedFiles] = useState<{ id?: number; name: string; size: string; date: string; status: string; data?: string }[]>(
+    user.email === 'marcus.vance@usda.gov' || user.accountNumber === 'CCSP-0089-4412-98' ? [
+      { name: 'Marriage_Certificate_Vance.pdf', size: '1.2 MB', date: '2026-06-12', status: 'Approved' },
+      { name: 'Home_Purchase_Closing_Disclosure.pdf', size: '3.4 MB', date: '2026-03-01', status: 'Approved' }
+    ] : []
+  );
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState('');

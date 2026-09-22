@@ -322,7 +322,8 @@ export type IdentificationDocType =
   | 'driver_license_back' 
   | 'passport' 
   | 'proof_of_address' 
-  | 'corporate_resolution';
+  | 'corporate_resolution'
+  | 'other';
 
 export interface IdentificationDocument {
   id: string;

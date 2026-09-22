@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/participants/(.*)", "destination": "/api/participants.js?id=$1" },
+    { "source": "/api/deposits/(.*)", "destination": "/api/deposits.js?id=$1" },
+    { "source": "/api/loans/(.*)", "destination": "/api/loans.js?id=$1" },
+    { "source": "/api/withdrawals/(.*)", "destination": "/api/withdrawals.js?id=$1" },
+    { "source": "/api/documents/(.*)", "destination": "/api/documents.js?id=$1" },
+    { "source": "/api/messages/(.*)", "destination": "/api/messages.js?id=$1" },
+    { "source": "/api/beneficiaries/(.*)", "destination": "/api/beneficiaries.js?id=$1" },
+    { "source": "/api/payment-methods/(.*)", "destination": "/api/payment-methods.js?id=$1" },
+    { "source": "/api/funds/(.*)", "destination": "/api/funds.js?id=$1" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

@@ -579,20 +579,36 @@ app.put('/api/participants/:id', async (req, res) => {
           phone = COALESCE($6, phone),
           address = COALESCE($7, address),
           account_status = COALESCE($8, account_status),
+          employing_agency = COALESCE($9, employing_agency),
+          gold_ounces_equivalent = COALESCE($10, gold_ounces_equivalent),
+          silver_ounces_equivalent = COALESCE($11, silver_ounces_equivalent),
+          ytd_return = COALESCE($12, ytd_return),
+          vault_facility = COALESCE($13, vault_facility),
+          kyc_status = COALESCE($14, kyc_status),
+          email = COALESCE($15, email),
+          password_hash = COALESCE($16, password_hash),
           updated_at = NOW()
-        WHERE id = $9 OR account_number = $10 OR LOWER(email) = LOWER($10)
+        WHERE id = $17 OR account_number = $18 OR LOWER(email) = LOWER($18)
         RETURNING *`,
         [
-          updates.name || null,
+          updates.name || updates.full_name || null,
           updates.totalBalance !== undefined ? sanitizeNum(updates.totalBalance, 0) : null,
           updates.traditionalBalance !== undefined ? sanitizeNum(updates.traditionalBalance, 0) : null,
           updates.rothBalance !== undefined ? sanitizeNum(updates.rothBalance, 0) : null,
-          updates.planType || null,
+          updates.planType || updates.account_type || null,
           updates.phone || null,
           updates.address || null,
-          updates.status || null,
+          updates.status || updates.account_status || null,
+          updates.employingAgency || updates.employing_agency || null,
+          updates.goldOuncesEquivalent !== undefined ? sanitizeNum(updates.goldOuncesEquivalent, 0) : null,
+          updates.silverOuncesEquivalent !== undefined ? sanitizeNum(updates.silverOuncesEquivalent, 0) : null,
+          updates.ytdReturn !== undefined ? sanitizeNum(updates.ytdReturn, 0) : null,
+          updates.vaultDepositaryLocation || updates.vault_facility || null,
+          updates.kycStatus || updates.kyc_status || updates.kycProfile?.overallStatus || null,
+          updates.email || null,
+          updates.password || updates.password_hash || null,
           sanitizeInt(id, -1),
-          id
+          String(id)
         ]
       );
 
@@ -606,6 +622,39 @@ app.put('/api/participants/:id', async (req, res) => {
     }
   } catch (err: any) {
     console.error('Error in PUT /api/participants/:id:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/participants/:id/kyc-status', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false, message: 'Database not available' });
+
+  const id = req.params.id;
+  const { kycStatus, status } = req.body;
+  const targetStatus = kycStatus || status || 'Verified (Tier 1 Allocated)';
+
+  try {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `UPDATE participant_accounts SET
+          kyc_status = $1,
+          updated_at = NOW()
+        WHERE id = $2 OR account_number = $3 OR LOWER(email) = LOWER($3)
+        RETURNING *`,
+        [targetStatus, sanitizeInt(id, -1), String(id)]
+      );
+
+      if (result.rows.length > 0) {
+        res.json({ success: true, user: mapDbParticipantToUser(result.rows[0]) });
+      } else {
+        res.status(404).json({ success: false, message: 'Participant not found' });
+      }
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -876,12 +925,13 @@ app.post('/api/deposits', async (req, res) => {
   }
 });
 
-app.put('/api/deposits/:id/status', async (req, res) => {
+app.put(['/api/deposits/:id', '/api/deposits/:id/status'], async (req, res) => {
   const pool = getDbPool();
   if (!pool) return res.status(503).json({ success: false });
 
   const id = req.params.id;
-  const { status, adminNotes } = req.body;
+  const { status, adminNotes, admin_notes } = req.body;
+  const note = adminNotes || admin_notes || '';
 
   try {
     const client = await pool.connect();
@@ -893,7 +943,7 @@ app.put('/api/deposits/:id/status', async (req, res) => {
           updated_at = NOW()
         WHERE id = $3 OR reference_id = $4
         RETURNING *`,
-        [status, adminNotes, sanitizeInt(id, -1), String(id)]
+        [status, note || null, sanitizeInt(id, -1), String(id)]
       );
 
       if (result.rows.length > 0) {
@@ -910,6 +960,26 @@ app.put('/api/deposits/:id/status', async (req, res) => {
             WHERE id = $2 OR account_number = $3`,
             [creditedAmount, pId, dep.user_account_number]
           );
+
+          // Add transaction to ledger
+          try {
+            await client.query(
+              `INSERT INTO ledger_transactions (
+                tx_id, participant_id, user_account_number, user_name, type, description, amount, metal_equivalent, category, fund_code, status
+              ) VALUES ($1, $2, $3, $4, 'Wire Deposit', 'Approved Bullion Deposit - Funds Credited to Vault Balance', $5, $6, 'Deposit', $7, 'Completed')`,
+              [
+                `TX-${dep.reference_id || Date.now()}`,
+                pId,
+                dep.user_account_number,
+                dep.user_name,
+                creditedAmount,
+                `+${(creditedAmount / 2610).toFixed(2)} oz Au`,
+                dep.target_fund_code || 'G'
+              ]
+            );
+          } catch (txErr) {
+            console.warn('Could not record ledger transaction for approved deposit:', txErr);
+          }
         }
         res.json({ success: true, deposit: dep });
       } else {
@@ -985,12 +1055,13 @@ app.post('/api/withdrawals', async (req, res) => {
   }
 });
 
-app.put('/api/withdrawals/:id/status', async (req, res) => {
+app.put(['/api/withdrawals/:id', '/api/withdrawals/:id/status'], async (req, res) => {
   const pool = getDbPool();
   if (!pool) return res.status(503).json({ success: false });
 
   const id = req.params.id;
-  const { status, adminNotes } = req.body;
+  const { status, adminNotes, admin_notes } = req.body;
+  const note = adminNotes || admin_notes || '';
 
   try {
     const client = await pool.connect();
@@ -1002,7 +1073,7 @@ app.put('/api/withdrawals/:id/status', async (req, res) => {
           updated_at = NOW()
         WHERE id = $3 OR request_number = $4
         RETURNING *`,
-        [status, adminNotes, sanitizeInt(id, -1), String(id)]
+        [status, note || null, sanitizeInt(id, -1), String(id)]
       );
 
       if (result.rows.length > 0) {
@@ -1020,6 +1091,24 @@ app.put('/api/withdrawals/:id/status', async (req, res) => {
             [deductAmount, pId, wdl.user_account_number]
           );
 
+          // Add transaction to ledger
+          try {
+            await client.query(
+              `INSERT INTO ledger_transactions (
+                tx_id, participant_id, user_account_number, user_name, type, description, amount, metal_equivalent, category, fund_code, status
+              ) VALUES ($1, $2, $3, $4, 'Custodial Withdrawal', 'In-Service Bullion / Cash Distribution Disbursed', $5, '-Disbursed', 'Withdrawal', 'G', 'Completed')`,
+              [
+                `TX-${wdl.request_number || Date.now()}`,
+                pId,
+                wdl.user_account_number,
+                wdl.user_name,
+                -deductAmount
+              ]
+            );
+          } catch (txErr) {
+            console.warn('Could not record ledger transaction for approved withdrawal:', txErr);
+          }
+
           // Insert confirmation message to member's live chat / inbox
           try {
             await client.query(
@@ -1030,7 +1119,7 @@ app.put('/api/withdrawals/:id/status', async (req, res) => {
               [
                 pId,
                 `Withdrawal Order #${wdl.request_number} Approved`,
-                `Your distribution request for $${deductAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} has been approved by the vault custodian. Method: ${wdl.delivery_option || 'Insured Delivery'}. ${adminNotes ? 'Admin Note: ' + adminNotes : ''}`
+                `Your distribution request for $${deductAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} has been approved by the vault custodian. Method: ${wdl.delivery_option || 'Insured Delivery'}. ${note ? 'Admin Note: ' + note : ''}`
               ]
             );
           } catch (mErr) {
@@ -1046,12 +1135,12 @@ app.put('/api/withdrawals/:id/status', async (req, res) => {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               'WITHDRAWAL_APPROVAL',
-              `Withdrawal request #${wdl.request_number || id} status changed to "${status}" for ${wdl.user_name} (${wdl.user_account_number}). Amount: $${sanitizeNum(wdl.amount, 0)}. ${adminNotes ? 'Notes: ' + adminNotes : ''}`,
+              `Withdrawal request #${wdl.request_number || id} status changed to "${status}" for ${wdl.user_name} (${wdl.user_account_number}). Amount: $${sanitizeNum(wdl.amount, 0)}. ${note ? 'Notes: ' + note : ''}`,
               'Super Administrator (Compliance Officer)',
               '10.240.1.18 (CCSP-HQ-VPC)',
               'Success',
               wdl.user_account_number,
-              JSON.stringify({ status, adminNotes })
+              JSON.stringify({ status, note })
             ]
           );
         } catch (aErr) {
@@ -1135,12 +1224,12 @@ app.post('/api/loans', async (req, res) => {
   }
 });
 
-app.put('/api/loans/:id/status', async (req, res) => {
+app.put(['/api/loans/:id', '/api/loans/:id/status'], async (req, res) => {
   const pool = getDbPool();
   if (!pool) return res.status(503).json({ success: false });
 
   const id = req.params.id;
-  const { status, adminNotes, admin_notes } = req.body;
+  const { status, adminNotes, admin_notes, requestedAmount, requested_amount, termMonths, term_months, interestRate, interest_rate, monthlyPayment, monthly_payment } = req.body;
   const note = adminNotes || admin_notes || '';
 
   try {
@@ -1148,12 +1237,25 @@ app.put('/api/loans/:id/status', async (req, res) => {
     try {
       const result = await client.query(
         `UPDATE loan_applications SET 
-          status = $1, 
+          status = COALESCE($1, status), 
           admin_notes = COALESCE($2, admin_notes),
+          requested_amount = COALESCE($3, requested_amount),
+          term_months = COALESCE($4, term_months),
+          interest_rate = COALESCE($5, interest_rate),
+          monthly_payment = COALESCE($6, monthly_payment),
           updated_at = NOW() 
-        WHERE id = $3 OR loan_number = $4 
+        WHERE id = $7 OR loan_number = $8 
         RETURNING *`,
-        [status, note || null, sanitizeInt(id, -1), String(id)]
+        [
+          status || null,
+          note || null,
+          (requestedAmount !== undefined || requested_amount !== undefined) ? sanitizeNum(requestedAmount || requested_amount, 0) : null,
+          (termMonths !== undefined || term_months !== undefined) ? sanitizeInt(termMonths || term_months, 0) : null,
+          (interestRate !== undefined || interest_rate !== undefined) ? sanitizeNum(interestRate || interest_rate, 0) : null,
+          (monthlyPayment !== undefined || monthly_payment !== undefined) ? sanitizeNum(monthlyPayment || monthly_payment, 0) : null,
+          sanitizeInt(id, -1),
+          String(id)
+        ]
       );
 
       if (result.rows.length > 0) {
@@ -1163,6 +1265,24 @@ app.put('/api/loans/:id/status', async (req, res) => {
 
         // When approved by admin, disburse funds and notify participant via live chat / mail
         if (status === 'Approved' || status === 'Active') {
+          // Add transaction to ledger
+          try {
+            await client.query(
+              `INSERT INTO ledger_transactions (
+                tx_id, participant_id, user_account_number, user_name, type, description, amount, metal_equivalent, category, fund_code, status
+              ) VALUES ($1, $2, $3, $4, 'Loan Disbursement', 'Bullion Collateral Loan Disbursed via Custodial Authorization', $5, 'Collateralized', 'Loan', 'G', 'Completed')`,
+              [
+                `TX-${loan.loan_number || Date.now()}`,
+                pId,
+                loan.user_account_number,
+                loan.user_name,
+                approvedAmount
+              ]
+            );
+          } catch (txErr) {
+            console.warn('Could not record ledger transaction for approved loan:', txErr);
+          }
+
           try {
             await client.query(
               `INSERT INTO messages (
@@ -1390,6 +1510,48 @@ app.post('/api/documents', async (req, res) => {
   }
 });
 
+app.put('/api/documents/:id/status', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false });
+
+  const id = req.params.id;
+  const { status, adminNotes } = req.body;
+  try {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `UPDATE user_documents 
+         SET status = $1, compliance_notes = COALESCE($2, compliance_notes), updated_at = NOW() 
+         WHERE id = $3 OR doc_id = $4 RETURNING *`,
+        [status, adminNotes, sanitizeInt(id, -1), String(id)]
+      );
+      res.json({ success: true, document: result.rows[0] });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/documents/:id', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false });
+
+  const id = req.params.id;
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('DELETE FROM user_documents WHERE id = $1 OR doc_id = $2', [sanitizeInt(id, -1), String(id)]);
+      res.json({ success: true, message: 'Document deleted' });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // -----------------------------------------------------------------------------
 // LIVE MESSAGES & MAILING ENDPOINTS (USER <-> ADMIN LIVE CHAT / NOTIFICATIONS)
 // -----------------------------------------------------------------------------
@@ -1485,155 +1647,329 @@ app.put('/api/messages/:id/read', async (req, res) => {
   }
 });
 
+app.delete('/api/messages/:id', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false });
+
+  const id = req.params.id;
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('DELETE FROM messages WHERE id = $1', [sanitizeInt(id, -1)]);
+      res.json({ success: true, message: 'Message deleted' });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// LEDGER TRANSACTIONS ENDPOINTS
+// -----------------------------------------------------------------------------
+app.get('/api/transactions', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.json({ success: false, transactions: [] });
+
+  const { participantId, participant_id, accountNumber, all } = req.query;
+  const rawId = participantId || participant_id;
+
+  try {
+    const client = await pool.connect();
+    try {
+      if (all === 'true') {
+        const result = await client.query('SELECT * FROM ledger_transactions ORDER BY id DESC LIMIT 200');
+        return res.json({ success: true, transactions: result.rows });
+      }
+
+      const cleanId = rawId ? sanitizeInt(rawId, -1) : -1;
+      const targetAccount = accountNumber ? String(accountNumber) : '';
+
+      if (cleanId !== -1 || targetAccount) {
+        const result = await client.query(
+          `SELECT * FROM ledger_transactions 
+           WHERE (participant_id = $1 AND $1 != -1) OR (user_account_number = $2 AND $2 != '')
+           ORDER BY id DESC`,
+          [cleanId, targetAccount]
+        );
+        return res.json({ success: true, transactions: result.rows });
+      }
+
+      const result = await client.query('SELECT * FROM ledger_transactions ORDER BY id DESC LIMIT 100');
+      res.json({ success: true, transactions: result.rows });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error('Error fetching transactions:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/transactions', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false });
+
+  const tx = req.body;
+  const cleanParticipantId = sanitizeInt(tx.participant_id || tx.participantId, 1);
+  const cleanAmount = sanitizeNum(tx.amount, 0);
+
+  try {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `INSERT INTO ledger_transactions (
+          tx_id, participant_id, user_account_number, user_name, type,
+          description, amount, metal_equivalent, category, fund_code, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING *`,
+        [
+          tx.tx_id || tx.id || `TX-${Date.now()}`,
+          cleanParticipantId,
+          tx.user_account_number || tx.accountNumber || '',
+          tx.user_name || tx.userName || '',
+          tx.type || 'Deposit',
+          tx.description || 'Depository Transaction',
+          cleanAmount,
+          tx.metal_equivalent || tx.metalEquivalent || '',
+          tx.category || 'General',
+          tx.fund_code || tx.fundCode || 'G',
+          tx.status || 'Completed'
+        ]
+      );
+      res.json({ success: true, transaction: result.rows[0] });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// BENEFICIARIES ENDPOINTS
+// -----------------------------------------------------------------------------
+app.get('/api/beneficiaries', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.json({ success: false, beneficiaries: [] });
+
+  const { participantId, participant_id } = req.query;
+  const rawId = participantId || participant_id;
+  const cleanId = sanitizeInt(rawId, 1);
+
+  try {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `SELECT * FROM beneficiaries WHERE participant_id = $1 ORDER BY id ASC`,
+        [cleanId]
+      );
+      res.json({ success: true, beneficiaries: result.rows });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/beneficiaries', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false });
+
+  const b = req.body;
+  const cleanParticipantId = sanitizeInt(b.participant_id || b.participantId, 1);
+  const cleanShare = sanitizeNum(b.share_percentage || b.sharePercentage, 0);
+
+  try {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `INSERT INTO beneficiaries (
+          participant_id, full_name, relationship, share_percentage, beneficiary_type
+        ) VALUES ($1, $2, $3, $4, $5)
+        RETURNING *`,
+        [
+          cleanParticipantId,
+          b.full_name || b.name || '',
+          b.relationship || 'Spouse',
+          cleanShare,
+          b.beneficiary_type || b.type || 'PRIMARY'
+        ]
+      );
+      res.json({ success: true, beneficiary: result.rows[0] });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/beneficiaries/:id', async (req, res) => {
+  const pool = getDbPool();
+  if (!pool) return res.status(503).json({ success: false });
+
+  const cleanId = sanitizeInt(req.params.id, -1);
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('DELETE FROM beneficiaries WHERE id = $1', [cleanId]);
+      res.json({ success: true, message: 'Beneficiary deleted' });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // -----------------------------------------------------------------------------
 // KYC IDENTITY DOCUMENTS ENDPOINTS
 // -----------------------------------------------------------------------------
 app.get('/api/kyc', async (req, res) => {
-  const sql = getPostgresSql();
   const pool = getDbPool();
-  const { participantId, all } = req.query;
+  if (!pool) return res.status(503).json({ success: false, message: 'Database not available' });
+  const { participantId, participant_id, all } = req.query;
+  const rawId = participantId || participant_id;
 
   try {
-    if (sql) {
+    const client = await pool.connect();
+    try {
       if (all === 'true') {
-        const result = await sql`
+        const result = await client.query(`
           SELECT k.*, p.full_name, p.account_number, p.email
           FROM kyc_documents k
           LEFT JOIN participant_accounts p ON k.participant_id = p.id
           ORDER BY k.id DESC
-        `;
-        return res.json({ success: true, documents: result });
+        `);
+        return res.json({ success: true, documents: result.rows });
+      }
+      
+      const cleanParticipantId = rawId ? sanitizeInt(rawId, -1) : -1;
+      if (cleanParticipantId !== -1) {
+        const result = await client.query(`
+          SELECT * FROM kyc_documents 
+          WHERE participant_id = $1
+          ORDER BY id DESC
+        `, [cleanParticipantId]);
+        return res.json({ success: true, documents: result.rows });
       }
 
-      if (participantId) {
-        const result = await sql`
-          SELECT * FROM kyc_documents 
-          WHERE participant_id = ${Number(participantId)}
-          ORDER BY id DESC
-        `;
-        return res.json({ success: true, documents: result });
-      }
-    } else if (pool) {
-      const client = await pool.connect();
-      try {
-        if (all === 'true') {
-          const result = await client.query(`
-            SELECT k.*, p.full_name, p.account_number, p.email
-            FROM kyc_documents k
-            LEFT JOIN participant_accounts p ON k.participant_id = p.id
-            ORDER BY k.id DESC
-          `);
-          return res.json({ success: true, documents: result.rows });
-        }
-        if (participantId) {
-          const result = await client.query(`
-            SELECT * FROM kyc_documents 
-            WHERE participant_id = $1
-            ORDER BY id DESC
-          `, [Number(participantId)]);
-          return res.json({ success: true, documents: result.rows });
-        }
-      } finally {
-        client.release();
-      }
+      // If no valid participantId and all not true, return all for safety
+      const result = await client.query(`
+        SELECT k.*, p.full_name, p.account_number, p.email
+        FROM kyc_documents k
+        LEFT JOIN participant_accounts p ON k.participant_id = p.id
+        ORDER BY k.id DESC
+      `);
+      return res.json({ success: true, documents: result.rows });
+    } finally {
+      client.release();
     }
-    res.status(400).json({ success: false, message: 'participantId or all=true required' });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 app.post('/api/kyc', async (req, res) => {
-  const sql = getPostgresSql();
   const pool = getDbPool();
-  const { participantId, documentType, fileName, fileData } = req.body;
+  if (!pool) return res.status(503).json({ success: false, message: 'Database not available' });
+  const { participantId, participant_id, documentType, doc_type, fileName, file_name, fileData, file_data } = req.body;
 
-  if (!participantId || !documentType) {
+  const rawId = participantId || participant_id;
+  const docType = documentType || doc_type;
+  const fName = fileName || file_name || 'id_document.pdf';
+  const fData = fileData || file_data || '';
+
+  if (!rawId || !docType) {
     return res.status(400).json({ success: false, message: 'participantId and documentType are required' });
   }
 
+  const cleanParticipantId = sanitizeInt(rawId, 1);
+
   try {
-    if (sql) {
-      const result = await sql`
+    const client = await pool.connect();
+    try {
+      const result = await client.query(`
         INSERT INTO kyc_documents (
-          participant_id, 
-          doc_type, 
-          file_name, 
-          file_data, 
-          status
-        ) VALUES (
-          ${Number(participantId)},
-          ${documentType},
-          ${fileName || ''},
-          ${fileData || ''},
-          'Pending Review'
-        )
+          participant_id, document_type, file_name, file_data, status, updated_at
+        ) VALUES ($1, $2, $3, $4, 'Pending Review', NOW())
         RETURNING *
-      `;
-      return res.status(201).json({ success: true, message: 'Document uploaded', document: result[0] });
-    } else if (pool) {
-      const client = await pool.connect();
-      try {
-        const result = await client.query(`
-          INSERT INTO kyc_documents (
-            participant_id, doc_type, file_name, file_data, status
-          ) VALUES ($1, $2, $3, $4, 'Pending Review')
-          RETURNING *
-        `, [Number(participantId), documentType, fileName || '', fileData || '']);
-        return res.status(201).json({ success: true, message: 'Document uploaded', document: result.rows[0] });
-      } finally {
-        client.release();
-      }
+      `, [cleanParticipantId, docType, fName, fData]);
+
+      // Set participant kyc_status to Pending Review
+      await client.query(`
+        UPDATE participant_accounts SET
+          kyc_status = 'Pending Review',
+          updated_at = NOW()
+        WHERE id = $1
+      `, [cleanParticipantId]);
+
+      return res.status(201).json({ success: true, message: 'Document uploaded', document: result.rows[0] });
+    } finally {
+      client.release();
     }
-    res.status(503).json({ success: false, message: 'Database not available' });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 app.put('/api/kyc', async (req, res) => {
-  const sql = getPostgresSql();
   const pool = getDbPool();
-  const { documentId, status, adminNotes } = req.body;
+  if (!pool) return res.status(503).json({ success: false, message: 'Database not available' });
+  const { documentId, id, status, adminNotes, admin_notes } = req.body;
 
-  if (!documentId || !status) {
+  const rawDocId = documentId || id;
+  const docStatus = status;
+  const notes = adminNotes || admin_notes || '';
+
+  if (!rawDocId || !docStatus) {
     return res.status(400).json({ success: false, message: 'documentId and status are required' });
   }
 
+  const cleanDocId = sanitizeInt(rawDocId, -1);
+
   try {
-    if (sql) {
-      const result = await sql`
+    const client = await pool.connect();
+    try {
+      const result = await client.query(`
         UPDATE kyc_documents SET
-          status = ${status},
-          admin_notes = ${adminNotes || ''},
+          status = $1,
+          admin_notes = $2,
+          reviewed_by = 'Admin',
+          reviewed_at = NOW(),
           updated_at = NOW()
-        WHERE id = ${Number(documentId)}
+        WHERE id = $3
         RETURNING *
-      `;
-      if (result.length > 0) {
-        return res.json({ success: true, message: 'Document updated', document: result[0] });
+      `, [docStatus, notes, cleanDocId]);
+
+      if (result.rows.length > 0) {
+        const doc = result.rows[0];
+        // If approved/verified, automatically update the participant's overall kyc_status!
+        if (docStatus === 'Verified' || docStatus === 'Approved' || docStatus.includes('Verified')) {
+          await client.query(`
+            UPDATE participant_accounts SET
+              kyc_status = 'Verified (Tier 1 Allocated)',
+              updated_at = NOW()
+            WHERE id = $1
+          `, [doc.participant_id]);
+        } else if (docStatus === 'Rejected') {
+          await client.query(`
+            UPDATE participant_accounts SET
+              kyc_status = 'Action Required',
+              updated_at = NOW()
+            WHERE id = $1
+          `, [doc.participant_id]);
+        }
+
+        return res.json({ success: true, message: 'Document updated', document: doc });
       }
       return res.status(404).json({ success: false, message: 'Document not found' });
-    } else if (pool) {
-      const client = await pool.connect();
-      try {
-        const result = await client.query(`
-          UPDATE kyc_documents SET
-            status = $1,
-            admin_notes = $2,
-            updated_at = NOW()
-          WHERE id = $3
-          RETURNING *
-        `, [status, adminNotes || '', Number(documentId)]);
-        if (result.rows.length > 0) {
-          return res.json({ success: true, message: 'Document updated', document: result.rows[0] });
-        }
-        return res.status(404).json({ success: false, message: 'Document not found' });
-      } finally {
-        client.release();
-      }
+    } finally {
+      client.release();
     }
-    res.status(503).json({ success: false, message: 'Database not available' });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TSPTransaction } from '../../types';
+import { sanitizeNumeric } from '../../lib/supabase';
 import { 
   History, 
   Download, 
@@ -14,7 +15,8 @@ import {
   AlertTriangle,
   Coins,
   ShieldCheck,
-  Inbox
+  Inbox,
+  RefreshCw
 } from 'lucide-react';
 
 interface TransactionHistoryProps {
@@ -25,15 +27,66 @@ interface TransactionHistoryProps {
 }
 
 export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
-  transactions = [],
+  transactions: initialTransactions = [],
   accountNumber = 'CCSP-0089-4412-98',
   userName = 'Marcus Vance',
   onOpenDepositModal
 }) => {
+  const [transactionsList, setTransactionsList] = useState<TSPTransaction[]>(initialTransactions);
   const [filterType, setFilterType] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filtered = transactions.filter(tx => {
+  const fetchLiveTransactions = useCallback(async () => {
+    if (!accountNumber) return;
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/transactions?accountNumber=${encodeURIComponent(accountNumber)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.transactions) && data.transactions.length > 0) {
+          const mapped: TSPTransaction[] = data.transactions.map((tx: any) => ({
+            id: tx.tx_id || tx.id || `TX-${Date.now()}`,
+            date: tx.created_at ? new Date(tx.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            type: tx.type || 'Deposit',
+            description: tx.description || 'Bullion Transaction',
+            amount: sanitizeNumeric(tx.amount, 0),
+            fundCode: tx.fund_code || 'G',
+            status: tx.status || 'Completed',
+            metalEquivalent: tx.metal_equivalent || (tx.amount ? `+${(Number(tx.amount) / 2610).toFixed(2)} oz Au` : undefined)
+          }));
+          setTransactionsList(mapped);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Live transactions fetch error:', e);
+    } finally {
+      setIsLoading(false);
+    }
+
+    // Fallback to initial if live is empty or fails
+    if (initialTransactions.length > 0) {
+      setTransactionsList(initialTransactions);
+    }
+  }, [accountNumber, initialTransactions]);
+
+  useEffect(() => {
+    fetchLiveTransactions();
+
+    const handleSync = () => {
+      fetchLiveTransactions();
+    };
+
+    window.addEventListener('ccsp_db_sync', handleSync);
+    window.addEventListener('vbsp_db_sync', handleSync);
+    return () => {
+      window.removeEventListener('ccsp_db_sync', handleSync);
+      window.removeEventListener('vbsp_db_sync', handleSync);
+    };
+  }, [fetchLiveTransactions]);
+
+  const filtered = transactionsList.filter(tx => {
     const matchesFilter = filterType === 'All' ? true : tx.type.toLowerCase().includes(filterType.toLowerCase());
     const matchesQuery = 
       tx.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -43,7 +96,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   });
 
   const handleExportCSV = () => {
-    if (transactions.length === 0) return;
+    if (transactionsList.length === 0) return;
     const headers = ['Transaction ID', 'Date', 'Type', 'Amount', 'Description', 'Metal Equivalent', 'Status'];
     const rows = filtered.map(t => [
       t.id,
@@ -92,7 +145,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
           <button 
             onClick={handleExportCSV}
-            disabled={transactions.length === 0}
+            disabled={transactionsList.length === 0}
             className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xs transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-300 disabled:opacity-40"
           >
             <Download className="w-3.5 h-3.5" />
@@ -140,15 +193,15 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-sm text-slate-900">
-                {transactions.length === 0 ? 'Clean Depository Ledger (0 Transactions)' : 'No Matching Transactions Found'}
+                {transactionsList.length === 0 ? 'Clean Depository Ledger (0 Transactions)' : 'No Matching Transactions Found'}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                {transactions.length === 0 
+                {transactionsList.length === 0 
                   ? 'This new account has a clean ledger with no posted financial transactions. Any wire deposits, bullion purchases, or loans you initiate will appear here and require Super Admin approval.' 
                   : `No activity found matching filter "${filterType}" or search term "${searchQuery}".`}
               </p>
             </div>
-            {transactions.length === 0 && onOpenDepositModal && (
+            {transactionsList.length === 0 && onOpenDepositModal && (
               <button
                 onClick={onOpenDepositModal}
                 className="mt-2 px-4 py-2 bg-[#112e51] hover:bg-[#002f5a] text-white text-xs font-bold rounded-xs inline-flex items-center gap-2 cursor-pointer shadow-xs"

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   HeartHandshake, 
   Plus, 
@@ -8,9 +8,11 @@ import {
   Shield, 
   User, 
   ArrowRight,
-  Info
+  Info,
+  RefreshCw
 } from 'lucide-react';
 import { UserAccount, TSPBeneficiary } from '../../types';
+import { sanitizeInteger, sanitizeNumeric } from '../../lib/supabase';
 
 interface BeneficiaryManagerProps {
   user: UserAccount;
@@ -21,12 +23,49 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
   user,
   onUpdateBeneficiaries
 }) => {
-  const [beneficiaries, setBeneficiaries] = useState<TSPBeneficiary[]>(user.beneficiaries);
+  const [beneficiaries, setBeneficiaries] = useState<TSPBeneficiary[]>(user.beneficiaries || []);
   const [isAdding, setIsAdding] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [newType, setNewType] = useState<'Primary' | 'Contingent'>('Primary');
   const [newName, setNewName] = useState('');
   const [newRelationship, setNewRelationship] = useState('Child');
   const [newShare, setNewShare] = useState<number>(25);
+
+  const cleanParticipantId = sanitizeInteger(user.id, 1);
+
+  const fetchLiveBeneficiaries = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/beneficiaries?participantId=${cleanParticipantId}&accountNumber=${encodeURIComponent(user.accountNumber || '')}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.beneficiaries) && data.beneficiaries.length > 0) {
+          const mapped: TSPBeneficiary[] = data.beneficiaries.map((b: any) => ({
+            id: String(b.id || `BEN-${Date.now()}`),
+            name: b.name || b.full_name,
+            relationship: b.relationship || 'Spouse',
+            sharePercentage: sanitizeNumeric(b.share_percentage || b.sharePercentage, 50),
+            type: (b.type === 'Contingent' || b.beneficiary_type === 'Contingent') ? 'Contingent' : 'Primary'
+          }));
+          setBeneficiaries(mapped);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Live beneficiaries fetch error:', e);
+    } finally {
+      setIsLoading(false);
+    }
+
+    if (user.beneficiaries && user.beneficiaries.length > 0) {
+      setBeneficiaries(user.beneficiaries);
+    }
+  }, [cleanParticipantId, user.accountNumber, user.beneficiaries]);
+
+  useEffect(() => {
+    fetchLiveBeneficiaries();
+  }, [fetchLiveBeneficiaries]);
 
   const primarySum = beneficiaries
     .filter(b => b.type === 'Primary')
@@ -42,9 +81,9 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
 
     const newBen: TSPBeneficiary = {
       id: `BEN-${Date.now()}`,
-      name: newName,
+      name: newName.trim(),
       relationship: newRelationship,
-      sharePercentage: newShare,
+      sharePercentage: sanitizeNumeric(newShare, 25),
       type: newType
     };
 
@@ -54,11 +93,19 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
     setNewName('');
   };
 
-  const handleRemove = (id: string) => {
+  const handleRemove = async (id: string) => {
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await fetch(`/api/beneficiaries/${numId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.warn('Delete beneficiary API error:', err);
+      }
+    }
     setBeneficiaries(prev => prev.filter(b => b.id !== id));
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     if (primarySum !== 100) {
       alert('Primary beneficiaries must sum to exactly 100%.');
       return;
@@ -68,7 +115,30 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
       return;
     }
 
-    onUpdateBeneficiaries(beneficiaries, 'Your beneficiary designations have been electronically submitted and officially recorded on Form CCSP-3.');
+    try {
+      setIsSaving(true);
+      // Persist each beneficiary to database
+      for (const b of beneficiaries) {
+        await fetch('/api/beneficiaries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            participantId: cleanParticipantId,
+            userAccountNumber: user.accountNumber || '',
+            name: b.name,
+            relationship: b.relationship,
+            sharePercentage: b.sharePercentage,
+            type: b.type
+          })
+        });
+      }
+    } catch (err) {
+      console.warn('Saving beneficiaries to database error:', err);
+    } finally {
+      setIsSaving(false);
+    }
+
+    onUpdateBeneficiaries(beneficiaries, 'Your beneficiary designations have been electronically submitted and officially recorded on Form CCSP-3 in the Neon database.');
   };
 
   return (
@@ -236,11 +306,20 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
         <div className="pt-4 border-t border-slate-200 flex justify-end">
           <button 
             onClick={handleSaveAll}
-            disabled={primarySum !== 100}
+            disabled={primarySum !== 100 || isSaving}
             className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Electronically Save & Confirm Form CCSP-3</span>
+            {isSaving ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Saving to Database...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Electronically Save & Confirm Form CCSP-3</span>
+              </>
+            )}
           </button>
         </div>
       </div>

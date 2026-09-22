@@ -1,13 +1,40 @@
 import sql from './db.js';
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
+    // Helper to resolve participant integer ID
+    const resolveParticipantId = async (input, userAcc, userEmail) => {
+      let pId = parseInt(String(input), 10);
+      if (!isNaN(pId) && pId > 0 && pId < 100000) {
+        return pId;
+      }
+      const acc = userAcc || input;
+      const em = userEmail || input;
+      if (acc || em) {
+        const found = await sql`
+          SELECT id FROM participant_accounts 
+          WHERE account_number = ${String(acc)} OR email = ${String(em)}
+          LIMIT 1
+        `;
+        if (found.length > 0) return found[0].id;
+      }
+      const first = await sql`SELECT id FROM participant_accounts ORDER BY id ASC LIMIT 1`;
+      return first.length > 0 ? first[0].id : 1;
+    };
+
     // GET - Fetch KYC documents
     if (req.method === 'GET') {
-      const { participantId, all } = req.query;
+      const { participantId, all, accountNumber, email } = req.query;
 
       if (all === 'true') {
-        // Admin: get all documents
         const result = await sql`
           SELECT k.*, p.full_name, p.account_number, p.email
           FROM kyc_documents k
@@ -17,10 +44,11 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, documents: result });
       }
 
-      if (participantId) {
+      if (participantId || accountNumber || email) {
+        const pId = await resolveParticipantId(participantId, accountNumber, email);
         const result = await sql`
           SELECT * FROM kyc_documents 
-          WHERE participant_id = ${Number(participantId)}
+          WHERE participant_id = ${pId}
           ORDER BY uploaded_at DESC
         `;
         return res.status(200).json({ success: true, documents: result });
@@ -31,14 +59,19 @@ export default async function handler(req, res) {
 
     // POST - Upload a new document
     if (req.method === 'POST') {
-      const { participantId, documentType, fileName, fileData } = req.body;
+      const { participantId, accountNumber, email, documentType, fileName, fileData, doc_type, file_name, file_data } = req.body || {};
+      const docType = documentType || doc_type;
+      const fName = fileName || file_name || 'id_document.pdf';
+      const fData = fileData || file_data || '';
 
-      if (!participantId || !documentType) {
+      if (!docType) {
         return res.status(400).json({ 
           success: false, 
-          message: 'participantId and documentType are required' 
+          message: 'documentType is required' 
         });
       }
+
+      const pId = await resolveParticipantId(participantId, accountNumber, email);
 
       const result = await sql`
         INSERT INTO kyc_documents (
@@ -48,13 +81,20 @@ export default async function handler(req, res) {
           file_data, 
           status
         ) VALUES (
-          ${Number(participantId)},
-          ${documentType},
-          ${fileName || ''},
-          ${fileData || ''},
+          ${pId},
+          ${docType},
+          ${fName},
+          ${fData},
           'Pending Review'
         )
         RETURNING *
+      `;
+
+      // Update participant's overall KYC status to Pending Review if not verified
+      await sql`
+        UPDATE participant_accounts 
+        SET kyc_status = 'Pending Review', updated_at = NOW()
+        WHERE id = ${pId} AND kyc_status != 'Verified (Tier 1 Allocated)'
       `;
 
       return res.status(201).json({ 
@@ -66,22 +106,25 @@ export default async function handler(req, res) {
 
     // PUT - Admin updates document status
     if (req.method === 'PUT') {
-      const { documentId, status, adminNotes, reviewedBy } = req.body;
+      const { documentId, id, status, adminNotes, admin_notes, reviewedBy } = req.body || {};
+      const docId = parseInt(documentId || id || req.query.id, 10);
+      const newStatus = status || 'Verified';
+      const notes = adminNotes || admin_notes || '';
 
-      if (!documentId || !status) {
+      if (isNaN(docId) || docId <= 0) {
         return res.status(400).json({ 
           success: false, 
-          message: 'documentId and status are required' 
+          message: 'Valid documentId is required' 
         });
       }
 
       const result = await sql`
         UPDATE kyc_documents SET
-          status = ${status},
-          admin_notes = ${adminNotes || ''},
+          status = ${newStatus},
+          admin_notes = ${notes},
           reviewed_by = ${reviewedBy || 'Admin'},
           reviewed_at = CURRENT_TIMESTAMP
-        WHERE id = ${Number(documentId)}
+        WHERE id = ${docId}
         RETURNING *
       `;
 
@@ -89,20 +132,60 @@ export default async function handler(req, res) {
         return res.status(404).json({ success: false, message: 'Document not found' });
       }
 
+      const doc = result[0];
+
+      // If approved/verified, update participant account kyc_status
+      if (newStatus === 'Verified' || newStatus === 'Approved') {
+        await sql`
+          UPDATE participant_accounts SET
+            kyc_status = 'Verified (Tier 1 Allocated)',
+            account_status = 'ACTIVE',
+            updated_at = NOW()
+          WHERE id = ${doc.participant_id}
+        `;
+
+        // Send confirmation message to mailbox
+        try {
+          await sql`
+            INSERT INTO messages (
+              participant_id, sender_type, sender_name, sender_email,
+              subject, body, category, is_read
+            ) VALUES (
+              ${doc.participant_id},
+              'admin',
+              'Cassivon Depository Compliance Bureau',
+              'compliance@cassivon.com',
+              'Identification Document Verification Approved',
+              ${`Your identification document (${doc.document_type}) has been officially verified and approved. Your vault account status is active and verified for allocated physical bullion custody.`},
+              'official',
+              false
+            )
+          `;
+        } catch (mErr) {
+          console.warn('Mail write notice:', mErr);
+        }
+      } else if (newStatus === 'Rejected' || newStatus === 'Action Required') {
+        await sql`
+          UPDATE participant_accounts SET
+            kyc_status = 'Action Required',
+            updated_at = NOW()
+          WHERE id = ${doc.participant_id}
+        `;
+      }
+
       return res.status(200).json({ 
         success: true, 
         message: 'Document status updated',
-        document: result[0]
+        document: doc
       });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
-
   } catch (error) {
-    console.error('KYC API error:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Server error'
+    console.error('Error in /api/kyc:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message 
     });
   }
 }

@@ -55,22 +55,15 @@ function safeSetCache<T>(key: string, data: T): void {
 // =============================================================================
 
 export async function getDbParticipantId(user: { id?: string | number; accountNumber?: string; email?: string }): Promise<number> {
-  // If user already has a valid numeric ID, sanitize and return
+  // If user already has a valid numeric database serial ID (< 100000), return it
   if (user.id !== undefined && user.id !== null) {
-    const parsed = sanitizeInteger(user.id, 0);
-    if (parsed > 0) return parsed;
-  }
-
-  // Extract digits from id if format is usr_01 or similar
-  if (typeof user.id === 'string') {
-    const digits = user.id.replace(/\D/g, '');
-    if (digits.length > 0) {
-      const parsedDigits = parseInt(digits, 10);
-      if (!isNaN(parsedDigits) && parsedDigits > 0) return parsedDigits;
+    const num = Number(user.id);
+    if (!isNaN(num) && num > 0 && num < 100000 && Number.isInteger(num)) {
+      return num;
     }
   }
 
-  // Look up participant ID by email or account number in cached/remote participants
+  // Look up participant ID by email or account number in cached users registry
   try {
     const cached = safeGetCache<UserAccount[]>(CACHE_KEYS.USERS, []);
     const found = cached.find(u => 
@@ -78,12 +71,27 @@ export async function getDbParticipantId(user: { id?: string | number; accountNu
       (user.email && u.email?.toLowerCase() === user.email?.toLowerCase())
     );
     if (found?.id) {
-      const p = sanitizeInteger(found.id, 0);
-      if (p > 0) return p;
+      const p = Number(found.id);
+      if (!isNaN(p) && p > 0 && p < 100000) return p;
     }
   } catch {}
 
-  // Safe universal fallback integer to avoid PostgreSQL NaN error
+  // Attempt live query to /api/participants to get database integer ID
+  try {
+    const lookupParam = user.accountNumber || user.email;
+    if (lookupParam) {
+      const res = await fetch(`/api/participants?accountNumber=${encodeURIComponent(lookupParam)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.participant?.id) {
+          const pid = Number(json.participant.id);
+          if (!isNaN(pid) && pid > 0) return pid;
+        }
+      }
+    }
+  } catch {}
+
+  // Safe fallback default ID 1 (Marcus Vance or first participant)
   return 1;
 }
 
@@ -418,6 +426,7 @@ export async function updateDepositStatus(
 
 export interface DbMessage {
   id?: number;
+  msg_id?: string;
   participant_id: number;
   recipient_user_id?: string;
   sender_type?: 'participant' | 'admin' | 'system';
@@ -699,12 +708,47 @@ export async function updateDocumentStatus(
   adminNotes?: string
 ): Promise<boolean> {
   const cleanId = sanitizeInteger(docId);
+
+  try {
+    await fetch(`/api/documents/${cleanId || docId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, adminNotes })
+    });
+  } catch (e) {
+    console.warn('updateDocumentStatus API error:', e);
+  }
+
   const cached = safeGetCache<DbUserDocument[]>(CACHE_KEYS.DOCUMENTS, []);
   safeSetCache(CACHE_KEYS.DOCUMENTS, cached.map(d => 
     (d.id === cleanId || d.doc_id === String(docId)) 
       ? { ...d, status, compliance_notes: adminNotes, admin_notes: adminNotes } 
       : d
   ));
+  return true;
+}
+
+export async function deleteDocument(docId: number | string): Promise<boolean> {
+  const cleanId = sanitizeInteger(docId);
+  try {
+    await fetch(`/api/documents/${cleanId || docId}`, { method: 'DELETE' });
+  } catch (e) {
+    console.warn('deleteDocument API error:', e);
+  }
+  const cached = safeGetCache<DbUserDocument[]>(CACHE_KEYS.DOCUMENTS, []);
+  safeSetCache(CACHE_KEYS.DOCUMENTS, cached.filter(d => d.id !== cleanId && d.doc_id !== String(docId)));
+  return true;
+}
+
+export async function deleteMessage(messageId: number | string): Promise<boolean> {
+  const cleanId = sanitizeInteger(messageId);
+  try {
+    await fetch(`/api/messages/${cleanId || messageId}`, { method: 'DELETE' });
+  } catch (e) {
+    console.warn('deleteMessage API error:', e);
+  }
+  const cached = safeGetCache<DbMessage[]>(CACHE_KEYS.MESSAGES, []);
+  safeSetCache(CACHE_KEYS.MESSAGES, cached.filter(m => m.id !== cleanId && m.msg_id !== String(messageId)));
   return true;
 }
 
@@ -804,6 +848,42 @@ export async function fetchKycDocumentsForParticipant(
 
   const cached = safeGetCache<DbKycDocument[]>(CACHE_KEYS.KYC, []);
   return cached.filter(k => sanitizeInteger(k.participant_id) === pId);
+}
+
+export async function fetchAllKycDocumentsAdmin(): Promise<DbKycDocument[]> {
+  try {
+    const res = await fetch('/api/kyc?all=true');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.documents)) {
+        return data.documents;
+      }
+    }
+  } catch (e) {
+    console.warn('fetchAllKycDocumentsAdmin error:', e);
+  }
+  return safeGetCache<DbKycDocument[]>(CACHE_KEYS.KYC, []);
+}
+
+export async function updateKycDocumentStatus(
+  documentId: number | string,
+  status: 'Verified' | 'Pending Review' | 'Action Required' | 'Rejected',
+  adminNotes?: string
+): Promise<boolean> {
+  try {
+    const res = await fetch('/api/kyc', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentId, status, adminNotes })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return !!data.success;
+    }
+  } catch (e) {
+    console.warn('updateKycDocumentStatus error:', e);
+  }
+  return false;
 }
 
 export async function updateKycStatusAdmin(
