@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         fullName, 
         email, 
         password, 
-        accountType = 'VBSP Standard Account (Taxable Reserve)',
+        accountType = 'CCSP Standard Account (Taxable Reserve)',
         totalBalance = 0,
         thriftlinePin
       } = req.body;

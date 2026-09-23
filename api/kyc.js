@@ -10,24 +10,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Helper to resolve participant integer ID
+    // Helper to resolve participant integer ID strictly
     const resolveParticipantId = async (input, userAcc, userEmail) => {
       let pId = parseInt(String(input), 10);
-      if (!isNaN(pId) && pId > 0 && pId < 100000) {
-        return pId;
+      if (!isNaN(pId) && pId > 0 && pId < 10000000) {
+        const found = await sql`SELECT id FROM participant_accounts WHERE id = ${pId} LIMIT 1`;
+        if (found.length > 0) return found[0].id;
       }
-      const acc = userAcc || input;
-      const em = userEmail || input;
+      const acc = userAcc || (typeof input === 'string' && input.startsWith('CC') ? input : null);
+      const em = userEmail || (typeof input === 'string' && input.includes('@') ? input : null);
       if (acc || em) {
         const found = await sql`
           SELECT id FROM participant_accounts 
-          WHERE account_number = ${String(acc)} OR email = ${String(em)}
+          WHERE account_number = ${String(acc || '')} OR LOWER(email) = ${String(em || '').toLowerCase()}
           LIMIT 1
         `;
         if (found.length > 0) return found[0].id;
       }
-      const first = await sql`SELECT id FROM participant_accounts ORDER BY id ASC LIMIT 1`;
-      return first.length > 0 ? first[0].id : 1;
+      return 0;
     };
 
     // GET - Fetch KYC documents
@@ -46,6 +46,9 @@ export default async function handler(req, res) {
 
       if (participantId || accountNumber || email) {
         const pId = await resolveParticipantId(participantId, accountNumber, email);
+        if (pId <= 0) {
+          return res.status(200).json({ success: true, documents: [] });
+        }
         const result = await sql`
           SELECT * FROM kyc_documents 
           WHERE participant_id = ${pId}
@@ -72,6 +75,12 @@ export default async function handler(req, res) {
       }
 
       const pId = await resolveParticipantId(participantId, accountNumber, email);
+      if (pId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Unable to identify participant account for KYC document upload'
+        });
+      }
 
       const result = await sql`
         INSERT INTO kyc_documents (

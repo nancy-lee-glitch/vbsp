@@ -14,15 +14,18 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const participantId = req.query.participantId || req.query.participant_id;
       const accountNumber = req.query.accountNumber || req.query.account_number;
+      const email = req.query.email || req.query.user_email;
 
       let withdrawals;
-      if (participantId || accountNumber) {
+      if (participantId || accountNumber || email) {
         let pId = parseInt(participantId, 10);
-        if (isNaN(pId) && (accountNumber || participantId)) {
-          const acc = accountNumber || participantId;
+        if ((isNaN(pId) || pId <= 0) && (accountNumber || email)) {
+          const acc = accountNumber || '';
+          const em = email || '';
           const found = await sql`
             SELECT id FROM participant_accounts 
-            WHERE account_number = ${String(acc)} OR email = ${String(acc)} 
+            WHERE (account_number = ${String(acc)} AND ${acc} != '')
+               OR (LOWER(email) = ${String(em).toLowerCase()} AND ${em} != '')
             LIMIT 1
           `;
           if (found.length > 0) pId = found[0].id;
@@ -41,7 +44,7 @@ export default async function handler(req, res) {
             ORDER BY created_at DESC
           `;
         } else {
-          withdrawals = await sql`SELECT * FROM withdrawal_requests ORDER BY created_at DESC`;
+          withdrawals = [];
         }
       } else {
         withdrawals = await sql`SELECT * FROM withdrawal_requests ORDER BY created_at DESC`;
@@ -57,14 +60,15 @@ export default async function handler(req, res) {
       const amount = (isNaN(rawAmount) || !isFinite(rawAmount)) ? 0 : Math.max(0, rawAmount);
 
       let participantId = parseInt(b.participant_id || b.participantId, 10);
-      const userAcc = b.user_account_number || b.account_number || '';
+      const userAcc = b.user_account_number || b.account_number || b.accountNumber || '';
       const userEmail = b.user_email || b.email || '';
 
       if (isNaN(participantId) || participantId <= 0) {
         if (userAcc || userEmail) {
           const found = await sql`
             SELECT id FROM participant_accounts 
-            WHERE account_number = ${userAcc} OR email = ${userEmail} 
+            WHERE (account_number = ${userAcc} AND ${userAcc} != '')
+               OR (LOWER(email) = ${userEmail.toLowerCase()} AND ${userEmail} != '')
             LIMIT 1
           `;
           if (found.length > 0) participantId = found[0].id;
@@ -72,8 +76,10 @@ export default async function handler(req, res) {
       }
 
       if (isNaN(participantId) || participantId <= 0) {
-        const fallback = await sql`SELECT id FROM participant_accounts ORDER BY id ASC LIMIT 1`;
-        participantId = fallback.length > 0 ? fallback[0].id : 1;
+        return res.status(400).json({
+          success: false,
+          error: 'Unable to resolve participant account for withdrawal request.'
+        });
       }
 
       const reqNum = b.request_number || b.request_id || `WDL-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;

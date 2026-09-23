@@ -185,13 +185,14 @@ export default function App() {
 
   // Participant User Active Session State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    const saved = localStorage.getItem('ccsp_participant_session') || localStorage.getItem('vbsp_participant_session');
-    if (saved) {
-      try {
+    try {
+      localStorage.removeItem('vbsp_participant_session');
+      const saved = localStorage.getItem('ccsp_participant_session');
+      if (saved) {
         return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing stored user session', e);
       }
+    } catch (e) {
+      console.error('Error parsing stored user session', e);
     }
     return null;
   });

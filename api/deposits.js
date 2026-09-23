@@ -15,15 +15,18 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const participantId = req.query.participantId || req.query.participant_id || req.query.pId;
       const accountNumber = req.query.accountNumber || req.query.account_number;
+      const email = req.query.email || req.query.user_email;
 
       let deposits;
-      if (participantId || accountNumber) {
+      if (participantId || accountNumber || email) {
         let pId = parseInt(participantId, 10);
-        if (isNaN(pId) && (accountNumber || participantId)) {
-          const acc = accountNumber || participantId;
+        if ((isNaN(pId) || pId <= 0) && (accountNumber || email)) {
+          const acc = accountNumber || '';
+          const em = email || '';
           const found = await sql`
             SELECT id FROM participant_accounts 
-            WHERE account_number = ${String(acc)} OR email = ${String(acc)} 
+            WHERE (account_number = ${String(acc)} AND ${acc} != '')
+               OR (LOWER(email) = ${String(em).toLowerCase()} AND ${em} != '')
             LIMIT 1
           `;
           if (found.length > 0) {
@@ -44,7 +47,7 @@ export default async function handler(req, res) {
             ORDER BY created_at DESC
           `;
         } else {
-          deposits = await sql`SELECT * FROM deposits ORDER BY created_at DESC`;
+          deposits = [];
         }
       } else {
         deposits = await sql`SELECT * FROM deposits ORDER BY created_at DESC`;
@@ -65,14 +68,15 @@ export default async function handler(req, res) {
 
       // Resolve participant integer ID safely without NaN
       let participantId = parseInt(body.participant_id || body.participantId, 10);
-      const userAcc = body.user_account_number || body.account_number || '';
+      const userAcc = body.user_account_number || body.account_number || body.accountNumber || '';
       const userEmail = body.user_email || body.email || '';
 
       if (isNaN(participantId) || participantId <= 0) {
         if (userAcc || userEmail) {
           const found = await sql`
             SELECT id, full_name, account_number FROM participant_accounts 
-            WHERE account_number = ${userAcc} OR email = ${userEmail} 
+            WHERE (account_number = ${userAcc} AND ${userAcc} != '')
+               OR (LOWER(email) = ${userEmail.toLowerCase()} AND ${userEmail} != '')
             LIMIT 1
           `;
           if (found.length > 0) {
@@ -81,14 +85,11 @@ export default async function handler(req, res) {
         }
       }
 
-      // If still not found, pick the first existing participant to preserve FK integrity
       if (isNaN(participantId) || participantId <= 0) {
-        const fallback = await sql`SELECT id FROM participant_accounts ORDER BY id ASC LIMIT 1`;
-        if (fallback.length > 0) {
-          participantId = fallback[0].id;
-        } else {
-          participantId = 1;
-        }
+        return res.status(400).json({
+          success: false,
+          error: 'Unable to resolve participant account for deposit submission.'
+        });
       }
 
       const refId = body.reference_id || body.tx_id || `DEP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;

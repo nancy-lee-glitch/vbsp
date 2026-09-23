@@ -326,16 +326,22 @@ app.post('/api/auth/login', async (req, res) => {
               });
             }
 
-            // Optional PIN validation if provided
-            if (pin && pin.trim().length > 0) {
-              const p = pin.trim();
-              const isPinValid = p === userRow.thriftline_pin || ['884411', '109238', '552177', '829415', '984210', '608688', '489299', '340282', '209990'].includes(p);
-              if (!isPinValid) {
-                return res.status(401).json({
-                  success: false,
-                  message: 'Invalid 6-digit ThriftLine security PIN.'
-                });
-              }
+            // ThriftLine PIN verification: Compare with exact PIN stored in database
+            const enteredPin = (pin || '').trim();
+            const storedPin = String(userRow.thriftline_pin || '').trim();
+
+            if (!enteredPin) {
+              return res.status(400).json({
+                success: false,
+                message: '6-digit ThriftLine PIN is required.'
+              });
+            }
+
+            if (enteredPin !== storedPin) {
+              return res.status(401).json({
+                success: false,
+                message: 'Incorrect ThriftLine PIN. Please enter the 6-digit PIN chosen during account opening.'
+              });
             }
 
             const mapped = mapDbParticipantToUser(userRow);
@@ -344,33 +350,24 @@ app.post('/api/auth/login', async (req, res) => {
               message: 'Login successful',
               user: mapped
             });
+          } else {
+            return res.status(401).json({
+              success: false,
+              message: 'Account not found. Please check your credentials or open a new account.'
+            });
           }
         } finally {
           client.release();
         }
       } catch (dbErr) {
-        console.warn('Database query fallback on login:', dbErr);
+        console.warn('Database query error on login:', dbErr);
+        return res.status(500).json({ success: false, message: 'Authentication service temporarily unavailable. Please retry.' });
       }
     }
 
-    // Fallback autonomous authentication
-    return res.status(200).json({
-      success: true,
-      message: 'Login authenticated',
-      user: {
-        id: `usr_${Date.now()}`,
-        account_number: identifier.startsWith('CCSP-') ? identifier : (identifier.startsWith('VBSP-') ? identifier.replace('VBSP-', 'CCSP-') : `CCSP-2026-${Math.floor(1000 + Math.random() * 9000)}-12`),
-        email: identifier.includes('@') ? identifier : 'participant@cassivon.com',
-        full_name: 'Allocated Vault Participant',
-        account_type: 'CCSP Sovereign Custody (Self-Directed / IRA)',
-        total_balance: 0.00,
-        traditional_balance: 0.00,
-        roth_balance: 0.00,
-        gold_ounces_equivalent: 0.00,
-        silver_ounces_equivalent: 0.00,
-        account_status: 'Active',
-        thriftline_pin: pin || '829415'
-      }
+    return res.status(401).json({
+      success: false,
+      message: 'Account not found. Please register or verify your credentials.'
     });
 
   } catch (error: any) {
@@ -388,6 +385,7 @@ app.post('/api/auth/register', async (req, res) => {
       accountType = 'CCSP Standard Account (Taxable Reserve)',
       accountNumber,
       pin,
+      thriftlinePin,
       phone,
       address,
       employingAgency,
@@ -404,7 +402,10 @@ app.post('/api/auth/register', async (req, res) => {
     const randomNumber1 = Math.floor(1000 + Math.random() * 9000);
     const randomNumber2 = Math.floor(1000 + Math.random() * 9000);
     const targetAccountNum = accountNumber || `CCSP-${randomNumber1}-${randomNumber2}-${Math.floor(10 + Math.random() * 90)}`;
-    const targetPin = pin || String(Math.floor(100000 + Math.random() * 900000));
+    const rawPin = pin || thriftlinePin;
+    const targetPin = (rawPin && String(rawPin).trim().length > 0)
+      ? String(rawPin).trim()
+      : String(Math.floor(100000 + Math.random() * 900000));
     const targetSsn = (ssnLast4 || '4412').slice(-4);
     const targetAgency = employingAgency || 'Department of Defense (DoD)';
     const targetPhone = phone || '(202) 555-0149';
@@ -1460,9 +1461,42 @@ app.get('/api/documents', async (req, res) => {
   const pool = getDbPool();
   if (!pool) return res.json({ success: false, documents: [] });
 
+  const { participantId, participant_id, accountNumber, account_number, email } = req.query;
+  const rawId = participantId || participant_id;
+  const acc = accountNumber || account_number;
+
   try {
     const client = await pool.connect();
     try {
+      if (rawId || acc || email) {
+        let cleanId = rawId ? sanitizeInt(rawId, -1) : -1;
+        if (cleanId === -1 && (acc || email)) {
+          const found = await client.query(
+            `SELECT id FROM participant_accounts 
+             WHERE (account_number = $1 AND $1 != '') OR (LOWER(email) = LOWER($2) AND $2 != '')
+             LIMIT 1`,
+            [String(acc || ''), String(email || '')]
+          );
+          if (found.rows.length > 0) cleanId = found.rows[0].id;
+        }
+
+        if (cleanId > 0) {
+          const result = await client.query(
+            'SELECT * FROM user_documents WHERE participant_id = $1 ORDER BY id DESC',
+            [cleanId]
+          );
+          return res.json({ success: true, documents: result.rows });
+        } else if (acc) {
+          const result = await client.query(
+            'SELECT * FROM user_documents WHERE user_account_number = $1 ORDER BY id DESC',
+            [String(acc)]
+          );
+          return res.json({ success: true, documents: result.rows });
+        } else {
+          return res.json({ success: true, documents: [] });
+        }
+      }
+
       const result = await client.query('SELECT * FROM user_documents ORDER BY id DESC');
       res.json({ success: true, documents: result.rows });
     } finally {
@@ -1478,9 +1512,27 @@ app.post('/api/documents', async (req, res) => {
   if (!pool) return res.status(503).json({ success: false });
 
   const doc = req.body;
+  let pId = doc.participant_id || doc.participantId ? sanitizeInt(doc.participant_id || doc.participantId, -1) : -1;
+  const acc = doc.user_account_number || doc.account_number || doc.accountNumber || '';
+  const em = doc.user_email || doc.email || '';
+
   try {
     const client = await pool.connect();
     try {
+      if (pId <= 0 && (acc || em)) {
+        const found = await client.query(
+          `SELECT id FROM participant_accounts 
+           WHERE (account_number = $1 AND $1 != '') OR (LOWER(email) = LOWER($2) AND $2 != '')
+           LIMIT 1`,
+          [acc, em]
+        );
+        if (found.rows.length > 0) pId = found.rows[0].id;
+      }
+
+      if (pId <= 0) {
+        return res.status(400).json({ success: false, message: 'Unable to resolve participant account for document upload.' });
+      }
+
       const result = await client.query(
         `INSERT INTO user_documents (
           doc_id, participant_id, user_account_number, user_name, document_title,
@@ -1489,15 +1541,15 @@ app.post('/api/documents', async (req, res) => {
         RETURNING *`,
         [
           doc.doc_id || `DOC-${Date.now()}`,
-          doc.participant_id || 1,
-          doc.user_account_number || '',
+          pId,
+          acc,
           doc.user_name || '',
-          doc.document_title || 'Identity Document',
-          doc.document_type || 'Identification',
-          doc.file_name || '',
-          doc.file_url || '',
+          doc.document_title || doc.title || 'Identity Document',
+          doc.document_type || doc.category || 'Identification',
+          doc.file_name || 'document.pdf',
+          doc.file_url || doc.file_data || '',
           doc.file_size || '1.2 MB',
-          doc.status || 'Verified',
+          doc.status || 'Pending',
           doc.compliance_notes || ''
         ]
       );
@@ -1831,8 +1883,9 @@ app.delete('/api/beneficiaries/:id', async (req, res) => {
 app.get('/api/kyc', async (req, res) => {
   const pool = getDbPool();
   if (!pool) return res.status(503).json({ success: false, message: 'Database not available' });
-  const { participantId, participant_id, all } = req.query;
+  const { participantId, participant_id, accountNumber, account_number, email, all } = req.query;
   const rawId = participantId || participant_id;
+  const acc = accountNumber || account_number;
 
   try {
     const client = await pool.connect();
@@ -1847,8 +1900,18 @@ app.get('/api/kyc', async (req, res) => {
         return res.json({ success: true, documents: result.rows });
       }
       
-      const cleanParticipantId = rawId ? sanitizeInt(rawId, -1) : -1;
-      if (cleanParticipantId !== -1) {
+      let cleanParticipantId = rawId ? sanitizeInt(rawId, -1) : -1;
+      if (cleanParticipantId <= 0 && (acc || email)) {
+        const found = await client.query(
+          `SELECT id FROM participant_accounts 
+           WHERE (account_number = $1 AND $1 != '') OR (LOWER(email) = LOWER($2) AND $2 != '')
+           LIMIT 1`,
+          [String(acc || ''), String(email || '')]
+        );
+        if (found.rows.length > 0) cleanParticipantId = found.rows[0].id;
+      }
+
+      if (cleanParticipantId > 0) {
         const result = await client.query(`
           SELECT * FROM kyc_documents 
           WHERE participant_id = $1
@@ -1857,14 +1920,7 @@ app.get('/api/kyc', async (req, res) => {
         return res.json({ success: true, documents: result.rows });
       }
 
-      // If no valid participantId and all not true, return all for safety
-      const result = await client.query(`
-        SELECT k.*, p.full_name, p.account_number, p.email
-        FROM kyc_documents k
-        LEFT JOIN participant_accounts p ON k.participant_id = p.id
-        ORDER BY k.id DESC
-      `);
-      return res.json({ success: true, documents: result.rows });
+      return res.json({ success: true, documents: [] });
     } finally {
       client.release();
     }
@@ -1876,22 +1932,37 @@ app.get('/api/kyc', async (req, res) => {
 app.post('/api/kyc', async (req, res) => {
   const pool = getDbPool();
   if (!pool) return res.status(503).json({ success: false, message: 'Database not available' });
-  const { participantId, participant_id, documentType, doc_type, fileName, file_name, fileData, file_data } = req.body;
+  const { participantId, participant_id, accountNumber, account_number, email, documentType, doc_type, fileName, file_name, fileData, file_data } = req.body;
 
   const rawId = participantId || participant_id;
+  const acc = accountNumber || account_number || '';
+  const em = email || '';
   const docType = documentType || doc_type;
   const fName = fileName || file_name || 'id_document.pdf';
   const fData = fileData || file_data || '';
 
-  if (!rawId || !docType) {
-    return res.status(400).json({ success: false, message: 'participantId and documentType are required' });
+  if (!docType) {
+    return res.status(400).json({ success: false, message: 'documentType is required' });
   }
-
-  const cleanParticipantId = sanitizeInt(rawId, 1);
 
   try {
     const client = await pool.connect();
     try {
+      let cleanParticipantId = rawId ? sanitizeInt(rawId, -1) : -1;
+      if (cleanParticipantId <= 0 && (acc || em)) {
+        const found = await client.query(
+          `SELECT id FROM participant_accounts 
+           WHERE (account_number = $1 AND $1 != '') OR (LOWER(email) = LOWER($2) AND $2 != '')
+           LIMIT 1`,
+          [acc, em]
+        );
+        if (found.rows.length > 0) cleanParticipantId = found.rows[0].id;
+      }
+
+      if (cleanParticipantId <= 0) {
+        return res.status(400).json({ success: false, message: 'Unable to resolve participant account for KYC document upload.' });
+      }
+
       const result = await client.query(`
         INSERT INTO kyc_documents (
           participant_id, document_type, file_name, file_data, status, updated_at

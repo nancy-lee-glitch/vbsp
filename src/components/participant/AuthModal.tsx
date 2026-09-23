@@ -45,7 +45,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const siteName = branding?.siteName || 'Cassivon Capital Savings Plan';
   
   // Selected user for login
-  const [selectedUserToLogin, setSelectedUserToLogin] = useState<UserAccount>(users[0] || INITIAL_USER);
+  const [selectedUserToLogin, setSelectedUserToLogin] = useState<UserAccount | null>(null);
 
   // Login form state
   const [accountNumber, setAccountNumber] = useState('');
@@ -145,34 +145,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const data = await response.json();
 
       if (data.success && data.user) {
+        const u = data.user;
         const loggedInUser: UserAccount = {
-          id: String(data.user.id),
-          name: data.user.full_name || 'Allocated Vault Participant',
-          email: data.user.email || 'participant@cassivon.com',
-          accountNumber: data.user.account_number || accountNumber.trim(),
-          thriftlinePin: data.user.thriftline_pin || thriftlinePin || '829415',
-          phone: '(202) 555-0149',
-          address: '400 7th St SW, Washington, DC 20024',
-          employingAgency: 'Federal Reserve / Depository Custody',
-          planType: data.user.account_type || 'CCSP Sovereign Custody (Self-Directed / IRA)',
-          hireDate: '2020-03-15',
-          totalBalance: Number(data.user.total_balance || 0),
-          traditionalBalance: Number(data.user.traditional_balance || 0),
-          rothBalance: Number(data.user.roth_balance || 0),
-          ytdReturn: 18.4,
-          vaultDepositaryLocation: 'Zurich FreePort / Delaware Depository Segregated Vault',
-          goldOuncesEquivalent: Number(data.user.gold_ounces_equivalent || 0),
-          silverOuncesEquivalent: Number(data.user.silver_ounces_equivalent || 0),
-          ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
-          contributionAllocations: { 'G': 60, 'S': 40 },
+          id: String(u.id),
+          name: u.full_name || u.name || 'Allocated Vault Participant',
+          email: u.email || 'participant@cassivon.com',
+          accountNumber: u.account_number || u.accountNumber || accountNumber.trim(),
+          thriftlinePin: u.thriftline_pin || u.thriftlinePin || thriftlinePin.trim(),
+          phone: u.phone || '(202) 555-0149',
+          address: u.address || '400 7th St SW, Washington, DC 20024',
+          employingAgency: u.employing_agency || u.employingAgency || 'Department of Defense (DoD)',
+          planType: u.account_type || u.accountType || 'CCSP Sovereign Custody (Self-Directed / IRA)',
+          hireDate: u.hire_date || u.hireDate || '2020-03-15',
+          totalBalance: Number(u.total_balance ?? u.totalBalance ?? 0),
+          traditionalBalance: Number(u.traditional_balance ?? u.traditionalBalance ?? 0),
+          rothBalance: Number(u.roth_balance ?? u.rothBalance ?? 0),
+          ytdReturn: Number(u.ytd_return ?? u.ytdReturn ?? 18.4),
+          vaultDepositaryLocation: u.vault_facility || u.vaultDepositaryLocation || 'Zurich FreePort / Delaware Depository Segregated Vault',
+          goldOuncesEquivalent: Number(u.gold_ounces_equivalent ?? u.goldOuncesEquivalent ?? 0),
+          silverOuncesEquivalent: Number(u.silver_ounces_equivalent ?? u.silverOuncesEquivalent ?? 0),
+          ytdContributions: u.ytdContributions || { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
+          contributionAllocations: u.contributionAllocations || { 'G': 60, 'S': 40 },
           currentHoldings: [],
           beneficiaries: [],
           activeLoans: [],
           transactions: [],
           kycProfile: {
-            overallStatus: 'Verified (Tier 1 Allocated)',
+            overallStatus: u.kyc_status || u.kycStatus || 'Pending Review',
             riskTier: 'Tier 1 Individual',
-            ssnMasked: '***-**-4412',
+            ssnMasked: u.ssn_last4 ? `***-**-${u.ssn_last4}` : (u.ssnLast4 ? `***-**-${u.ssnLast4}` : '***-**-4412'),
             additionalDocuments: []
           }
         };
@@ -180,17 +181,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setSelectedUserToLogin(loggedInUser);
         setAuthStep('mfa');
       } else {
-        setErrorMessage(data.message || 'Login failed. Please check your credentials.');
+        setErrorMessage(data.message || 'Login failed. Please verify your account credentials.');
       }
     } catch (error) {
-      // Offline / network fallback
-      const foundMock = users.find(u => 
-        u.accountNumber.toLowerCase() === accountNumber.trim().toLowerCase() ||
-        u.email.toLowerCase() === accountNumber.trim().toLowerCase()
-      ) || users[0] || INITIAL_USER;
-
-      setSelectedUserToLogin(foundMock);
-      setAuthStep('mfa');
+      console.error('Login error:', error);
+      setErrorMessage('Unable to connect to authentication server. Please check your credentials and internet connection.');
     }
   };
 
@@ -203,7 +198,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // Success
+    if (!selectedUserToLogin) {
+      setMfaError('No authenticated user session found. Please sign in again.');
+      setAuthStep('login');
+      return;
+    }
+
+    // Success - strictly pass authenticated user
     onLoginSuccess(selectedUserToLogin);
     onClose();
   };
@@ -277,47 +278,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             additionalDocuments: []
           }
         };
+        setIsRegistering(false);
+        setCreatedUser(createdUserAccount);
+        setOnboardStep(3);
       } else {
-        throw new Error(data.message || 'Registration error');
+        setIsRegistering(false);
+        setErrorMessage(data.message || 'Registration failed. Please check your information and try again.');
       }
     } catch (error) {
-      // Local fallback account provisioning
-      createdUserAccount = {
-        id: `usr_${Date.now()}`,
-        name: onboardName.trim(),
-        email: onboardEmail.trim(),
-        accountNumber: generatedAccountNum,
-        thriftlinePin: generatedPin,
-        phone: onboardPhone || '(202) 555-0149',
-        address: '400 7th St SW, Washington, DC 20024',
-        employingAgency: onboardAgency || 'Department of Defense (DoD)',
-        planType: onboardPlanType,
-        hireDate: new Date().toISOString().split('T')[0],
-        totalBalance: 0,
-        traditionalBalance: 0,
-        rothBalance: 0,
-        ytdReturn: 0,
-        vaultDepositaryLocation: 'Zurich FreePort & Delaware Depository Segregated Vault',
-        goldOuncesEquivalent: 0,
-        silverOuncesEquivalent: 0,
-        ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
-        contributionAllocations: { 'G': 50, 'S': 50 },
-        currentHoldings: [],
-        beneficiaries: [],
-        activeLoans: [],
-        transactions: [],
-        kycProfile: {
-          overallStatus: 'Pending Review',
-          riskTier: 'Tier 1 Individual',
-          ssnMasked: onboardSsn ? `***-**-${onboardSsn.slice(-4)}` : 'Unverified - Requires Submission',
-          additionalDocuments: []
-        }
-      };
+      console.error('Registration network error:', error);
+      setIsRegistering(false);
+      setErrorMessage('Unable to register account. Please check your network connection and try again.');
     }
-
-    setIsRegistering(false);
-    setCreatedUser(createdUserAccount);
-    setOnboardStep(3);
   };
 
   const handleFinishRegistration = () => {

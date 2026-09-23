@@ -91,8 +91,8 @@ export async function getDbParticipantId(user: { id?: string | number; accountNu
     }
   } catch {}
 
-  // Safe fallback default ID 1 (Marcus Vance or first participant)
-  return 1;
+  // Never fall back to participant 1 or mock user - return 0 if participant cannot be resolved
+  return 0;
 }
 
 export async function fetchAllParticipants(): Promise<UserAccount[]> {
@@ -300,16 +300,20 @@ export async function submitDepositProof(
   const txId = depositData.txId || depositData.tx_id || `DEP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   const sanitizedAmount = sanitizeNumeric(rawAmount, 0.0);
-  const sanitizedParticipantId = sanitizeInteger(pId, 1);
+  const sanitizedParticipantId = pId > 0 ? pId : (user.id && !isNaN(Number(user.id)) ? Number(user.id) : 0);
 
   const payload = {
     reference_id: txId,
     tx_id: txId,
     participant_id: sanitizedParticipantId,
-    user_account_number: user.accountNumber || 'CCSP-0089-4412-98',
-    account_number: user.accountNumber || 'CCSP-0089-4412-98',
+    participantId: sanitizedParticipantId,
+    user_account_number: user.accountNumber || '',
+    account_number: user.accountNumber || '',
+    accountNumber: user.accountNumber || '',
     user_name: user.name || 'Allocated Vault Participant',
     participant_name: user.name || 'Allocated Vault Participant',
+    user_email: user.email || '',
+    email: user.email || '',
     amount: sanitizedAmount,
     target_fund_code: depositData.fundCode || depositData.fund_code || 'G',
     fund_code: depositData.fundCode || depositData.fund_code || 'G',
@@ -354,16 +358,23 @@ export async function submitDepositProof(
   return { success: true, txId, deposit: localRecord };
 }
 
-export async function fetchDeposits(participantId?: number | string): Promise<DepositProofRecord[]> {
+export async function fetchDeposits(participantId?: number | string, accountNumber?: string): Promise<DepositProofRecord[]> {
   try {
-    const res = await fetch('/api/deposits');
+    const query = new URLSearchParams();
+    if (participantId && sanitizeInteger(participantId) > 0) query.append('participantId', String(sanitizeInteger(participantId)));
+    if (accountNumber) query.append('accountNumber', accountNumber);
+
+    const res = await fetch(`/api/deposits?${query.toString()}`);
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.deposits)) {
         safeSetCache(CACHE_KEYS.DEPOSITS, json.deposits);
-        if (participantId) {
+        if (participantId || accountNumber) {
           const cleanId = sanitizeInteger(participantId);
-          return json.deposits.filter((d: any) => sanitizeInteger(d.participant_id) === cleanId);
+          return json.deposits.filter((d: any) => 
+            (cleanId > 0 && sanitizeInteger(d.participant_id) === cleanId) ||
+            (accountNumber && (d.user_account_number === accountNumber || d.account_number === accountNumber))
+          );
         }
         return json.deposits;
       }
@@ -373,9 +384,12 @@ export async function fetchDeposits(participantId?: number | string): Promise<De
   }
 
   const cached = safeGetCache<DepositProofRecord[]>(CACHE_KEYS.DEPOSITS, []);
-  if (participantId) {
+  if (participantId || accountNumber) {
     const cleanId = sanitizeInteger(participantId);
-    return cached.filter(d => sanitizeInteger(d.participant_id) === cleanId);
+    return cached.filter(d => 
+      (cleanId > 0 && sanitizeInteger(d.participant_id) === cleanId) ||
+      (accountNumber && (d.user_account_number === accountNumber || d.account_number === accountNumber))
+    );
   }
   return cached;
 }
@@ -510,16 +524,18 @@ export async function fetchMessagesForParticipant(
   user: { id?: string | number; accountNumber?: string; email?: string }
 ): Promise<DbMessage[]> {
   const pId = await getDbParticipantId(user);
+  const acc = user.accountNumber || '';
 
   try {
     const res = await fetch('/api/messages');
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.messages)) {
+        if (pId <= 0 && !acc) return [];
         const userMsgs = data.messages.filter((m: any) => 
-          sanitizeInteger(m.participant_id) === pId ||
-          m.recipient_user_id === String(pId) ||
-          m.recipient_user_id === user.accountNumber
+          (pId > 0 && sanitizeInteger(m.participant_id) === pId) ||
+          (pId > 0 && m.recipient_user_id === String(pId)) ||
+          (acc && m.recipient_user_id === acc)
         );
         return userMsgs;
       }
@@ -529,7 +545,8 @@ export async function fetchMessagesForParticipant(
   }
 
   const cached = safeGetCache<DbMessage[]>(CACHE_KEYS.MESSAGES, []);
-  return cached.filter(m => sanitizeInteger(m.participant_id) === pId);
+  if (pId <= 0 && !acc) return [];
+  return cached.filter(m => (pId > 0 && sanitizeInteger(m.participant_id) === pId));
 }
 
 export async function fetchAllMessagesAdmin(): Promise<DbMessage[]> {
@@ -622,7 +639,7 @@ export async function uploadUserDocument(
 
   const payload: DbUserDocument = {
     doc_id: docId,
-    participant_id: sanitizeInteger(pId, 1),
+    participant_id: pId > 0 ? pId : (user.id && !isNaN(Number(user.id)) ? Number(user.id) : 0),
     user_account_number: user.accountNumber || '',
     user_name: user.name || '',
     document_title: title,
@@ -644,7 +661,12 @@ export async function uploadUserDocument(
     const res = await fetch('/api/documents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...payload,
+        accountNumber: user.accountNumber,
+        email: user.email,
+        participantId: payload.participant_id
+      })
     });
     if (res.ok) {
       const data = await res.json();
@@ -668,13 +690,21 @@ export async function fetchUserDocuments(
   user: { id?: string | number; accountNumber?: string; email?: string }
 ): Promise<DbUserDocument[]> {
   const pId = await getDbParticipantId(user);
+  const acc = user.accountNumber || '';
 
   try {
-    const res = await fetch('/api/documents');
+    const query = new URLSearchParams();
+    if (pId > 0) query.append('participantId', String(pId));
+    if (acc) query.append('accountNumber', acc);
+
+    const res = await fetch(`/api/documents?${query.toString()}`);
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.documents)) {
-        return data.documents.filter((d: any) => sanitizeInteger(d.participant_id) === pId);
+        return data.documents.filter((d: any) => 
+          (pId > 0 && sanitizeInteger(d.participant_id) === pId) ||
+          (acc && d.user_account_number === acc)
+        );
       }
     }
   } catch (e) {
@@ -682,7 +712,10 @@ export async function fetchUserDocuments(
   }
 
   const cached = safeGetCache<DbUserDocument[]>(CACHE_KEYS.DOCUMENTS, []);
-  return cached.filter(d => sanitizeInteger(d.participant_id) === pId);
+  return cached.filter(d => 
+    (pId > 0 && sanitizeInteger(d.participant_id) === pId) ||
+    (acc && d.user_account_number === acc)
+  );
 }
 
 export async function fetchAllDocumentsAdmin(): Promise<DbUserDocument[]> {
@@ -789,9 +822,12 @@ export async function submitKycDocument(
   }
 ): Promise<boolean> {
   const pId = await getDbParticipantId(user);
+  const cleanPid = pId > 0 ? pId : (user.id && !isNaN(Number(user.id)) ? Number(user.id) : 0);
 
   const payload = {
-    participantId: sanitizeInteger(pId, 1),
+    participantId: cleanPid,
+    accountNumber: user.accountNumber || '',
+    email: user.email || '',
     documentType: kycDoc.doc_type || kycDoc.documentType || 'ssn_card',
     fileName: kycDoc.file_name || kycDoc.fileName || 'id_document.pdf',
     fileData: kycDoc.file_data || kycDoc.fileData || ''
@@ -818,7 +854,7 @@ export async function submitKycDocument(
   const cached = safeGetCache<DbKycDocument[]>(CACHE_KEYS.KYC, []);
   const localDoc: DbKycDocument = {
     id: Date.now(),
-    participant_id: sanitizeInteger(pId, 1),
+    participant_id: cleanPid,
     doc_type: payload.documentType,
     document_type: payload.documentType,
     file_name: payload.fileName,
@@ -833,9 +869,16 @@ export async function fetchKycDocumentsForParticipant(
   user: { id?: string | number; accountNumber?: string; email?: string }
 ): Promise<DbKycDocument[]> {
   const pId = await getDbParticipantId(user);
+  const acc = user.accountNumber || '';
+  const em = user.email || '';
 
   try {
-    const res = await fetch(`/api/kyc?participantId=${pId}`);
+    const query = new URLSearchParams();
+    if (pId > 0) query.append('participantId', String(pId));
+    if (acc) query.append('accountNumber', acc);
+    if (em) query.append('email', em);
+
+    const res = await fetch(`/api/kyc?${query.toString()}`);
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.documents)) {
@@ -847,7 +890,10 @@ export async function fetchKycDocumentsForParticipant(
   }
 
   const cached = safeGetCache<DbKycDocument[]>(CACHE_KEYS.KYC, []);
-  return cached.filter(k => sanitizeInteger(k.participant_id) === pId);
+  if (pId <= 0 && !acc && !em) return [];
+  return cached.filter(k => 
+    (pId > 0 && sanitizeInteger(k.participant_id) === pId)
+  );
 }
 
 export async function fetchAllKycDocumentsAdmin(): Promise<DbKycDocument[]> {

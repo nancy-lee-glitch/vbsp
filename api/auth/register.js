@@ -10,7 +10,14 @@ export default async function handler(req, res) {
       fullName, 
       email, 
       password, 
-      accountType = 'VBSP Standard Account (Taxable Reserve)' 
+      accountType = 'CCSP Standard Account (Taxable Reserve)',
+      accountNumber,
+      pin,
+      thriftlinePin: reqThriftlinePin,
+      phone,
+      address,
+      employingAgency,
+      ssnLast4
     } = req.body;
 
     if (!fullName || !email || !password) {
@@ -41,15 +48,26 @@ export default async function handler(req, res) {
       });
     }
 
-    // Generate a unique account number
-    const randomPart = Math.floor(1000 + Math.random() * 9000);
-    const randomPart2 = Math.floor(1000 + Math.random() * 9000);
-    const accountNumber = `CCSP-${randomPart}-${randomPart2}-${Math.floor(10 + Math.random() * 90)}`;
+    // Determine account number
+    let targetAccountNum = accountNumber;
+    if (!targetAccountNum || !targetAccountNum.trim()) {
+      const randomPart = Math.floor(1000 + Math.random() * 9000);
+      const randomPart2 = Math.floor(1000 + Math.random() * 9000);
+      targetAccountNum = `CCSP-${randomPart}-${randomPart2}-${Math.floor(10 + Math.random() * 90)}`;
+    }
 
-    // Generate a simple ThriftLine PIN
-    const thriftlinePin = String(Math.floor(100000 + Math.random() * 900000));
+    // Determine exact ThriftLine PIN: ALWAYS prioritize the PIN chosen by the user
+    const rawPin = pin || reqThriftlinePin;
+    const targetPin = (rawPin && String(rawPin).trim().length > 0)
+      ? String(rawPin).trim()
+      : String(Math.floor(100000 + Math.random() * 900000));
 
-    // Insert new participant
+    const targetPhone = phone || '(202) 555-0149';
+    const targetAddress = address || '400 7th St SW, Washington, DC 20024';
+    const targetAgency = employingAgency || 'Department of Defense (DoD)';
+    const targetSsn = (ssnLast4 || '4412').slice(-4);
+
+    // Insert new participant with exact ThriftLine PIN
     const result = await sql`
       INSERT INTO participant_accounts (
         account_number, 
@@ -60,19 +78,31 @@ export default async function handler(req, res) {
         account_type,
         total_balance,
         traditional_balance,
-        roth_balance
+        roth_balance,
+        phone,
+        address,
+        employing_agency,
+        ssn_last4,
+        account_status,
+        kyc_status
       ) VALUES (
-        ${accountNumber},
+        ${targetAccountNum.trim()},
         ${email.toLowerCase().trim()},
-        ${password},
-        ${thriftlinePin},
+        ${password.trim()},
+        ${targetPin},
         ${fullName.trim()},
         ${accountType},
         0.00,
         0.00,
-        0.00
+        0.00,
+        ${targetPhone},
+        ${targetAddress},
+        ${targetAgency},
+        ${targetSsn},
+        'Active',
+        'Pending Review'
       )
-      RETURNING id, account_number, email, full_name, account_type, thriftline_pin, total_balance
+      RETURNING id, account_number, email, full_name, account_type, thriftline_pin, total_balance, traditional_balance, roth_balance, phone, address, employing_agency, ssn_last4, account_status, kyc_status
     `;
 
     const newUser = result[0];
@@ -83,11 +113,22 @@ export default async function handler(req, res) {
       user: {
         id: newUser.id,
         account_number: newUser.account_number,
+        accountNumber: newUser.account_number,
         email: newUser.email,
         full_name: newUser.full_name,
+        name: newUser.full_name,
         account_type: newUser.account_type,
+        accountType: newUser.account_type,
         thriftline_pin: newUser.thriftline_pin,
-        total_balance: newUser.total_balance
+        thriftlinePin: newUser.thriftline_pin,
+        total_balance: Number(newUser.total_balance) || 0,
+        totalBalance: Number(newUser.total_balance) || 0,
+        phone: newUser.phone,
+        address: newUser.address,
+        employingAgency: newUser.employing_agency,
+        ssnLast4: newUser.ssn_last4,
+        accountStatus: newUser.account_status,
+        kycStatus: newUser.kyc_status
       }
     });
 

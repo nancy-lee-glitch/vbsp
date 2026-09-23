@@ -14,7 +14,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           success: true,
           branding: {
-            siteName: 'Vertex Bullion Savings Plan',
+            siteName: 'Cassivon Capital Savings Plan',
             slogan: 'Institutional Sovereign Custody',
             logoUrl: '',
             supportPhone: '',
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         branding: {
-          siteName: row.site_name || 'Vertex Bullion Savings Plan',
+          siteName: row.site_name || 'Cassivon Capital Savings Plan',
           slogan: row.slogan || '',
           logoUrl: row.logo_url || '',
           supportPhone: row.support_phone || '',
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
         await sql`
           INSERT INTO site_branding (site_name, slogan, logo_url, support_phone, support_email, footer_text)
           VALUES (
-            ${siteName || 'Vertex Bullion Savings Plan'},
+            ${siteName || 'Cassivon Capital Savings Plan'},
             ${slogan || ''},
             ${logoUrl || ''},
             ${supportPhone || ''},
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
       } else {
         await sql`
           UPDATE site_branding SET
-            site_name = ${siteName || 'Vertex Bullion Savings Plan'},
+            site_name = ${siteName || 'Cassivon Capital Savings Plan'},
             slogan = ${slogan || ''},
             logo_url = ${logoUrl || ''},
             support_phone = ${supportPhone || ''},
