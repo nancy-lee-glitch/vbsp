@@ -9,7 +9,7 @@ import {
   sanitizeNumeric,
   isInvalidNumber,
   sanitizeParticipantAccountData
-} from '../lib/supabase';
+} from '../lib/neon';
 import { 
   UserAccount, 
   SiteBrandingSettings, 

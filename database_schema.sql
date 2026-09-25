@@ -1,22 +1,13 @@
 -- ==============================================================================
--- VERTEX BULLION SAVINGS PLAN (VBSP) - OFFICIAL POSTGRESQL & SUPABASE SCHEMA
+-- CASSIVON CAPITAL SAVINGS PLAN (CCSP) - OFFICIAL NEON POSTGRESQL SCHEMA
 -- ==============================================================================
 -- 
--- HOW TO RUN THIS IN SUPABASE:
--- 1. Log in to your Supabase Dashboard: https://supabase.com/dashboard
--- 2. Select your project.
--- 3. Click "SQL Editor" in the left sidebar (icon with '>_').
--- 4. Click "+ New query".
--- 5. Copy and paste all the SQL code below into the editor.
--- 6. Click the green "Run" button (or press Ctrl+Enter / Cmd+Enter).
---
--- HOW TO GET THE KEYS NOT INCLUDED IN YOUR INITIAL SNIPPET:
--- 1. Go to "Project Settings" (gear icon at bottom left of Supabase Dashboard).
--- 2. Click "API" under Configuration.
--- 3. Under "Project URL", copy the URL:
---      -> Paste it as: VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
--- 4. Under "Project API keys", find the key labeled "anon" / "public":
---      -> Paste it as: VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5c...
+-- HOW TO RUN THIS IN NEON:
+-- 1. Log in to your Neon Dashboard: https://console.neon.tech
+-- 2. Select your project (neondb).
+-- 3. Click "SQL Editor" in the left sidebar.
+-- 4. Paste the SQL code below into the editor.
+-- 5. Click the green "Run" button to execute and initialize tables.
 -- ==============================================================================
 
 -- Enable Crypto extensions for UUIDs and secure password hashing if needed
@@ -265,7 +256,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
 );
 
 -- ------------------------------------------------------------------------------
--- 12. ROW LEVEL SECURITY (RLS) FOR SUPABASE
+-- 12. ROW LEVEL SECURITY (RLS) FOR POSTGRESQL
 -- ------------------------------------------------------------------------------
 -- Enables RLS on all tables with open policies for seamless web application access
 ALTER TABLE participant_accounts ENABLE ROW LEVEL SECURITY;

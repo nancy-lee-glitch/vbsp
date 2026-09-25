@@ -26,7 +26,7 @@ import {
 } from '../../types';
 
 import { submitDepositProof } from '../../services/dbService';
-import { sanitizeNumeric } from '../../lib/supabase';
+import { sanitizeNumeric } from '../../lib/neon';
 
 interface DepositFundsModalProps {
   isOpen: boolean;
@@ -121,7 +121,7 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
     const newTxId = `TX-DEP-${Math.floor(100000 + Math.random() * 900000)}`;
 
     try {
-      // 1. Submit to Supabase / PostgreSQL with guaranteed integer participant_id
+      // 1. Submit to Neon PostgreSQL with guaranteed integer participant_id
       await submitDepositProof(user, {
         amount: sanitizedAmount,
         fundCode: selectedFundCode,
@@ -134,7 +134,7 @@ export const DepositFundsModal: React.FC<DepositFundsModalProps> = ({
         txId: newTxId
       });
     } catch (err) {
-      console.warn('Supabase deposit sync warning:', err);
+      console.warn('Neon deposit sync warning:', err);
     }
 
     const newTx: TSPTransaction = {

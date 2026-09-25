@@ -33,7 +33,7 @@ export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch documents from Supabase on mount
+  // Fetch documents from Neon PostgreSQL on mount
   useEffect(() => {
     let isMounted = true;
     const loadDocs = async () => {

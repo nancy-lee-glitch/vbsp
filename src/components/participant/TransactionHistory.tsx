@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TSPTransaction } from '../../types';
-import { sanitizeNumeric } from '../../lib/supabase';
+import { sanitizeNumeric } from '../../lib/neon';
 import { 
   History, 
   Download, 

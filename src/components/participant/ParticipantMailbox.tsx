@@ -58,7 +58,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
   const [isSending, setIsSending] = useState(false);
   const [statusNotification, setStatusNotification] = useState<string | null>(null);
 
-  // Load messages from Supabase or Cache
+  // Load messages from Neon PostgreSQL or Cache
   const loadMessages = async () => {
     setIsLoading(true);
     try {

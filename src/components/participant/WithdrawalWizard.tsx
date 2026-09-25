@@ -53,7 +53,7 @@ export const WithdrawalWizard: React.FC<WithdrawalWizardProps> = ({
         bank_name: 'Verified Banking Depository'
       });
     } catch (err) {
-      console.warn('Supabase withdrawal sync warning:', err);
+      console.warn('Neon withdrawal sync warning:', err);
     }
 
     const msg = `Withdrawal request for $${amount.toLocaleString()} (${withdrawalType.replace('_', ' ')}) has been submitted. Net disbursement after ${taxWithholdingPercent}% tax withholding: $${netAmount.toLocaleString()}. Confirmation #CCSP-WDL-2026-${Math.floor(1000 + Math.random() * 9000)}`;

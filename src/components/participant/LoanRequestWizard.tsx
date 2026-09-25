@@ -73,7 +73,7 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
         reason: `${loanType} Bullion-Backed Loan (Signed: ${eSignature})`
       });
     } catch (err) {
-      console.warn('Supabase loan sync warning:', err);
+      console.warn('Neon loan sync warning:', err);
     }
 
     const newLoan: TSPLoan = {

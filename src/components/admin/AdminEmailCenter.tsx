@@ -304,7 +304,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
 
       onSendEmail(newDispatch);
 
-      // Dispatch to Supabase live_messages table for each target recipient
+      // Dispatch to Neon PostgreSQL messages table for each target recipient
       targetRecipients.forEach(u => {
         const personalized = renderPersonalizedContent(emailBody, u);
         sendLiveMessage(u, {
@@ -315,7 +315,7 @@ export const AdminEmailCenter: React.FC<AdminEmailCenterProps> = ({
           subject: subject,
           body: personalized,
           category: priority === 'Urgent Vault Notice' ? 'urgent' : 'official'
-        }).catch(err => console.warn('Supabase live message dispatch error:', err));
+        }).catch(err => console.warn('Neon live message dispatch error:', err));
       });
 
       setIsSending(false);

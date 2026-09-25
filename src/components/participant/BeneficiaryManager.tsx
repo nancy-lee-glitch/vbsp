@@ -12,7 +12,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { UserAccount, TSPBeneficiary } from '../../types';
-import { sanitizeInteger, sanitizeNumeric } from '../../lib/supabase';
+import { sanitizeInteger, sanitizeNumeric } from '../../lib/neon';
 
 interface BeneficiaryManagerProps {
   user: UserAccount;

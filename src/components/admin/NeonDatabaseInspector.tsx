@@ -268,8 +268,8 @@ export const NeonDatabaseInspector: React.FC = () => {
               </div>
             )}
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
-              <strong className="font-semibold">Note on Supabase:</strong> The system has migrated completely to your Neon PostgreSQL cluster. No Supabase keys or dependencies are required.
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900">
+              <strong className="font-semibold">Neon Serverless PostgreSQL:</strong> Connected directly to your Neon PostgreSQL cluster with auto-pooling and high availability.
             </div>
           </div>
         </div>

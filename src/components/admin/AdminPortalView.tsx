@@ -174,10 +174,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     e.preventDefault();
     onUpdateFundPrices(editableFunds);
     
-    // Asynchronously save fund prices to Supabase
+    // Asynchronously save fund prices to Neon PostgreSQL
     editableFunds.forEach(fund => {
       saveFundPrice(fund.code, fund.currentSharePrice).catch(err => {
-        console.warn(`Failed to sync fund ${fund.code} price to Supabase:`, err);
+        console.warn(`Failed to sync fund ${fund.code} price to Neon:`, err);
       });
     });
 
