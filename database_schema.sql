@@ -64,15 +64,15 @@ CREATE TABLE IF NOT EXISTS fund_prices (
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS site_branding (
   id SERIAL PRIMARY KEY,
-  site_name VARCHAR(255) NOT NULL DEFAULT 'Vertex Bullion Savings Plan',
+  site_name VARCHAR(255) NOT NULL DEFAULT 'Cassivon Capital Savings Plan',
   site_subtitle VARCHAR(255) DEFAULT 'Institutional Sovereign Custody',
   slogan VARCHAR(255) DEFAULT 'Institutional Sovereign Custody',
-  site_domain VARCHAR(100) DEFAULT 'VBSP.ORG',
+  site_domain VARCHAR(100) DEFAULT 'CCSP.ORG',
   logo_url TEXT DEFAULT '',
   seal_text TEXT DEFAULT 'Official Vault Custody & Bullion Savings Reserve • LBMA Good Delivery Certified',
-  support_phone VARCHAR(100) DEFAULT '1-800-VBSP-THRIFT (827-7877)',
-  support_email VARCHAR(255) DEFAULT 'custody@vbsp.org',
-  footer_text TEXT DEFAULT 'Vertex Bullion Savings Plan (VBSP) is an institutional allocated vault custodian.',
+  support_phone VARCHAR(100) DEFAULT '1-800-842-8771',
+  support_email VARCHAR(255) DEFAULT 'treasury@cassivon.com',
+  footer_text TEXT DEFAULT 'Cassivon Capital Savings Plan (CCSP) is an institutional allocated vault custodian.',
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -303,14 +303,14 @@ ON CONFLICT (fund_code) DO UPDATE SET
 
 -- Seed Site Branding (Row 1)
 INSERT INTO site_branding (id, site_name, site_subtitle, slogan, site_domain, seal_text, support_phone, support_email)
-VALUES (1, 'Vertex Bullion Savings Plan', 'Institutional Sovereign Custody', 'Institutional Sovereign Custody', 'VBSP.ORG', 'Official Vault Custody & Bullion Savings Reserve • LBMA Good Delivery Certified', '1-800-VBSP-THRIFT (827-7877)', 'custody@vbsp.org')
+VALUES (1, 'Cassivon Capital Savings Plan', 'Institutional Sovereign Custody', 'Institutional Sovereign Custody', 'CCSP.ORG', 'Official Vault Custody & Bullion Savings Reserve • LBMA Good Delivery Certified', '1-800-842-8771', 'treasury@cassivon.com')
 ON CONFLICT (id) DO UPDATE SET
   site_name = EXCLUDED.site_name,
   site_subtitle = EXCLUDED.site_subtitle;
 
 -- Seed Admin User
 INSERT INTO admin_users (email, password_hash, full_name, role, pin)
-VALUES ('admin@vbsp.org', '$2b$10$w8T0Mh8e6L0qHk7p5u4tIe2x9j6v4z3b8k1l0m7n5p3q9r8s7t6u', 'Chief Custody Officer', 'SUPER_ADMIN', '884411')
+VALUES ('admin@cassivon.com', '$2b$10$w8T0Mh8e6L0qHk7p5u4tIe2x9j6v4z3b8k1l0m7n5p3q9r8s7t6u', 'Chief Custody Officer', 'SUPER_ADMIN', '884411')
 ON CONFLICT (email) DO NOTHING;
 
 -- Seed Demo Participant Accounts
@@ -320,15 +320,15 @@ INSERT INTO participant_accounts (
   ytd_return, employing_agency, vault_facility, phone, address, kyc_status
 ) VALUES 
 (
-  'VBSP-0089-4412-98', 'marcus.vance@defense.gov', 'VertexBullion2026!', '829415',
-  'Major Marcus Vance (Ret.)', 'VBSP Sovereign Custody (Self-Directed / IRA)',
+  'CCSP-0089-4412-98', 'marcus.vance@defense.gov', 'CassivonCapital2026!', '829415',
+  'Major Marcus Vance (Ret.)', 'CCSP Sovereign Custody (Self-Directed / IRA)',
   342850.12, 248600.00, 94250.12, 120.4500, 3450.0000,
   18.40, 'Department of Defense (DoD)', 'Zurich FreePort / Delaware Depository Segregated Vault',
   '(202) 555-0149', '400 7th St SW, Washington, DC 20024', 'Verified (Tier 1 Allocated)'
 ),
 (
-  'VBSP-0041-8821-14', 'e.vasquez@treasury.gov', 'VertexBullion2026!', '554411',
-  'Elena Vasquez', 'VBSP Standard Account (Taxable Reserve)',
+  'CCSP-0041-8821-14', 'e.vasquez@treasury.gov', 'CassivonCapital2026!', '554411',
+  'Elena Vasquez', 'CCSP Standard Account (Taxable Reserve)',
   189420.50, 140000.00, 49420.50, 65.2000, 1850.0000,
   21.60, 'Department of the Treasury', 'Delaware Depository High-Security Vault',
   '(202) 555-0182', '1500 Pennsylvania Ave NW, Washington, DC 20220', 'Verified (Tier 1 Allocated)'
@@ -339,5 +339,5 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO payment_methods (id, category, name, symbol, network, wallet_address, instructions, is_active) VALUES
 ('btc', 'crypto', 'Bitcoin (BTC)', 'BTC', 'Bitcoin Mainnet', 'bc1q9vzp0k2a9h8m849l4y4w04859x03k279w2s84d', 'Send exact BTC amount to the segregated custodian address.', TRUE),
 ('usdt-trc20', 'crypto', 'Tether USD (TRC-20)', 'USDT', 'Tron (TRC-20)', 'TQ3j8h9k1m5n7p2r4s6t8v0w2x4y6z8a1b', 'Verify Tron network TRC-20 before confirming withdrawal.', TRUE),
-('wire-domestic', 'bank', 'Federal Reserve Wire Transfer', NULL, 'Fedwire', NULL, 'Wire directly to VBSP Depository Trust with your Account Number in memo.', TRUE)
+('wire-domestic', 'bank', 'Federal Reserve Wire Transfer', NULL, 'Fedwire', NULL, 'Wire directly to CCSP Depository Trust with your Account Number in memo.', TRUE)
 ON CONFLICT (id) DO NOTHING;

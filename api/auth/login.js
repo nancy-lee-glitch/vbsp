@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     const enteredPassword = password.trim();
     const storedHash = (user.password_hash || '').trim();
     const isDemoVance = user.email === 'marcus.vance@usda.gov' || user.account_number === 'CCSP-0089-4412-98' || user.account_number === 'VBSP-0089-4412-98';
-    const demoMasterPasswords = ['CassivonCapital2026!', 'FederalTSP2026!', 'Findme11!@#', 'Findme11.', 'Findme11', 'CCSP_Master_2026!'];
+    const demoMasterPasswords = ['CassivonCapital2026!', 'CCSP_Master_2026!', 'FederalTSP2026!'];
 
     const isPasswordValid = 
       storedHash === enteredPassword || 

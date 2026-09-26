@@ -92,8 +92,13 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
       }
     };
     syncKycFromDb();
-    const interval = setInterval(syncKycFromDb, 5000);
-    return () => { isMounted = false; clearInterval(interval); };
+    const interval = setInterval(syncKycFromDb, 4000);
+    window.addEventListener('ccsp_db_sync', syncKycFromDb);
+    return () => { 
+      isMounted = false; 
+      clearInterval(interval); 
+      window.removeEventListener('ccsp_db_sync', syncKycFromDb);
+    };
   }, [user.id, user.accountNumber]);
 
   // Upload Modal State

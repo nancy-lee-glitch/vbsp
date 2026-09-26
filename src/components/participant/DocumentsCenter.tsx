@@ -22,40 +22,45 @@ interface DocumentsCenterProps {
 }
 
 export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
-  const [uploadedFiles, setUploadedFiles] = useState<{ id?: number; name: string; size: string; date: string; status: string; data?: string }[]>(
-    user.email === 'marcus.vance@usda.gov' || user.accountNumber === 'CCSP-0089-4412-98' ? [
-      { name: 'Marriage_Certificate_Vance.pdf', size: '1.2 MB', date: '2026-06-12', status: 'Approved' },
-      { name: 'Home_Purchase_Closing_Disclosure.pdf', size: '3.4 MB', date: '2026-03-01', status: 'Approved' }
-    ] : []
-  );
+  const [uploadedFiles, setUploadedFiles] = useState<{ id?: number; name: string; size: string; date: string; status: string; data?: string }[]>([]);
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch documents from Neon PostgreSQL on mount
+  // Fetch documents from Neon PostgreSQL on mount and keep synced in real-time
   useEffect(() => {
     let isMounted = true;
     const loadDocs = async () => {
       try {
         const docs = await fetchUserDocuments(user);
-        if (isMounted && docs && docs.length > 0) {
-          const mapped = docs.map((d: DbUserDocument) => ({
-            id: d.id,
-            name: d.file_name || d.title,
-            size: d.file_size || '1.2 MB',
-            date: d.created_at ? d.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-            status: d.status || 'Pending',
-            data: d.file_data
-          }));
-          setUploadedFiles(mapped);
+        if (isMounted) {
+          if (docs && docs.length > 0) {
+            const mapped = docs.map((d: DbUserDocument) => ({
+              id: d.id,
+              name: d.file_name || d.title,
+              size: d.file_size || '1.2 MB',
+              date: d.created_at ? d.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+              status: d.status || 'Pending',
+              data: d.file_data
+            }));
+            setUploadedFiles(mapped);
+          } else {
+            setUploadedFiles([]);
+          }
         }
       } catch (err) {
         console.warn('Error loading user documents:', err);
       }
     };
     loadDocs();
-    return () => { isMounted = false; };
+    const interval = setInterval(loadDocs, 4000);
+    window.addEventListener('ccsp_db_sync', loadDocs);
+    return () => { 
+      isMounted = false; 
+      clearInterval(interval);
+      window.removeEventListener('ccsp_db_sync', loadDocs);
+    };
   }, [user.id, user.accountNumber]);
 
   const statements = [

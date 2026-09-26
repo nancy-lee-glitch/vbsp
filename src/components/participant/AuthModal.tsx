@@ -68,7 +68,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [onboardAgency, setOnboardAgency] = useState('Department of Defense (DoD)');
   const [onboardPlanType, setOnboardPlanType] = useState<CCSPAccountType>('CCSP Standard Account (Taxable Reserve)');
   const [onboardPassword, setOnboardPassword] = useState('');
-  const [onboardPin, setOnboardPin] = useState('883142');
+  const [onboardPin, setOnboardPin] = useState(() => String(Math.floor(100000 + Math.random() * 900000)));
   const [isRegistering, setIsRegistering] = useState(false);
   const [createdUser, setCreatedUser] = useState<UserAccount | null>(null);
   const [redirectCountdown, setRedirectCountdown] = useState<number>(3);
@@ -337,7 +337,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="grid grid-cols-2 bg-slate-100 border-b border-slate-300 text-xs font-bold">
           <button
             type="button"
-            onClick={() => { setAuthStep('login'); setErrorMessage(''); }}
+            onClick={() => { 
+              setAuthStep('login'); 
+              setErrorMessage(''); 
+              if (createdUser) {
+                setAccountNumber(createdUser.accountNumber || createdUser.email);
+                setThriftlinePin(createdUser.thriftlinePin || '');
+              }
+            }}
             className={`py-2.5 px-3 flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
               authStep === 'login' || authStep === 'mfa' || authStep === 'recovery'
                 ? 'bg-white text-[#005ea2] border-b-2 border-[#005ea2] shadow-2xs'
@@ -444,7 +451,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       maxLength={6}
                       value={thriftlinePin}
                       onChange={(e) => setThriftlinePin(e.target.value.replace(/\D/g, ''))}
-                      placeholder="829415"
+                      placeholder="Enter 6-digit PIN"
                       className="w-full bg-slate-50 border border-slate-300 rounded-xs pl-9 pr-3 py-2 text-xs font-mono font-bold tracking-widest text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#005ea2]"
                       required
                     />
@@ -737,6 +744,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         {createdUser?.accountNumber || 'CCSP-2026-8819-02'}
                       </strong>
                     </div>
+                    <div className="flex justify-between items-center pb-1.5 border-b border-slate-200">
+                      <span className="text-slate-500 font-semibold">6-Digit ThriftLine PIN:</span>
+                      <strong className="font-mono text-sm text-emerald-800 font-black bg-emerald-50 px-2 py-0.5 rounded-xs border border-emerald-300">
+                        {createdUser?.thriftlinePin || onboardPin}
+                      </strong>
+                    </div>
+                    <div className="p-2 bg-amber-50 border border-amber-200 rounded-xs text-[11px] text-amber-900 font-medium">
+                      <strong>Security Notice:</strong> Save your Account Number and 6-Digit ThriftLine PIN. Both are required alongside your password whenever you sign in.
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Depository Facility:</span>
                       <strong className="text-slate-900">Zurich FreePort & Delaware Depository</strong>
@@ -767,7 +783,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="pt-2 border-t border-slate-100 text-center">
                 <button 
                   type="button" 
-                  onClick={() => setAuthStep('login')}
+                  onClick={() => {
+                    setAuthStep('login');
+                    if (createdUser) {
+                      setAccountNumber(createdUser.accountNumber || createdUser.email);
+                      setThriftlinePin(createdUser.thriftlinePin || '');
+                    }
+                  }}
                   className="text-xs text-slate-500 hover:text-slate-800 font-semibold cursor-pointer underline"
                 >
                   Already have an account? Sign in here

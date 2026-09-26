@@ -60,7 +60,7 @@ import { AdminBrandingManager } from './AdminBrandingManager';
 import { AdminPaymentMethodsManager } from './AdminPaymentMethodsManager';
 import { AdminApprovalsHub } from './AdminApprovalsHub';
 import { NeonDatabaseInspector } from './NeonDatabaseInspector';
-import { saveFundPrice } from '../../services/dbService';
+import { saveFundPrice, fetchAllParticipants } from '../../services/dbService';
 
 interface AdminPortalViewProps {
   onAdminLogout: () => void;
@@ -933,7 +933,11 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         <AdminApprovalsHub 
           users={users} 
           onRefreshUsers={() => {
-            // refreshed
+            fetchAllParticipants().then(pList => {
+              if (pList && pList.length > 0) {
+                pList.forEach(p => onUpdateUser(p));
+              }
+            });
           }} 
         />
       )}

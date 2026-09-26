@@ -90,11 +90,11 @@ export default async function handler(req, res) {
       const result = await sql`
         INSERT INTO user_documents (
           doc_id, participant_id, user_account_number, user_name,
-          document_title, title, document_type, category, file_name,
+          document_title, document_type, file_name, file_url,
           file_data, file_size, status
         ) VALUES (
           ${docId}, ${participantId}, ${userAcc}, ${userName},
-          ${title}, ${title}, ${docType}, ${docType}, ${fileName},
+          ${title}, ${docType}, ${fileName}, ${fileData},
           ${fileData}, ${fileSize}, 'Pending'
         )
         RETURNING *

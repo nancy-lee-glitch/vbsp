@@ -139,9 +139,9 @@ export default function App() {
           setCurrentUser(prevUser => {
             if (!prevUser) return null;
             const freshUser = pList.find(p => 
-              String(p.id) === String(prevUser.id) || 
-              (p.accountNumber && p.accountNumber === prevUser.accountNumber) ||
-              (p.email && p.email.toLowerCase() === prevUser.email?.toLowerCase())
+              (prevUser.id && String(p.id) === String(prevUser.id)) || 
+              (prevUser.accountNumber && p.accountNumber && p.accountNumber === prevUser.accountNumber) ||
+              (prevUser.email && p.email && p.email.toLowerCase() === prevUser.email.toLowerCase())
             );
             if (freshUser) {
               localStorage.setItem('ccsp_participant_session', JSON.stringify(freshUser));
@@ -225,9 +225,9 @@ export default function App() {
           setCurrentUser(prevUser => {
             if (!prevUser) return null;
             const fresh = pList.find(p => 
-              String(p.id) === String(prevUser.id) ||
-              (p.accountNumber && p.accountNumber === prevUser.accountNumber) ||
-              (p.email && p.email.toLowerCase() === prevUser.email?.toLowerCase())
+              (prevUser.id && String(p.id) === String(prevUser.id)) ||
+              (prevUser.accountNumber && p.accountNumber && p.accountNumber === prevUser.accountNumber) ||
+              (prevUser.email && p.email && p.email.toLowerCase() === prevUser.email.toLowerCase())
             );
             if (fresh) {
               localStorage.setItem('ccsp_participant_session', JSON.stringify(fresh));
@@ -363,16 +363,27 @@ export default function App() {
 
   // Participant Account Handlers (CRUD)
   const handleLoginSuccess = (user: UserAccount) => {
+    if (!user || (!user.id && !user.accountNumber)) return;
+
     setCurrentUser(user);
     localStorage.setItem('ccsp_participant_session', JSON.stringify(user));
 
     // Ensure new user exists in the central users registry
-    if (!users.some(u => u.id === user.id)) {
-      const updatedList = [user, ...users];
-      setUsers(updatedList);
+    setUsers(prevUsers => {
+      const idx = prevUsers.findIndex(u => 
+        (user.id && String(u.id) === String(user.id)) || 
+        (user.accountNumber && u.accountNumber === user.accountNumber)
+      );
+      if (idx >= 0) {
+        const copy = [...prevUsers];
+        copy[idx] = user;
+        localStorage.setItem('ccsp_users_registry', JSON.stringify(copy));
+        return copy;
+      }
+      const updatedList = [user, ...prevUsers];
       localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
-      upsertParticipantAccount(user).catch(err => console.warn('Neon database user create notice:', err));
-    }
+      return updatedList;
+    });
 
     setCurrentView('participant_dashboard');
     window.location.hash = 'myaccount';

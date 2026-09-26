@@ -118,8 +118,9 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
         traditionalBalance: newTrad,
         rothBalance: matchedUser.rothBalance
       });
-      if (onRefreshUsers) onRefreshUsers();
     }
+    if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'deposit', id: dep.id } }));
 
     showNotification(`Deposit ${dep.tx_id || dep.reference_id} ($${dep.amount.toLocaleString()}) approved and credited to ${dep.participant_name || 'Participant'}!`);
     await loadAllData();
@@ -130,6 +131,8 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     if (!dep.id && !dep.reference_id) return;
     setIsLoading(true);
     await updateDepositStatus(dep.id || dep.reference_id, 'Rejected', 'Unverified remittance trace or receipt mismatch');
+    if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'deposit', id: dep.id } }));
     showNotification(`Deposit ${dep.tx_id || dep.reference_id} marked as Rejected.`);
     await loadAllData();
     setIsLoading(false);
@@ -139,6 +142,8 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     if (!doc.id && !doc.doc_id) return;
     setIsLoading(true);
     await updateDocumentStatus(doc.id || doc.doc_id, 'Approved', 'Verified and cleared by Compliance Auditor');
+    if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'document', id: doc.id } }));
     showNotification(`Document "${doc.title || doc.file_name}" marked as Approved.`);
     await loadAllData();
     setIsLoading(false);
@@ -148,6 +153,8 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     if (!doc.id && !doc.doc_id) return;
     setIsLoading(true);
     await updateDocumentStatus(doc.id || doc.doc_id, 'Rejected', 'Legibility issue or incomplete certification');
+    if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'document', id: doc.id } }));
     showNotification(`Document marked as Rejected.`);
     await loadAllData();
     setIsLoading(false);
@@ -157,8 +164,9 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     if (!doc.id) return;
     setIsLoading(true);
     await updateKycDocumentStatus(doc.id, 'Verified', 'Verified by Compliance Auditor');
-    showNotification(`KYC Document "${doc.document_type || doc.file_name}" verified & approved! Participant account status updated.`);
     if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'kyc', id: doc.id } }));
+    showNotification(`KYC Document "${doc.document_type || doc.file_name}" verified & approved! Participant account status updated.`);
     await loadAllData();
     setIsLoading(false);
   };
@@ -167,8 +175,9 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     if (!doc.id) return;
     setIsLoading(true);
     await updateKycDocumentStatus(doc.id, 'Rejected', 'Document unreadable, expired, or invalid');
-    showNotification(`KYC Document marked as Rejected.`);
     if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'kyc', id: doc.id } }));
+    showNotification(`KYC Document marked as Rejected.`);
     await loadAllData();
     setIsLoading(false);
   };
@@ -180,6 +189,8 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     const safeAmt = (isNaN(rawAmt) || Number.isNaN(rawAmt)) ? 0 : rawAmt;
     setIsLoading(true);
     await updateLoanStatus(loanKey, 'Approved', 'Board approval granted. Disbursed via payroll custodial authorization.');
+    if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'loan', id: loanKey } }));
     showNotification(`Loan ${loan.loan_id || (loan as any).loan_number || loanKey} ($${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}) Approved by Admin!`);
     await loadAllData();
     setIsLoading(false);
@@ -190,6 +201,8 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     if (!loanKey) return;
     setIsLoading(true);
     await updateLoanStatus(loanKey, 'Rejected', 'Collateral tier ceiling exceeded or pending credit verification');
+    if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'loan', id: loanKey } }));
     showNotification(`Loan ${loan.loan_id || (loan as any).loan_number || loanKey} marked as Rejected.`);
     await loadAllData();
     setIsLoading(false);
@@ -202,8 +215,9 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     const safeAmt = (isNaN(rawAmt) || Number.isNaN(rawAmt)) ? 0 : rawAmt;
     setIsLoading(true);
     await updateWithdrawalStatus(wdlKey, 'Approved', 'Authorized for custodial bank wire distribution.');
-    showNotification(`Withdrawal ${wdl.request_id || (wdl as any).request_number || wdlKey} ($${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}) Approved by Admin!`);
     if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'withdrawal', id: wdlKey } }));
+    showNotification(`Withdrawal ${wdl.request_id || (wdl as any).request_number || wdlKey} ($${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })}) Approved by Admin!`);
     await loadAllData();
     setIsLoading(false);
   };
@@ -213,6 +227,8 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
     if (!wdlKey) return;
     setIsLoading(true);
     await updateWithdrawalStatus(wdlKey, 'Rejected', 'Statutory hardship criteria not established or IRS documentation missing');
+    if (onRefreshUsers) onRefreshUsers();
+    window.dispatchEvent(new CustomEvent('ccsp_db_sync', { detail: { type: 'withdrawal', id: wdlKey } }));
     showNotification(`Withdrawal ${wdl.request_id || (wdl as any).request_number || wdlKey} marked as Rejected.`);
     await loadAllData();
     setIsLoading(false);

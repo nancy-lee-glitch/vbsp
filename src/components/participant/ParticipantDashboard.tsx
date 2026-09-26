@@ -106,9 +106,11 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
       loadDbRequests();
     };
 
+    const interval = setInterval(loadDbRequests, 4000);
     window.addEventListener('ccsp_db_sync', handleSync);
     window.addEventListener('vbsp_db_sync', handleSync);
     return () => {
+      clearInterval(interval);
       window.removeEventListener('ccsp_db_sync', handleSync);
       window.removeEventListener('vbsp_db_sync', handleSync);
     };
