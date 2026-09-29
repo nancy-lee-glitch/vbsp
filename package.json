@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "cassivon-capital-savings-plan",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -20,6 +20,7 @@
     "canvas-confetti": "^1.9.4",
     "d3": "^7.9.0",
     "dotenv": "^17.2.3",
+    "esbuild": "^0.25.0",
     "express": "^4.21.2",
     "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
@@ -28,7 +29,7 @@
     "postgres": "^3.4.9",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "vite": "^6.2.3"
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/d3": "^7.4.3",
@@ -36,9 +37,7 @@
     "@types/node": "^22.14.0",
     "@types/pg": "^8.23.1",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   }

@@ -55,8 +55,10 @@ export default async function handler(req, res) {
       }
 
       if (isNaN(participantId) || participantId <= 0) {
-        const fallback = await sql`SELECT id FROM participant_accounts ORDER BY id ASC LIMIT 1`;
-        participantId = fallback.length > 0 ? fallback[0].id : 1;
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Valid participant ID or account number is required to assign a beneficiary.' 
+        });
       }
 
       const fullName = b.full_name || b.name || 'Primary Beneficiary';

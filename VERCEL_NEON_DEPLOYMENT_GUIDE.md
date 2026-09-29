@@ -1,6 +1,6 @@
-# Vertex Bullion Savings Plan (VBSP) - Vercel & Neon (PostgreSQL) Deployment Guide
+# Cassivon Capital Savings Plan (CCSP) - Vercel & Neon (PostgreSQL) Deployment Guide
 
-This guide details how to configure, deploy, and run the **Vertex Bullion Savings Plan (VBSP)** application on **Vercel** connected to a **Neon Serverless PostgreSQL** database.
+This guide details how to configure, deploy, and run the **Cassivon Capital Savings Plan (CCSP)** application on **Vercel** connected to a **Neon Serverless PostgreSQL** database.
 
 ---
 

@@ -1,16 +1,34 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/api/auth/login", "destination": "/api/auth/login.js" },
+    { "source": "/api/auth/register", "destination": "/api/auth/register.js" },
+    { "source": "/api/admin/login", "destination": "/api/admin/login.js" },
+    { "source": "/api/admin/participants/(.*)", "destination": "/api/admin/participants.js?id=$1" },
+    { "source": "/api/admin/participants", "destination": "/api/admin/participants.js" },
     { "source": "/api/participants/(.*)", "destination": "/api/participants.js?id=$1" },
+    { "source": "/api/participants", "destination": "/api/participants.js" },
     { "source": "/api/deposits/(.*)", "destination": "/api/deposits.js?id=$1" },
+    { "source": "/api/deposits", "destination": "/api/deposits.js" },
     { "source": "/api/loans/(.*)", "destination": "/api/loans.js?id=$1" },
+    { "source": "/api/loans", "destination": "/api/loans.js" },
     { "source": "/api/withdrawals/(.*)", "destination": "/api/withdrawals.js?id=$1" },
+    { "source": "/api/withdrawals", "destination": "/api/withdrawals.js" },
     { "source": "/api/documents/(.*)", "destination": "/api/documents.js?id=$1" },
+    { "source": "/api/documents", "destination": "/api/documents.js" },
+    { "source": "/api/kyc/(.*)", "destination": "/api/kyc.js?id=$1" },
+    { "source": "/api/kyc", "destination": "/api/kyc.js" },
     { "source": "/api/messages/(.*)", "destination": "/api/messages.js?id=$1" },
+    { "source": "/api/messages", "destination": "/api/messages.js" },
     { "source": "/api/beneficiaries/(.*)", "destination": "/api/beneficiaries.js?id=$1" },
+    { "source": "/api/beneficiaries", "destination": "/api/beneficiaries.js" },
     { "source": "/api/payment-methods/(.*)", "destination": "/api/payment-methods.js?id=$1" },
+    { "source": "/api/payment-methods", "destination": "/api/payment-methods.js" },
     { "source": "/api/funds/(.*)", "destination": "/api/funds.js?id=$1" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/funds", "destination": "/api/funds.js" },
+    { "source": "/api/branding", "destination": "/api/branding.js" },
+    { "source": "/api/health", "destination": "/api/health.js" },
+    { "source": "/api/db/status", "destination": "/api/health.js" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

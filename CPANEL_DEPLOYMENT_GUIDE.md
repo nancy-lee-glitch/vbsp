@@ -1,6 +1,6 @@
-# Vertex Bullion Savings Plan (VBSP) Portal - cPanel & Shared Hosting Deployment Guide
+# Cassivon Capital Savings Plan (CCSP) Portal - cPanel & Shared Hosting Deployment Guide
 
-This comprehensive guide details everything you need to know about exporting, configuring, and deploying the **Vertex Bullion Savings Plan (VBSP) Portal** to any standard **cPanel shared hosting** (e.g., Namecheap, Bluehost, GoDaddy, Hostinger, SiteGround, cPanel/WHM VPS, or LAMP server).
+This comprehensive guide details everything you need to know about exporting, configuring, and deploying the **Cassivon Capital Savings Plan (CCSP) Portal** to any standard **cPanel shared hosting** (e.g., Namecheap, Bluehost, GoDaddy, Hostinger, SiteGround, cPanel/WHM VPS, or LAMP server).
 
 ---
 

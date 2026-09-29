@@ -45,7 +45,6 @@ import { BankingContactSettings } from './BankingContactSettings';
 import { IdentificationKYCManager } from './IdentificationKYCManager';
 import { DepositFundsModal } from './DepositFundsModal';
 import { KYCPopupReminder } from './KYCPopupReminder';
-import { SimpleKYCUpload } from './SimpleKYCUpload';
 import { 
   fetchUserLoans, 
   fetchUserWithdrawals, 

@@ -175,15 +175,23 @@ export default async function handler(req, res) {
       const email = (b.email || '').toLowerCase().trim();
       const name = b.name || b.full_name || 'Participant';
       const password = b.password || 'FederalTSP2026!';
+      const pin = b.thriftlinePin || b.pin || b.thriftline_pin || String(Math.floor(100000 + Math.random() * 900000));
       const totalBalance = Number(b.totalBalance || b.total_balance || 0);
+      const tradBalance = Number(b.traditionalBalance || b.traditional_balance || totalBalance);
+      const rothBalance = Number(b.rothBalance || b.roth_balance || 0);
+      const accountType = b.accountType || b.account_type || 'CCSP Standard Account (Taxable Reserve)';
+      const phone = b.phone || '(202) 555-0149';
+      const address = b.address || '400 7th St SW, Washington, DC 20024';
+      const ssnLast4 = (b.ssnLast4 || b.ssn_last4 || '4412').slice(-4);
+      const agency = b.agency || b.employing_agency || 'Department of Defense (DoD)';
 
       const created = await sql`
         INSERT INTO participant_accounts (
-          account_number, email, password_hash, full_name, total_balance,
-          traditional_balance, roth_balance, account_status, kyc_status
+          account_number, email, password_hash, thriftline_pin, full_name, account_type, total_balance,
+          traditional_balance, roth_balance, phone, address, employing_agency, ssn_last4, account_status, kyc_status
         ) VALUES (
-          ${accNumber}, ${email}, ${password}, ${name}, ${totalBalance},
-          ${totalBalance}, 0, 'ACTIVE', 'Not Verified'
+          ${accNumber}, ${email}, ${password}, ${String(pin).trim()}, ${name}, ${accountType}, ${totalBalance},
+          ${tradBalance}, ${rothBalance}, ${phone}, ${address}, ${agency}, ${ssnLast4}, 'Active', 'Pending Review'
         )
         RETURNING *
       `;

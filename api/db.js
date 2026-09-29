@@ -1,7 +1,27 @@
 import postgres from 'postgres';
 
-// Initialize connection to Neon PostgreSQL using PGHOST, PGUSER, PGDATABASE, PGPASSWORD
-export function createPostgresClient() {
+let _sql = null;
+
+export function getPostgresClient() {
+  if (_sql) return _sql;
+
+  // 1. Check all standard pooled & direct connection string environment variables
+  const connString = process.env.DATABASE_URL || 
+                     process.env.POSTGRES_URL || 
+                     process.env.POSTGRES_PRISMA_URL || 
+                     process.env.POSTGRES_URL_NON_POOLING;
+
+  if (connString) {
+    _sql = postgres(connString, {
+      ssl: 'require',
+      max: 10,
+      idle_timeout: 30,
+      connect_timeout: 10
+    });
+    return _sql;
+  }
+
+  // 2. Fall back to individual PG parameters
   const host = process.env.PGHOST;
   const user = process.env.PGUSER || process.env.PGUSERNAME;
   const database = process.env.PGDATABASE;
@@ -9,7 +29,7 @@ export function createPostgresClient() {
   const port = Number(process.env.PGPORT) || 5432;
 
   if (host && user && database && password) {
-    return postgres({
+    _sql = postgres({
       host,
       user,
       database,
@@ -20,20 +40,24 @@ export function createPostgresClient() {
       idle_timeout: 30,
       connect_timeout: 10
     });
+    return _sql;
   }
 
-  const connString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-  if (connString) {
-    return postgres(connString, {
-      ssl: 'require',
-      max: 10,
-      idle_timeout: 30,
-      connect_timeout: 10
-    });
-  }
-
-  throw new Error('PostgreSQL credentials not found in PGHOST/PGUSER/PGDATABASE/PGPASSWORD or DATABASE_URL');
+  throw new Error('Neon PostgreSQL credentials not found. Please set DATABASE_URL or POSTGRES_URL in environment variables.');
 }
 
-export const sql = createPostgresClient();
-export default sql;
+// Tagged template proxy function that lazily calls the postgres client
+export const sql = (strings, ...values) => {
+  const client = getPostgresClient();
+  return client(strings, ...values);
+};
+
+// Also expose helper methods that postgres library provides (e.g., sql.begin, sql.file)
+export default new Proxy(sql, {
+  get(target, prop) {
+    if (prop in target) return target[prop];
+    const client = getPostgresClient();
+    const val = client[prop];
+    return typeof val === 'function' ? val.bind(client) : val;
+  }
+});
