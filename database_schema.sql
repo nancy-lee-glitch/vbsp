@@ -256,6 +256,72 @@ CREATE TABLE IF NOT EXISTS admin_users (
 );
 
 -- ------------------------------------------------------------------------------
+-- 12. KYC DOCUMENTS TABLE
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS kyc_documents (
+  id SERIAL PRIMARY KEY,
+  participant_id INTEGER REFERENCES participant_accounts(id) ON DELETE CASCADE,
+  document_type VARCHAR(100) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_url TEXT,
+  file_data TEXT,
+  mime_type VARCHAR(100),
+  file_size INTEGER,
+  status VARCHAR(50) DEFAULT 'Pending Review',
+  admin_notes TEXT,
+  uploaded_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------------------------
+-- 13. BENEFICIARIES DESIGNATIONS TABLE
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS beneficiaries (
+  id SERIAL PRIMARY KEY,
+  participant_id INTEGER REFERENCES participant_accounts(id) ON DELETE CASCADE,
+  full_name VARCHAR(255) NOT NULL,
+  relationship VARCHAR(100) NOT NULL,
+  share_percentage NUMERIC(5, 2) NOT NULL DEFAULT 100,
+  beneficiary_type VARCHAR(50) DEFAULT 'Primary',
+  ssn_last4 VARCHAR(10) DEFAULT '0000',
+  phone VARCHAR(50),
+  email VARCHAR(255),
+  address TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------------------------
+-- 14. AUDIT LOGS TABLE
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,
+  action VARCHAR(100) NOT NULL,
+  details TEXT,
+  ip_address VARCHAR(100),
+  user_email VARCHAR(255),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------------------------
+-- 15. LEDGER TRANSACTIONS TABLE
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ledger_transactions (
+  id SERIAL PRIMARY KEY,
+  tx_id VARCHAR(100) UNIQUE,
+  participant_id INTEGER REFERENCES participant_accounts(id) ON DELETE CASCADE,
+  user_account_number VARCHAR(100),
+  user_name VARCHAR(255),
+  type VARCHAR(100) NOT NULL,
+  description TEXT,
+  amount NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
+  metal_equivalent VARCHAR(100),
+  category VARCHAR(50) DEFAULT 'General',
+  fund_code VARCHAR(30) DEFAULT 'G',
+  status VARCHAR(50) DEFAULT 'Completed',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------------------------
 -- 12. ROW LEVEL SECURITY (RLS) FOR POSTGRESQL
 -- ------------------------------------------------------------------------------
 -- Enables RLS on all tables with open policies for seamless web application access

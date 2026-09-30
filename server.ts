@@ -2223,7 +2223,33 @@ Answer the user's inquiry accurately, referencing official TSP guidelines. Never
   }
 });
 
+async function ensureDatabaseSchema() {
+  try {
+    const sql = getPostgresSql();
+    if (!sql) return;
+    
+    const check = await sql`
+      SELECT 1 FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'participant_accounts'
+    `;
+    
+    if (check.length === 0) {
+      console.log('🔄 Initializing CCSP database schema on Neon...');
+      const fs = await import('fs');
+      if (fs.existsSync('database_schema.sql')) {
+        const schema = fs.readFileSync('database_schema.sql', 'utf8');
+        await sql.unsafe(schema);
+        console.log('✅ Database schema initialized successfully on Neon!');
+      }
+    }
+  } catch (err) {
+    console.error('Database schema check note:', err);
+  }
+}
+
 async function startServer() {
+  await ensureDatabaseSchema();
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
