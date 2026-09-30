@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "git": {
+    "deploymentEnabled": false
+  },
   "rewrites": [
     { "source": "/api/auth/login", "destination": "/api/auth/login.js" },
     { "source": "/api/auth/register", "destination": "/api/auth/register.js" },
