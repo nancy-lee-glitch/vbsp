@@ -124,6 +124,12 @@ export interface SiteBrandingSettings {
   sealText: string;
   supportPhone: string;
   supportEmail: string;
+  tagline?: string;
+  customLogoUrl?: string | null;
+  siteDescription?: string;
+  organizationName?: string;
+  emblemTitle?: string;
+  domainName?: string;
 }
 
 export interface AdminEmailDispatch {
@@ -190,14 +196,14 @@ export type Beneficiary = TSPBeneficiary;
 
 export interface TSPLoan {
   id: string;
-  type: 'General Purpose' | 'Residential';
+  type: 'General Purpose' | 'Residential' | string;
   originalAmount: number;
   currentBalance: number;
   interestRate: number;
   issueDate: string;
   termMonths: number;
   repaymentPerPayPeriod: number;
-  status: 'Active' | 'Paid' | 'Processing' | 'Rejected';
+  status: 'Active' | 'Paid' | 'Processing' | 'Rejected' | 'Approved' | 'Under Review' | string;
   collateralAsset?: string;
   userId?: string;
   userName?: string;
@@ -381,6 +387,7 @@ export interface UserAccount {
   contributionAllocations: Record<string, number>;
   currentHoldings: {
     fundCode: string;
+    fundName?: string;
     shares: number;
     sharePrice: number;
     balance: number;
@@ -392,4 +399,7 @@ export interface UserAccount {
   transactions?: TSPTransaction[];
   withdrawalRequests?: WithdrawalRequest[];
   kycProfile?: KYCVerificationProfile;
+  kycStatus?: string;
+  ssnLast4?: string;
+  accountStatus?: string;
 }

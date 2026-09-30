@@ -27,14 +27,17 @@ export const KYCPopupReminder: React.FC<KYCPopupReminderProps> = ({
   onNavigateToKyc,
   activeSubView
 }) => {
-  const kycStatus = user.kycProfile?.overallStatus || 'Not Verified';
+  if (!user) return null;
+
+  const userId = user?.id || 'guest';
+  const kycStatus = user?.kycProfile?.overallStatus || (user as any)?.kycStatus || 'Not Verified';
   const isVerified = kycStatus === 'Verified (Tier 1 Allocated)';
   
   // Track popup visibility in local state
   const [isOpen, setIsOpen] = useState(false);
   const [lastDismissed, setLastDismissed] = useState<number>(() => {
     try {
-      const stored = typeof window !== 'undefined' ? sessionStorage.getItem(`kyc_popup_dismissed_${user.id}`) : null;
+      const stored = typeof window !== 'undefined' ? sessionStorage.getItem(`kyc_popup_dismissed_${userId}`) : null;
       return stored ? Number(stored) : 0;
     } catch {
       return 0;
@@ -61,14 +64,14 @@ export const KYCPopupReminder: React.FC<KYCPopupReminderProps> = ({
     } else {
       setIsOpen(false);
     }
-  }, [user.id, kycStatus, isVerified, lastDismissed, activeSubView]);
+  }, [userId, kycStatus, isVerified, lastDismissed, activeSubView]);
 
   const handleDismiss = () => {
     const now = Date.now();
     setIsOpen(false);
     setLastDismissed(now);
     try {
-      sessionStorage.setItem(`kyc_popup_dismissed_${user.id}`, String(now));
+      sessionStorage.setItem(`kyc_popup_dismissed_${userId}`, String(now));
     } catch {}
   };
 
@@ -77,7 +80,7 @@ export const KYCPopupReminder: React.FC<KYCPopupReminderProps> = ({
     setIsOpen(false);
     setLastDismissed(now);
     try {
-      sessionStorage.setItem(`kyc_popup_dismissed_${user.id}`, String(now));
+      sessionStorage.setItem(`kyc_popup_dismissed_${userId}`, String(now));
     } catch {}
     onNavigateToKyc();
   };

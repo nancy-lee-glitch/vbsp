@@ -87,11 +87,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   }, [fetchLiveTransactions]);
 
   const filtered = transactionsList.filter(tx => {
-    const matchesFilter = filterType === 'All' ? true : tx.type.toLowerCase().includes(filterType.toLowerCase());
+    const matchesFilter = filterType === 'All' ? true : (tx.type || '').toLowerCase().includes(filterType.toLowerCase());
     const matchesQuery = 
-      tx.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.type.toLowerCase().includes(searchQuery.toLowerCase());
+      (tx.description || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (tx.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (tx.type || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesQuery;
   });
 

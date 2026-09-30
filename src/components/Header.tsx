@@ -327,7 +327,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <User className="w-3.5 h-3.5 text-[#f2a900]" />
                 <span className="hidden md:inline">My Vault Account</span>
                 <span className="md:hidden">Vault</span>
-                <span className="text-[10px] font-normal hidden xl:inline text-slate-700">({currentUser.name.split(' ')[0]})</span>
+                <span className="text-[10px] font-normal hidden xl:inline text-slate-700">({(currentUser.name || 'User').split(' ')[0]})</span>
               </button>
               <button 
                 onClick={onLogout}

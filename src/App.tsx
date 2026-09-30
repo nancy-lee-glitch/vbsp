@@ -33,7 +33,9 @@ import { AdminLogin } from './components/admin/AdminLogin';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { SovereignPreloader } from './components/SovereignPreloader';
 import { LiveActivityToast } from './components/LiveActivityToast';
-import { Search, X, ArrowRight } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { sanitizeUserAccount } from './utils/userAccountUtils';
+import { Search, X, ArrowRight, RefreshCw } from 'lucide-react';
 import { 
   fetchSiteBranding, 
   saveSiteBranding,
@@ -144,8 +146,10 @@ export default function App() {
               (prevUser.email && p.email && p.email.toLowerCase() === prevUser.email.toLowerCase())
             );
             if (freshUser) {
-              localStorage.setItem('ccsp_participant_session', JSON.stringify(freshUser));
-              return freshUser;
+              const sanitized = sanitizeUserAccount(freshUser, prevUser);
+              currentUserRef.current = sanitized;
+              localStorage.setItem('ccsp_participant_session', JSON.stringify(sanitized));
+              return sanitized;
             }
             return prevUser;
           });
@@ -230,8 +234,10 @@ export default function App() {
               (prevUser.email && p.email && p.email.toLowerCase() === prevUser.email.toLowerCase())
             );
             if (fresh) {
-              localStorage.setItem('ccsp_participant_session', JSON.stringify(fresh));
-              return fresh;
+              const sanitized = sanitizeUserAccount(fresh, prevUser);
+              currentUserRef.current = sanitized;
+              localStorage.setItem('ccsp_participant_session', JSON.stringify(sanitized));
+              return sanitized;
             }
             return prevUser;
           });
@@ -365,22 +371,24 @@ export default function App() {
   const handleLoginSuccess = (user: UserAccount) => {
     if (!user || (!user.id && !user.accountNumber)) return;
 
-    setCurrentUser(user);
-    localStorage.setItem('ccsp_participant_session', JSON.stringify(user));
+    const safeUser = sanitizeUserAccount(user);
+    currentUserRef.current = safeUser;
+    setCurrentUser(safeUser);
+    localStorage.setItem('ccsp_participant_session', JSON.stringify(safeUser));
 
     // Ensure new user exists in the central users registry
     setUsers(prevUsers => {
       const idx = prevUsers.findIndex(u => 
-        (user.id && String(u.id) === String(user.id)) || 
-        (user.accountNumber && u.accountNumber === user.accountNumber)
+        (safeUser.id && String(u.id) === String(safeUser.id)) || 
+        (safeUser.accountNumber && u.accountNumber === safeUser.accountNumber)
       );
       if (idx >= 0) {
         const copy = [...prevUsers];
-        copy[idx] = user;
+        copy[idx] = safeUser;
         localStorage.setItem('ccsp_users_registry', JSON.stringify(copy));
         return copy;
       }
-      const updatedList = [user, ...prevUsers];
+      const updatedList = [safeUser, ...prevUsers];
       localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
       return updatedList;
     });
@@ -621,15 +629,38 @@ export default function App() {
         )}
 
         {/* PARTICIPANT PORTAL */}
-        {currentView === 'participant_dashboard' && currentUser && (
-          <ParticipantDashboard 
-            user={currentUser}
-            funds={funds}
-            paymentMethods={paymentMethods}
-            onUpdateUser={handleUpdateUser}
-            activeSubView={participantSubView}
-            setActiveSubView={setParticipantSubView}
-          />
+        {currentView === 'participant_dashboard' && (
+          currentUser ? (
+            <ErrorBoundary 
+              fallbackTitle="Participant Portal Protected" 
+              fallbackMessage="A secure display refresh was performed for your account. All vault holdings and transaction records remain safe."
+            >
+              <ParticipantDashboard 
+                user={currentUser}
+                funds={funds}
+                paymentMethods={paymentMethods}
+                onUpdateUser={handleUpdateUser}
+                activeSubView={participantSubView}
+                setActiveSubView={setParticipantSubView}
+              />
+            </ErrorBoundary>
+          ) : (
+            <div className="min-h-[420px] flex flex-col items-center justify-center p-8 bg-white border border-slate-200 rounded-xs shadow-2xs space-y-4 my-8">
+              <div className="w-12 h-12 rounded-full bg-blue-50 text-[#0f2942] flex items-center justify-center font-bold">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#005ea2]" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Restoring Secure Participant Session...</h3>
+              <p className="text-xs text-slate-500 max-w-sm text-center">
+                Synchronizing your depository vault credentials and holdings with the secure database.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-4 py-2 bg-[#005ea2] hover:bg-[#112e51] text-white text-xs font-bold rounded-xs cursor-pointer shadow-xs transition-colors"
+              >
+                Sign In to Participant Account
+              </button>
+            </div>
+          )
         )}
 
         {/* AGENCY PORTAL */}
@@ -646,22 +677,27 @@ export default function App() {
               branding={branding}
             />
           ) : (
-            <AdminPortalView 
-              onAdminLogout={handleAdminLogout}
-              funds={funds}
-              onUpdateFundPrices={handleUpdateFundPrices}
-              users={users}
-              onCreateUser={handleCreateUser}
-              onUpdateUser={handleUpdateUser}
-              onDeleteUser={handleDeleteUser}
-              onImpersonateUser={handleImpersonateUser}
-              branding={branding}
-              onUpdateBranding={handleUpdateBranding}
-              dispatches={emailDispatches}
-              onSendEmail={handleSendEmail}
-              paymentMethods={paymentMethods}
-              onUpdatePaymentMethods={handleUpdatePaymentMethods}
-            />
+            <ErrorBoundary 
+              fallbackTitle="Administrative Operations Protected" 
+              fallbackMessage="The master administrative console safely contained a display error. Database integrity and depository records remain fully intact."
+            >
+              <AdminPortalView 
+                onAdminLogout={handleAdminLogout}
+                funds={funds}
+                onUpdateFundPrices={handleUpdateFundPrices}
+                users={users}
+                onCreateUser={handleCreateUser}
+                onUpdateUser={handleUpdateUser}
+                onDeleteUser={handleDeleteUser}
+                onImpersonateUser={handleImpersonateUser}
+                branding={branding}
+                onUpdateBranding={handleUpdateBranding}
+                dispatches={emailDispatches}
+                onSendEmail={handleSendEmail}
+                paymentMethods={paymentMethods}
+                onUpdatePaymentMethods={handleUpdatePaymentMethods}
+              />
+            </ErrorBoundary>
           )
         )}
 

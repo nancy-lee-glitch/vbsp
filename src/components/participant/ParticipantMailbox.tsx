@@ -185,7 +185,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
                 >
                   <div className="flex justify-between items-start mb-1">
                     <span className="font-bold text-xs text-slate-900 truncate max-w-[200px]">{m.sender}</span>
-                    <span className="text-[10px] text-slate-400">{m.timestamp.split(' ')[0]}</span>
+                    <span className="text-[10px] text-slate-400">{(m.timestamp || '').split(' ')[0] || 'Recent'}</span>
                   </div>
                   <div className="text-xs font-semibold text-blue-950 truncate">{m.subject}</div>
                   <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{m.body}</div>

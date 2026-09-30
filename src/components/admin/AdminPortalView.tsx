@@ -413,7 +413,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     if (!kycParticipant) return;
 
     const isNowVerified = kycSelectedStatus === 'Verified (Tier 1 Allocated)';
-    const currentKyc = kycParticipant.kycProfile || {
+    const currentKyc: KYCVerificationProfile = kycParticipant.kycProfile || {
       overallStatus: kycSelectedStatus as any,
       verifiedDate: isNowVerified ? new Date().toISOString().split('T')[0] : undefined,
       riskTier: 'Tier 1 Individual' as const,
@@ -514,13 +514,19 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
   // Filtered participants list
   const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      user.name.toLowerCase().includes(searchAccount.toLowerCase()) ||
-      user.accountNumber.toLowerCase().includes(searchAccount.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchAccount.toLowerCase()) ||
-      user.employingAgency.toLowerCase().includes(searchAccount.toLowerCase());
+    const name = user.name || '';
+    const acc = user.accountNumber || '';
+    const email = user.email || '';
+    const agency = user.employingAgency || '';
+    const plan = user.planType || '';
 
-    const matchesPlan = selectedPlanFilter === 'ALL' || user.planType === selectedPlanFilter;
+    const matchesSearch = !searchAccount ||
+      name.toLowerCase().includes(searchAccount.toLowerCase()) ||
+      acc.toLowerCase().includes(searchAccount.toLowerCase()) ||
+      email.toLowerCase().includes(searchAccount.toLowerCase()) ||
+      agency.toLowerCase().includes(searchAccount.toLowerCase());
+
+    const matchesPlan = selectedPlanFilter === 'ALL' || plan === selectedPlanFilter;
     return matchesSearch && matchesPlan;
   });
 

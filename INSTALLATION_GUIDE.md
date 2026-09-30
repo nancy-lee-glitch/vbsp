@@ -1,46 +1,137 @@
-# Cassivon Capital Savings Plan (CCSP) - Complete Installation & cPanel Deployment Guide
+# Cassivon Capital Savings Plan (CCSP) - Complete Installation & Deployment Guide
 
-This guide explains how to install, build, and deploy the **Cassivon Capital Savings Plan (CCSP) Portal** to any standard **cPanel shared hosting environment** (e.g. Namecheap, Bluehost, Hostinger, GoDaddy, SiteGround, cPanel/WHM VPS, or Apache/Nginx web server).
-
----
-
-## ⚡ Zero External AI / Gemini Dependencies
-
-**The entire platform runs 100% autonomously without requiring any Gemini API keys or external server dependencies.**
-- All interactive tools, participant calculations, bullion rate engines, and participant services operate locally in the browser or via standard static hosting.
-- You can upload the compiled files directly to cPanel `public_html` without configuring external AI keys or cloud billing.
+This guide explains how to install, build, configure, and deploy the **Cassivon Capital Savings Plan (CCSP) Platform** across:
+1. **Vercel (Hobby & Pro Plans)** — Optimized with 10 Serverless Functions and Neon PostgreSQL.
+2. **cPanel / Shared Hosting / Apache / Nginx** — Static SPA export with `.htaccess` URL rewrites.
+3. **Local Development & Full-Stack Node.js** — Running locally via Vite & Express (`server.ts`).
 
 ---
 
-## 1. How to Build & Export for cPanel Upload
+## ⚡ Key Architecture & Highlights
 
-### Step 1: Export Project Files
-In the Google AI Studio interface (top-right menu), click **"Export to ZIP"** or push to a GitHub repository, then extract the files on your computer.
+* **10 Serverless Functions (Vercel Hobby Compliant)**: Fully consolidated `/api` folder with exactly 10 endpoint files, well below the 12-function limit of the Vercel Hobby plan.
+* **Separated Database Client (`lib/db.js`)**: All database logic lives in `/lib/db.js` outside `/api`, preventing Vercel from counting helper files as serverless functions.
+* **Neon Serverless PostgreSQL**: High-performance pooled connection supporting `DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, and unpooled strings with SSL.
+* **Automated Self-Healing Database**: The application automatically checks and boots missing tables on startup if connected to a fresh database instance.
+* **Full Institutional Features**: Admin Approvals Hub, Participant ID Verification (KYC), Deposit Proofs & Approvals, Collateralized Loans, Vault Withdrawals, Beneficiaries, Documents Center, and Live Chat / Messaging.
 
-### Step 2: Install Dependencies and Build Locally
-Open your command prompt or terminal inside the project folder:
+---
+
+## 1. Local Development Setup
+
+### Prerequisites
+* **Node.js**: v18.0.0 or higher
+* **npm**: v9.0.0 or higher
+
+### Steps
+1. Clone or extract your project repository.
+2. Open your terminal in the project root directory and install dependencies:
+   ```bash
+   npm install
+   ```
+3. Configure your environment variables in `.env`:
+   ```env
+   PORT=3000
+   NODE_ENV=development
+   DATABASE_URL="postgresql://neondb_owner:YOUR_PASSWORD@YOUR_HOST-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
+   POSTGRES_URL="postgresql://neondb_owner:YOUR_PASSWORD@YOUR_HOST-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
+   ```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+5. Open your browser and navigate to `http://localhost:3000`.
+
+---
+
+## 2. Vercel Deployment (Hobby Plan Ready)
+
+The project has been optimized to deploy seamlessly on the **Vercel Hobby plan** without hitting the 12-function limit.
+
+### Serverless Function Directory (`/api` - 10 Functions)
+```
+/api
+  ├── admin.js        # Admin login, participants, funds, payment methods, beneficiaries, audit logs, transactions
+  ├── auth.js         # Participant login & registration
+  ├── branding.js     # Site branding & custom assets
+  ├── deposits.js     # Payment proofs, deposit requests & approvals
+  ├── documents.js    # Statements, tax forms & participant vault uploads
+  ├── health.js       # Database connectivity & system health
+  ├── kyc.js          # ID verification uploads & administrative approvals
+  ├── loans.js        # Collateralized loan applications & approvals
+  ├── messages.js     # Secure dispatch & mailbox messaging
+  └── withdrawals.js  # Bullion withdrawal requests & processing
+
+/lib
+  └── db.js           # Neon PostgreSQL connection client (outside /api)
+```
+
+### Deployment Steps on Vercel
+1. Push your repository to **GitHub**, **GitLab**, or **Bitbucket**.
+2. Go to [Vercel Dashboard](https://vercel.com/dashboard) and click **"Add New Project"**.
+3. Import your Git repository.
+4. Set the Build and Output settings:
+   - **Framework Preset**: Vite
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+5. Configure Environment Variables in Vercel:
+   - Add `DATABASE_URL` with your Neon PostgreSQL connection string:
+     ```env
+     DATABASE_URL=postgresql://neondb_owner:your_password@ep-dry-boat-b7s0uhrp-pooler.c-13.us-east-1.aws.neon.tech/neondb?sslmode=require
+     ```
+   - *(Optional)* Add `POSTGRES_URL` with the same string.
+6. Click **Deploy**. Vercel will build the frontend into `dist/` and deploy the 10 serverless functions in `/api/`.
+
+---
+
+## 3. Database Setup (Neon PostgreSQL)
+
+### Option A: Automated Bootstrap (Default)
+When you start the application or deploy it with a valid `DATABASE_URL`, the server checks whether `participant_accounts` exists. If the database is blank, it automatically initializes all 15 tables and seeds demo accounts.
+
+### Option B: Manual SQL Execution via Neon Console
+1. Log in to [Neon Console](https://console.neon.tech) and select your project.
+2. Click **SQL Editor** in the left sidebar.
+3. Open `database_schema.sql` from your project root.
+4. Copy the entire file content, paste it into the Neon SQL Editor, and click **Run**.
+5. This creates the following 15 relational tables:
+   - `participant_accounts`
+   - `fund_prices`
+   - `site_branding`
+   - `payment_methods`
+   - `deposits`
+   - `withdrawal_requests`
+   - `loan_applications`
+   - `user_documents`
+   - `messages`
+   - `transactions`
+   - `admin_users`
+   - `kyc_documents`
+   - `beneficiaries`
+   - `audit_logs`
+   - `ledger_transactions`
+
+---
+
+## 4. cPanel & Shared Hosting Deployment
+
+If you are deploying to a standard cPanel web host (Namecheap, Hostinger, Bluehost, GoDaddy, SiteGround, Apache/Nginx VPS):
+
+### Step 1: Build the Static Bundle
+Run the build command locally:
 ```bash
-# 1. Install project dependencies
-npm install
-
-# 2. Build the production application
 npm run build
 ```
-This generates the optimized production bundle inside the `dist/` directory.
+This compiles the application and generates the optimized production bundle inside `dist/`.
 
----
+### Step 2: Upload Files via cPanel File Manager
+1. Log in to your cPanel dashboard.
+2. Open **File Manager** and navigate to `public_html/` (or your subdomain folder).
+3. Upload all files and folders located inside the `dist/` directory into `public_html/`.
+4. Ensure `index.html` is directly inside `public_html/`.
 
-## 2. Step-by-Step Upload to cPanel Shared Hosting
-
-### Method A: Static Web Deployment (Recommended for all Shared Hosts)
-1. **Log in to your cPanel control panel**.
-2. Click on **File Manager**.
-3. Navigate to your root directory, typically `public_html/` (or your subdomain directory, e.g., `public_html/vault/`).
-4. Click **Upload** and upload all files and folders located inside the `dist/` folder into `public_html/`.
-   - Your `public_html/` should contain `index.html`, `assets/`, `manifest.json` (if present), and other static files.
-
-### Step 3: Create / Verify `.htaccess` for Clean Routing
-Create a file named `.htaccess` inside `public_html/` with the following content to support client-side routing and page refreshes:
+### Step 3: Configure `.htaccess` for Client-Side Routing
+Create or edit `.htaccess` in your `public_html/` folder:
 ```apache
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -51,7 +142,6 @@ Create a file named `.htaccess` inside `public_html/` with the following content
   RewriteRule . /index.html [L]
 </IfModule>
 
-# Optional Security Headers & Caching
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set X-Frame-Options "SAMEORIGIN"
@@ -59,83 +149,70 @@ Create a file named `.htaccess` inside `public_html/` with the following content
 </IfModule>
 ```
 
-### Step 4: Enable Free SSL Certificate
-1. In cPanel, navigate to **SSL/TLS Status** or **Let's Encrypt SSL**.
-2. Select your domain and click **Run AutoSSL** / **Issue Certificate** to enable HTTPS (`https://yourdomain.com`).
+### Step 4: Enable SSL
+1. In cPanel, open **SSL/TLS Status** or **Let's Encrypt SSL**.
+2. Select your domain and click **Run AutoSSL** / **Issue Certificate** to ensure HTTPS is active.
 
 ---
 
-## 3. Account Access & Credentials
+## 5. System Credentials & Access Points
 
-> **Security Note:** Public login links do not expose administrative tools. Use the private direct URLs below.
+> **Security Note:** Public navigation links do not expose the Administrative Portal. Access the administrative login via `#admin` or through the secure footer seal.
 
 ### A. Executive Administrator Access
-- **URL**: `https://yourdomain.com/#admin` (or `https://yourdomain.com/index.html#admin`)
-- **Administrator Email**: `admin@vbsp.org`
-- **Master Password**: `VBSP_Master_2026!`
-- **FIPS Security Key / Admin PIN**: `990011`
+* **Portal URL**: `https://yourdomain.com/#admin`
+* **Admin Email**: `admin@cassivon.com`
+* **Master Passwords**: `CCSP_Master_2026!` (or `CCSP_Admin_2026!`)
+* **Security PIN / FIPS Key**: `884411` (or `990011`, `829415`)
 
-**Administrator Features:**
-1. **Master Bullion Rate Terminal**: Live price management for Gold (G), Silver (S), Platinum (P), Treasury (T), and Rare Minerals (M).
-2. **Participant Registry (CRUD)**: Create new participants, adjust vaulted holdings, delete accounts, and launch impersonation sessions.
-3. **KYC & Identity Audit Center**: Inspect participant-uploaded SSN cards, Driver's Licenses (front/back), Passports, and update compliance tiers.
-4. **Participant Email & Broadcast Center**: Dispatch emails to all participants or selected individual accounts.
-5. **Site Name & Custom Logo Settings**: Change brand name, header/footer text, upload custom logo files or image URLs in real time.
-6. **Immutable Audit Logs**: Tamper-evident logging of administrative actions.
+**Executive Administrative Capabilities:**
+1. **Approvals Hub**: Review, approve, or reject KYC submissions, payment deposit proofs, participant loan requests, bullion withdrawals, and uploaded documents.
+2. **Participant Registry (CRUD)**: Create accounts, adjust balances (Traditional, Roth, Gold oz, Silver oz), update verification tiers, and launch impersonation sessions.
+3. **Master Bullion Rate Terminal**: Manage live prices and yields for G-Fund (Gold), S-Fund (Silver), P-Fund (Platinum), T-Fund (Treasury), and Lifecycle Portfolios.
+4. **Payment Gateways**: Configure institutional bank wire instructions, Bitcoin (BTC) addresses, and USDT (TRC-20) segregated vault wallets.
+5. **Branding Manager**: Update company name, slogan, logo images, support telephone, and compliance disclaimers in real time.
+6. **Immutable Audit Logs**: Tamper-evident logging of administrative actions with IP tracking.
 
 ---
 
 ### B. Pre-Configured Test Participant Accounts
-Test participant vault logins and distributions at `https://yourdomain.com/#myaccount`:
+Test vault logins and participant services at `https://yourdomain.com/#myaccount`:
 
-1. **Marcus Vance (Standard Custody Account)**
-   - **Account Number**: `VBSP-8841-9920-12`
-   - **Password**: `FederalTSP2026!`
-   - **ThriftLine PIN**: `884411`
-   - **MFA Code**: Any 6 digits (e.g. `123456`)
-   - **Balance**: $342,850.12 (46.8 oz Fine Gold, 420.5 oz Silver)
+1. **Major Marcus Vance (Ret.)** — Sovereign Custody IRA / Rollover
+   * **Email**: `marcus.vance@defense.gov`
+   * **Account Number**: `CCSP-0089-4412-98`
+   * **Password**: `CassivonCapital2026!` (or `FederalTSP2026!`)
+   * **ThriftLine PIN**: `829415`
+   * **Portfolio Balance**: $342,850.12 (120.45 oz Gold, 3,450.0 oz Silver)
+   * **Status**: Active • Verified (Tier 1 Allocated)
 
-2. **Dr. Elena Rostova (Sovereign Custody IRA / Rollover)**
-   - **Account Number**: `VBSP-1092-3841-04`
-   - **Password**: `FederalTSP2026!`
-   - **ThriftLine PIN**: `109238`
-   - **MFA Code**: Any 6 digits (e.g. `123456`)
-   - **Balance**: $618,400.00 (84.5 oz Fine Gold, 760.0 oz Silver)
-
-3. **Col. James Sterling (Corporate Treasury Reserve)**
-   - **Account Number**: `VBSP-5521-7789-99`
-   - **Password**: `FederalTSP2026!`
-   - **ThriftLine PIN**: `552177`
-   - **MFA Code**: Any 6 digits (e.g. `123456`)
-   - **Balance**: $1,250,000.00 (170.8 oz Fine Gold, 1,530.0 oz Silver)
+2. **Elena Vasquez** — Standard Taxable Reserve
+   * **Email**: `e.vasquez@treasury.gov`
+   * **Account Number**: `CCSP-0041-8821-14`
+   * **Password**: `CassivonCapital2026!` (or `FederalTSP2026!`)
+   * **ThriftLine PIN**: `554411`
+   * **Portfolio Balance**: $189,420.50 (65.20 oz Gold, 1,850.0 oz Silver)
+   * **Status**: Active • Verified (Tier 1 Allocated)
 
 ---
 
-## 4. Participant KYC & Identity Upload Feature
+## 6. Participant Verification & Document Workflows
 
-Participants can access the **"ID Verification & KYC"** tab in their dashboard to:
-1. Upload/Replace **Social Security Card (SSN)** with encrypted masking (`***-**-4412`).
-2. Upload **Driver's License / State ID** (front & back images).
-3. Upload **International Passport Booklet** (with photo page verification).
-4. Upload **Proof of Address** (Utility Bill or Bank Statement).
-5. Inspect uploaded documents via interactive preview lightbox.
-6. Track live verification status (**Verified**, **Under Review**, **Action Required**).
+Participants can manage compliance directly within the **"ID Verification & KYC"** and **"Documents Center"** tabs:
+1. **Government ID Upload**: Driver's License (front & back), International Passport, or State ID with live camera capture or file upload.
+2. **SSN / Tax Identification**: Social Security Card with encrypted masking (`***-**-4412`).
+3. **Proof of Residence**: Utility bill or bank statement uploaded directly to Neon PostgreSQL storage.
+4. **Deposit Payment Receipts**: Upload payment receipts for bank wires, BTC transfers, or USDT deposits with automatic review queueing in the Admin Approvals Hub.
+5. **Full Audit Sync**: Document status updates approved by the Administrator immediately sync in real time across the participant view.
 
 ---
 
-## 5. Neon (PostgreSQL) & Vercel Database Setup (Single Connection String)
+## 7. Build Scripts & Verification
 
-When deploying on **Vercel** with **Neon Serverless PostgreSQL** (or any PostgreSQL host):
-
-1. **Get your Connection String from Neon Console / Vercel Postgres:**
-   - In Neon Console, copy your **Pooled Connection String** or **Direct Connection String** (e.g. `postgresql://neondb_owner:password@ep-xyz-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require`).
-2. **Set Environment Variable:**
-   - In Vercel Project Settings > **Environment Variables** (or in your local `.env`), add:
-     ```env
-     DATABASE_URL="postgresql://username:password@ep-sample-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require"
-     ```
-     *(Or `POSTGRES_URL` which is automatically provided if using the Vercel Neon integration)*.
-3. **Execute the PostgreSQL Schema:**
-   - Open **Neon Console** -> **SQL Editor** (or connect via `psql` / pgAdmin / DBeaver).
-   - Paste the contents of `database_schema.sql` and run the script.
-   - This creates all 13 PostgreSQL relational tables (`admin_users`, `fund_prices`, `participant_accounts`, `participant_allocations`, `payment_methods`, `participant_deposits`, `participant_loans`, `beneficiaries`, `statutory_parameters`, `audit_logs`, `fraud_alerts`, `announcements`, `site_branding`) with automatic timestamp triggers and pre-seeded demo records.
+| Command | Action |
+| :--- | :--- |
+| `npm run dev` | Starts full-stack development server with Vite HMR on port 3000 |
+| `npm run build` | Compiles production SPA and server bundle to `dist/` |
+| `npm run lint` | Runs TypeScript typechecker (`tsc --noEmit`) to verify zero errors |
+| `npm start` | Boots the compiled production server (`node dist/server.cjs`) |
+| `npm run clean` | Cleans previous build artifacts from `dist/` |

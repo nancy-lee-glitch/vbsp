@@ -237,7 +237,7 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
   // Counts for pending badges
   const pendingDepositsCount = deposits.filter(d => d.status === 'Pending' || d.status === 'Pending Review').length;
   const pendingDocsCount = documents.filter(d => d.status === 'Pending' || d.status === 'Pending Review').length;
-  const pendingKycCount = kycDocs.filter(k => k.status === 'Pending Review' || k.status === 'Pending').length;
+  const pendingKycCount = kycDocs.filter(k => k.status === 'Pending Review' || (k.status as any) === 'Pending').length;
   const pendingLoansCount = loans.filter(l => l.status === 'Pending' || l.status === 'Pending Review' || l.status === 'Processing').length;
   const pendingWdlCount = withdrawals.filter(w => w.status === 'Pending' || w.status === 'Pending Review').length;
 
@@ -692,8 +692,8 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
 
                       <td className="p-3">
                         <span className={`px-2 py-0.5 rounded-2xs text-[10px] font-bold ${
-                          doc.status === 'Verified' || doc.status === 'Approved' ? 'bg-emerald-100 text-emerald-900' :
-                          doc.status === 'Rejected' || doc.status === 'Action Required' ? 'bg-rose-100 text-rose-900' :
+                          doc.status === 'Verified' || (doc.status as any) === 'Approved' ? 'bg-emerald-100 text-emerald-900' :
+                          doc.status === 'Action Required' || (doc.status as any) === 'Rejected' ? 'bg-rose-100 text-rose-900' :
                           'bg-amber-100 text-amber-900'
                         }`}>
                           {doc.status}
@@ -701,7 +701,7 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
                       </td>
 
                       <td className="p-3 text-right">
-                        {doc.status === 'Pending Review' || doc.status === 'Pending' ? (
+                        {doc.status === 'Pending Review' || (doc.status as any) === 'Pending' ? (
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleApproveKycDoc(doc)}
@@ -782,7 +782,7 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
                       </td>
 
                       <td className="p-3 font-mono text-sm font-bold text-blue-950">
-                        ${loan.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        ${Number(loan.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
 
                       <td className="p-3 text-slate-700">
@@ -790,7 +790,7 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
                       </td>
 
                       <td className="p-3 font-mono text-emerald-800 font-semibold">
-                        ${loan.monthly_payment.toFixed(2)}/mo
+                        ${Number(loan.monthly_payment || 0).toFixed(2)}/mo
                       </td>
 
                       <td className="p-3">
@@ -880,16 +880,16 @@ export const AdminApprovalsHub: React.FC<AdminApprovalsHubProps> = ({ users, onR
                       </td>
 
                       <td className="p-3 font-semibold text-slate-800">
-                        {wdl.withdrawal_type.replace(/_/g, ' ').toUpperCase()}
+                        {(wdl.withdrawal_type || 'distribution').replace(/_/g, ' ').toUpperCase()}
                       </td>
 
                       <td className="p-3 font-mono text-sm font-bold text-rose-700">
-                        ${wdl.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        ${Number(wdl.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
 
                       <td className="p-3 text-slate-700">
-                        <div className="font-semibold">{wdl.disbursement_method}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{wdl.bank_name} •••• {wdl.account_number_last4}</div>
+                        <div className="font-semibold">{wdl.disbursement_method || 'ACH Wire'}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{wdl.bank_name || 'Bank'} •••• {(wdl as any).account_number_last4 || (wdl.user_account_number ? wdl.user_account_number.slice(-4) : '0000')}</div>
                       </td>
 
                       <td className="p-3 text-[11px] text-slate-600 max-w-[200px] truncate">

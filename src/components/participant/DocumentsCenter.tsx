@@ -40,7 +40,9 @@ export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
               id: d.id,
               name: d.file_name || d.title,
               size: d.file_size || '1.2 MB',
-              date: d.created_at ? d.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+              date: d.created_at 
+                ? (typeof d.created_at === 'string' ? d.created_at.split('T')[0] : new Date(d.created_at).toISOString().split('T')[0])
+                : new Date().toISOString().split('T')[0],
               status: d.status || 'Pending',
               data: d.file_data
             }));

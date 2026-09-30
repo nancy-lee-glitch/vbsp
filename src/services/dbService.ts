@@ -17,6 +17,7 @@ import {
   PaymentMethodConfig 
 } from '../types';
 import { MOCK_USERS, DEFAULT_SITE_BRANDING, TSP_FUNDS, DEFAULT_PAYMENT_METHODS } from '../data/mockData';
+import { sanitizeUserAccount } from '../utils/userAccountUtils';
 
 // Storage cache keys for graceful offline fallback or local sync
 const CACHE_KEYS = {
@@ -101,15 +102,17 @@ export async function fetchAllParticipants(): Promise<UserAccount[]> {
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.participants) && json.participants.length > 0) {
-        safeSetCache(CACHE_KEYS.USERS, json.participants);
-        return json.participants;
+        const sanitized = json.participants.map((p: any) => sanitizeUserAccount(p));
+        safeSetCache(CACHE_KEYS.USERS, sanitized);
+        return sanitized;
       }
     }
   } catch (e) {
     console.warn('REST /api/participants fetch failed, using cache:', e);
   }
 
-  return safeGetCache<UserAccount[]>(CACHE_KEYS.USERS, MOCK_USERS);
+  const cached = safeGetCache<UserAccount[]>(CACHE_KEYS.USERS, MOCK_USERS);
+  return (cached || []).map(p => sanitizeUserAccount(p));
 }
 
 export async function updateParticipantBalances(
@@ -253,6 +256,7 @@ export interface DepositProofRecord {
   transaction_hash?: string;
   sender_identifier?: string;
   proof_file_name?: string;
+  proof_file_data?: string;
   receipt_image_url?: string;
   status: string;
   admin_notes?: string;

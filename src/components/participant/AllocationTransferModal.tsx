@@ -31,13 +31,14 @@ export const AllocationTransferModal: React.FC<AllocationTransferModalProps> = (
   const [activeMode, setActiveMode] = useState<'allocation' | 'transfer'>(initialMode);
   
   // Future Allocation State (percentages sum to 100%)
+  const userAlloc = user?.contributionAllocations || {};
   const [allocations, setAllocations] = useState<Record<string, number>>({
-    'L2050': user.contributionAllocations['L2050'] || 50,
-    'C': user.contributionAllocations['C'] || 30,
-    'S': user.contributionAllocations['S'] || 15,
-    'G': user.contributionAllocations['G'] || 5,
-    'F': user.contributionAllocations['F'] || 0,
-    'I': user.contributionAllocations['I'] || 0
+    'L2050': userAlloc['L2050'] || 50,
+    'C': userAlloc['C'] || 30,
+    'S': userAlloc['S'] || 15,
+    'G': userAlloc['G'] || 5,
+    'F': userAlloc['F'] || 0,
+    'I': userAlloc['I'] || 0
   });
 
   // Interfund Transfer (IFT) State

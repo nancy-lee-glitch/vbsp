@@ -96,6 +96,7 @@ async function handleLogin(req, res) {
     }
 
     // Return safe, full user data matching the UserAccount model
+    const tot = Number(user.total_balance) || 0;
     const safeUser = {
       id: String(user.id),
       account_number: user.account_number,
@@ -105,8 +106,8 @@ async function handleLogin(req, res) {
       name: user.full_name,
       account_type: user.account_type,
       accountType: user.account_type,
-      total_balance: Number(user.total_balance) || 0,
-      totalBalance: Number(user.total_balance) || 0,
+      total_balance: tot,
+      totalBalance: tot,
       traditional_balance: Number(user.traditional_balance) || 0,
       traditionalBalance: Number(user.traditional_balance) || 0,
       roth_balance: Number(user.roth_balance) || 0,
@@ -124,7 +125,27 @@ async function handleLogin(req, res) {
       ssn_last4: user.ssn_last4 || '4412',
       ssnLast4: user.ssn_last4 || '4412',
       kyc_status: user.kyc_status || 'Pending Review',
-      kycStatus: user.kyc_status || 'Pending Review'
+      kycStatus: user.kyc_status || 'Pending Review',
+      ytdContributions: {
+        employee: Number((tot * 0.05).toFixed(2)),
+        agencyMatch: Number((tot * 0.04).toFixed(2)),
+        agencyAutomatic: Number((tot * 0.01).toFixed(2))
+      },
+      contributionAllocations: { 'G': 50, 'S': 30, 'T': 20 },
+      currentHoldings: [
+        { fundCode: 'G', shares: Number(((tot * 0.5) / 68.45).toFixed(2)), sharePrice: 68.45, balance: Number((tot * 0.5).toFixed(2)), percentage: 50.0, metalWeight: 'LBMA Gold' },
+        { fundCode: 'S', shares: Number(((tot * 0.3) / 34.20).toFixed(2)), sharePrice: 34.20, balance: Number((tot * 0.3).toFixed(2)), percentage: 30.0, metalWeight: 'Fine Silver' },
+        { fundCode: 'T', shares: Number(((tot * 0.2) / 19.42).toFixed(2)), sharePrice: 19.42, balance: Number((tot * 0.2).toFixed(2)), percentage: 20.0, metalWeight: 'Treasury Reserve' }
+      ],
+      kycProfile: {
+        overallStatus: user.kyc_status || 'Verified (Tier 1 Allocated)',
+        riskTier: 'Tier 1 Individual',
+        ssnMasked: user.ssn_last4 ? `***-**-${user.ssn_last4}` : '***-**-4412',
+        additionalDocuments: []
+      },
+      beneficiaries: [],
+      activeLoans: [],
+      transactions: []
     };
 
     return res.status(200).json({
@@ -264,12 +285,26 @@ async function handleRegister(req, res) {
         thriftlinePin: newUser.thriftline_pin,
         total_balance: Number(newUser.total_balance) || 0,
         totalBalance: Number(newUser.total_balance) || 0,
+        traditionalBalance: 0,
+        rothBalance: 0,
         phone: newUser.phone,
         address: newUser.address,
         employingAgency: newUser.employing_agency,
         ssnLast4: newUser.ssn_last4,
         accountStatus: newUser.account_status,
-        kycStatus: newUser.kyc_status
+        kycStatus: newUser.kyc_status,
+        ytdContributions: { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
+        contributionAllocations: { 'G': 50, 'S': 50 },
+        currentHoldings: [],
+        beneficiaries: [],
+        activeLoans: [],
+        transactions: [],
+        kycProfile: {
+          overallStatus: newUser.kyc_status || 'Pending Review',
+          riskTier: 'Tier 1 Individual',
+          ssnMasked: `***-**-${newUser.ssn_last4 || targetSsn}`,
+          additionalDocuments: []
+        }
       }
     });
 
