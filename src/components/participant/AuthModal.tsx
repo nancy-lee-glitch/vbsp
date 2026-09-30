@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { UserAccount, CCSPAccountType, SiteBrandingSettings } from '../../types';
 import { INITIAL_USER, MOCK_USERS } from '../../data/mockData';
+import { sanitizeUserAccount } from '../../utils/userAccountUtils';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -164,12 +165,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           vaultDepositaryLocation: u.vault_facility || u.vaultDepositaryLocation || 'Zurich FreePort / Delaware Depository Segregated Vault',
           goldOuncesEquivalent: Number(u.gold_ounces_equivalent ?? u.goldOuncesEquivalent ?? 0),
           silverOuncesEquivalent: Number(u.silver_ounces_equivalent ?? u.silverOuncesEquivalent ?? 0),
-          ytdContributions: u.ytdContributions || { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
+          ytdContributions: {
+            employee: Number(u.ytdContributions?.employee ?? 0),
+            agencyMatch: Number(u.ytdContributions?.agencyMatch ?? 0),
+            agencyAutomatic: Number(u.ytdContributions?.agencyAutomatic ?? 0)
+          },
           contributionAllocations: u.contributionAllocations || { 'G': 60, 'S': 40 },
-          currentHoldings: [],
-          beneficiaries: [],
-          activeLoans: [],
-          transactions: [],
+          currentHoldings: Array.isArray(u.currentHoldings) ? u.currentHoldings : [],
+          beneficiaries: Array.isArray(u.beneficiaries) ? u.beneficiaries : [],
+          activeLoans: Array.isArray(u.activeLoans) ? u.activeLoans : [],
+          transactions: Array.isArray(u.transactions) ? u.transactions : [],
           kycProfile: {
             overallStatus: u.kyc_status || u.kycStatus || 'Pending Review',
             riskTier: 'Tier 1 Individual',
@@ -178,7 +183,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }
         };
 
-        setSelectedUserToLogin(loggedInUser);
+        const safeLoggedInUser = sanitizeUserAccount(loggedInUser);
+        setSelectedUserToLogin(safeLoggedInUser);
         setAuthStep('mfa');
       } else {
         setErrorMessage(data.message || 'Login failed. Please verify your account credentials.');
@@ -204,8 +210,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // Success - strictly pass authenticated user
-    onLoginSuccess(selectedUserToLogin);
+    // Success - strictly pass sanitized authenticated user
+    onLoginSuccess(sanitizeUserAccount(selectedUserToLogin));
     onClose();
   };
 
@@ -265,21 +271,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           vaultDepositaryLocation: data.user.vaultDepositaryLocation || 'Zurich FreePort & Delaware Depository Segregated Vault',
           goldOuncesEquivalent: Number(data.user.goldOuncesEquivalent ?? data.user.gold_ounces_equivalent ?? 0),
           silverOuncesEquivalent: Number(data.user.silverOuncesEquivalent ?? data.user.silver_ounces_equivalent ?? 0),
-          ytdContributions: data.user.ytdContributions || { employee: 0, agencyMatch: 0, agencyAutomatic: 0 },
-          contributionAllocations: data.user.contributionAllocations || { 'G': 50, 'S': 50 },
-          currentHoldings: data.user.currentHoldings || [],
+          ytdContributions: {
+            employee: Number(data.user?.ytdContributions?.employee ?? 0),
+            agencyMatch: Number(data.user?.ytdContributions?.agencyMatch ?? 0),
+            agencyAutomatic: Number(data.user?.ytdContributions?.agencyAutomatic ?? 0)
+          },
+          contributionAllocations: data.user?.contributionAllocations || { 'G': 50, 'S': 50 },
+          currentHoldings: Array.isArray(data.user?.currentHoldings) ? data.user.currentHoldings : [],
           beneficiaries: [],
           activeLoans: [],
           transactions: [],
-          kycProfile: data.user.kycProfile || {
+          kycProfile: data.user?.kycProfile || {
             overallStatus: 'Pending Review',
             riskTier: 'Tier 1 Individual',
             ssnMasked: onboardSsn ? `***-**-${onboardSsn.slice(-4)}` : '***-**-4412',
             additionalDocuments: []
           }
         };
+        const safeCreatedUser = sanitizeUserAccount(createdUserAccount);
         setIsRegistering(false);
-        setCreatedUser(createdUserAccount);
+        setCreatedUser(safeCreatedUser);
         setOnboardStep(3);
       } else {
         setIsRegistering(false);
@@ -294,7 +305,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleFinishRegistration = () => {
     if (createdUser) {
-      onLoginSuccess(createdUser);
+      onLoginSuccess(sanitizeUserAccount(createdUser));
       onClose();
     }
   };

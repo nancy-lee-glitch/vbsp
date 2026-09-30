@@ -113,22 +113,20 @@ export function sanitizeParticipantAccountData<T extends Record<string, any>>(us
   }
 
   // Sanitize YTD contributions
-  if (sanitized.ytdContributions && typeof sanitized.ytdContributions === 'object') {
-    sanitized.ytdContributions = {
-      employee: (isNaN(sanitized.ytdContributions.employee) || Number.isNaN(sanitized.ytdContributions.employee))
-        ? 0.0
-        : sanitizeNumeric(sanitized.ytdContributions.employee, 0.0),
-      agencyMatch: (isNaN(sanitized.ytdContributions.agencyMatch) || Number.isNaN(sanitized.ytdContributions.agencyMatch))
-        ? 0.0
-        : sanitizeNumeric(sanitized.ytdContributions.agencyMatch, 0.0),
-      agencyAutomatic: (isNaN(sanitized.ytdContributions.agencyAutomatic) || Number.isNaN(sanitized.ytdContributions.agencyAutomatic))
-        ? 0.0
-        : sanitizeNumeric(sanitized.ytdContributions.agencyAutomatic, 0.0),
-      total: (isNaN(sanitized.ytdContributions.total) || Number.isNaN(sanitized.ytdContributions.total))
-        ? 0.0
-        : sanitizeNumeric(sanitized.ytdContributions.total, 0.0),
-    };
-  }
+  sanitized.ytdContributions = {
+    employee: (isNaN(Number(sanitized.ytdContributions?.employee)) || Number.isNaN(Number(sanitized.ytdContributions?.employee)))
+      ? 0.0
+      : sanitizeNumeric(sanitized.ytdContributions?.employee, 0.0),
+    agencyMatch: (isNaN(Number(sanitized.ytdContributions?.agencyMatch)) || Number.isNaN(Number(sanitized.ytdContributions?.agencyMatch)))
+      ? 0.0
+      : sanitizeNumeric(sanitized.ytdContributions?.agencyMatch, 0.0),
+    agencyAutomatic: (isNaN(Number(sanitized.ytdContributions?.agencyAutomatic)) || Number.isNaN(Number(sanitized.ytdContributions?.agencyAutomatic)))
+      ? 0.0
+      : sanitizeNumeric(sanitized.ytdContributions?.agencyAutomatic, 0.0),
+    total: (isNaN(Number(sanitized.ytdContributions?.total)) || Number.isNaN(Number(sanitized.ytdContributions?.total)))
+      ? 0.0
+      : sanitizeNumeric(sanitized.ytdContributions?.total, 0.0),
+  };
 
   // Sanitize contribution allocations
   if (sanitized.contributionAllocations && typeof sanitized.contributionAllocations === 'object') {

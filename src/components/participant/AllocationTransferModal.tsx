@@ -154,7 +154,7 @@ export const AllocationTransferModal: React.FC<AllocationTransferModalProps> = (
           <span>
             {activeMode === 'allocation' 
               ? 'Directs where your future payroll contributions and agency matches will be invested.'
-              : `Reallocates your current balance of $${user.totalBalance.toLocaleString()} among CCSP funds.`}
+              : `Reallocates your current balance of $${Number(user?.totalBalance || 0).toLocaleString()} among CCSP funds.`}
           </span>
           <span className="font-black">Total: {currentSum}%</span>
         </div>

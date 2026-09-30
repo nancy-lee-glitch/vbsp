@@ -40,17 +40,19 @@ export function sanitizeUserAccount(raw: any, fallbackUser?: UserAccount | null)
   const transactions = Array.isArray(raw?.transactions) ? raw.transactions : (Array.isArray(base?.transactions) ? base.transactions : []);
   const withdrawalRequests = Array.isArray(raw?.withdrawalRequests) ? raw.withdrawalRequests : (Array.isArray(base?.withdrawalRequests) ? base.withdrawalRequests : []);
 
-  const ytdContrib = raw?.ytdContributions && typeof raw.ytdContributions === 'object'
-    ? {
-        employee: Number(raw.ytdContributions.employee || 0),
-        agencyMatch: Number(raw.ytdContributions.agencyMatch || 0),
-        agencyAutomatic: Number(raw.ytdContributions.agencyAutomatic || 0)
-      }
-    : (base?.ytdContributions || {
-        employee: Number((totalBal * 0.05).toFixed(2)),
-        agencyMatch: Number((totalBal * 0.04).toFixed(2)),
-        agencyAutomatic: Number((totalBal * 0.01).toFixed(2))
-      });
+  const rawYtd = (raw?.ytdContributions && typeof raw.ytdContributions === 'object')
+    ? raw.ytdContributions
+    : (base?.ytdContributions && typeof base.ytdContributions === 'object' ? base.ytdContributions : null);
+
+  const defaultEmp = totalBal > 0 ? Number((totalBal * 0.05).toFixed(2)) : 0;
+  const defaultMatch = totalBal > 0 ? Number((totalBal * 0.04).toFixed(2)) : 0;
+  const defaultAuto = totalBal > 0 ? Number((totalBal * 0.01).toFixed(2)) : 0;
+
+  const ytdContrib = {
+    employee: Number(rawYtd?.employee ?? defaultEmp),
+    agencyMatch: Number(rawYtd?.agencyMatch ?? defaultMatch),
+    agencyAutomatic: Number(rawYtd?.agencyAutomatic ?? defaultAuto)
+  };
 
   const kycStatus = raw?.kycProfile?.overallStatus || raw?.kycStatus || raw?.kyc_status || base?.kycProfile?.overallStatus || 'Pending Review';
 

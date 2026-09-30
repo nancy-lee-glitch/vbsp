@@ -76,16 +76,16 @@ export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
   const handleSimulatedDownload = (title: string) => {
     const text = `CASSIVON CAPITAL SAVINGS PLAN (CCSP) OFFICIAL CUSTODIAL STATEMENT
 Document: ${title}
-Participant Name: ${user.name}
-Account Number: ${user.accountNumber}
-Employing Agency: ${user.employingAgency}
-Total Account Balance: $${user.totalBalance.toLocaleString()}
-Traditional Bullion Balance: $${user.traditionalBalance.toLocaleString()}
-Roth Bullion Balance: $${user.rothBalance.toLocaleString()}
-Vault Depository Location: ${user.vaultDepositaryLocation || 'Zurich Segregated FreePort & Delaware Depository'}
-Gold Equivalent: ${user.goldOuncesEquivalent || 0} oz (LBMA 999.9 Fine)
-Silver Equivalent: ${user.silverOuncesEquivalent || 0} oz (Fine Physical)
-Current Personal Rate of Return: ${user.ytdReturn}%
+Participant Name: ${user?.name || 'Allocated Participant'}
+Account Number: ${user?.accountNumber || ''}
+Employing Agency: ${user?.employingAgency || 'Department of Defense'}
+Total Account Balance: $${Number(user?.totalBalance || 0).toLocaleString()}
+Traditional Bullion Balance: $${Number(user?.traditionalBalance || 0).toLocaleString()}
+Roth Bullion Balance: $${Number(user?.rothBalance || 0).toLocaleString()}
+Vault Depository Location: ${user?.vaultDepositaryLocation || 'Zurich Segregated FreePort & Delaware Depository'}
+Gold Equivalent: ${Number(user?.goldOuncesEquivalent || 0)} oz (LBMA 999.9 Fine)
+Silver Equivalent: ${Number(user?.silverOuncesEquivalent || 0)} oz (Fine Physical)
+Current Personal Rate of Return: ${Number(user?.ytdReturn || 0)}%
 
 Generated: ${new Date().toISOString()}
 Cassivon Capital Savings Plan Depository Operations (CCSP)`;

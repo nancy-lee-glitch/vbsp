@@ -418,12 +418,12 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
                 <div className="p-3 bg-slate-50 rounded-xs border border-[#e2e8f0]">
                   <span className="text-slate-500 block text-[11px]">2026 Employee YTD</span>
-                  <span className="font-bold text-[#0f2942] text-base">${Number(ytdContributions.employee || 0).toLocaleString()}</span>
+                  <span className="font-bold text-[#0f2942] text-base">${Number(ytdContributions?.employee ?? safeUser?.ytdContributions?.employee ?? 0).toLocaleString()}</span>
                   <span className="text-[10px] text-slate-400 block mt-0.5">IRS Limit: $23,500</span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xs border border-[#e2e8f0]">
                   <span className="text-slate-500 block text-[11px]">2026 Agency Match YTD</span>
-                  <span className="font-bold text-emerald-800 text-base">${Number(ytdContributions.agencyMatch || 0).toLocaleString()}</span>
+                  <span className="font-bold text-emerald-800 text-base">${Number(ytdContributions?.agencyMatch ?? safeUser?.ytdContributions?.agencyMatch ?? 0).toLocaleString()}</span>
                   <span className="text-[10px] text-emerald-600 block mt-0.5">5% Full Match Captured</span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xs border border-[#e2e8f0]">

@@ -114,12 +114,15 @@ export default function App() {
     const saved = localStorage.getItem('ccsp_users_registry') || localStorage.getItem('vbsp_users_registry');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map(u => sanitizeUserAccount(u));
+        }
       } catch (e) {
         console.error('Error parsing stored users', e);
       }
     }
-    return MOCK_USERS;
+    return MOCK_USERS.map(u => sanitizeUserAccount(u));
   });
 
   // Neon PostgreSQL Database Initial State Loader (Hydrates from Neon on mount via dbService.ts)
@@ -193,7 +196,10 @@ export default function App() {
       localStorage.removeItem('vbsp_participant_session');
       const saved = localStorage.getItem('ccsp_participant_session');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return sanitizeUserAccount(parsed);
+        }
       }
     } catch (e) {
       console.error('Error parsing stored user session', e);
@@ -476,11 +482,12 @@ export default function App() {
 
     // Recalculate all registered users based on their active holdings
     const recalculatedUsers = users.map(user => {
+      const safeU = sanitizeUserAccount(user);
       let updatedTotal = 0;
-      const updatedHoldings = user.currentHoldings.map(h => {
+      const updatedHoldings = (safeU.currentHoldings || []).map(h => {
         const matchingFund = updatedFunds.find(f => f.code === h.fundCode);
         const newPrice = matchingFund ? matchingFund.currentSharePrice : h.sharePrice;
-        const newBalance = Number((h.shares * newPrice).toFixed(2));
+        const newBalance = Number(((h.shares || 0) * newPrice).toFixed(2));
         updatedTotal += newBalance;
         return {
           ...h,
@@ -490,17 +497,17 @@ export default function App() {
       });
 
       if (updatedTotal === 0) {
-        updatedTotal = user.totalBalance;
+        updatedTotal = safeU.totalBalance;
       }
 
       const goldHolding = updatedHoldings.find(h => h.fundCode === 'G');
       const silverHolding = updatedHoldings.find(h => h.fundCode === 'S');
 
-      const goldOunces = goldHolding ? Number(((goldHolding.balance) / 2650).toFixed(4)) : user.goldOuncesEquivalent;
-      const silverOunces = silverHolding ? Number(((silverHolding.balance) / 31.5).toFixed(2)) : user.silverOuncesEquivalent;
+      const goldOunces = goldHolding ? Number(((goldHolding.balance) / 2650).toFixed(4)) : safeU.goldOuncesEquivalent;
+      const silverOunces = silverHolding ? Number(((silverHolding.balance) / 31.5).toFixed(2)) : safeU.silverOuncesEquivalent;
 
       return {
-        ...user,
+        ...safeU,
         totalBalance: updatedTotal,
         traditionalBalance: Number((updatedTotal * 0.70).toFixed(2)),
         rothBalance: Number((updatedTotal * 0.30).toFixed(2)),

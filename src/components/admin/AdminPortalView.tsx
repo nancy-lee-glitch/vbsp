@@ -811,7 +811,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                         <td className="p-3">
                           <div className="font-bold text-slate-900 flex items-center gap-1.5">
                             <span>{user.name}</span>
-                            {user.planType.includes('Corporate') && (
+                            {(user.planType || '').includes('Corporate') && (
                               <Building className="w-3.5 h-3.5 text-indigo-700" />
                             )}
                           </div>
@@ -821,9 +821,9 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                         </td>
                         <td className="p-3">
                           <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                            user.planType.includes('IRA') 
+                            (user.planType || '').includes('IRA') 
                               ? 'bg-amber-100 text-amber-900 border border-amber-300' 
-                              : user.planType.includes('Corporate')
+                              : (user.planType || '').includes('Corporate')
                               ? 'bg-purple-100 text-purple-900 border border-purple-300'
                               : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                           }`}>
@@ -859,10 +859,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                         </td>
                         <td className="p-3 text-right">
                           <div className="font-black text-slate-900 text-sm">
-                            ${user.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ${Number(user.totalBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </div>
                           <div className="text-[10px] text-slate-500">
-                            Trad: ${user.traditionalBalance.toLocaleString()} | Roth: ${user.rothBalance.toLocaleString()}
+                            Trad: ${Number(user.traditionalBalance || 0).toLocaleString()} | Roth: ${Number(user.rothBalance || 0).toLocaleString()}
                           </div>
                         </td>
                         <td className="p-3 text-right font-medium text-slate-700">
