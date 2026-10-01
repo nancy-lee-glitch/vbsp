@@ -23,7 +23,7 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
   user,
   onUpdateBeneficiaries
 }) => {
-  const [beneficiaries, setBeneficiaries] = useState<TSPBeneficiary[]>(user.beneficiaries || []);
+  const [beneficiaries, setBeneficiaries] = useState<TSPBeneficiary[]>(user?.beneficiaries || []);
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,12 +32,12 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
   const [newRelationship, setNewRelationship] = useState('Child');
   const [newShare, setNewShare] = useState<number>(25);
 
-  const cleanParticipantId = sanitizeInteger(user.id, 1);
+  const cleanParticipantId = sanitizeInteger(user?.id, 1);
 
   const fetchLiveBeneficiaries = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/beneficiaries?participantId=${cleanParticipantId}&accountNumber=${encodeURIComponent(user.accountNumber || '')}`);
+      const res = await fetch(`/api/beneficiaries?participantId=${cleanParticipantId}&accountNumber=${encodeURIComponent(user?.accountNumber || '')}`);
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.beneficiaries) && data.beneficiaries.length > 0) {
@@ -58,10 +58,10 @@ export const BeneficiaryManager: React.FC<BeneficiaryManagerProps> = ({
       setIsLoading(false);
     }
 
-    if (user.beneficiaries && user.beneficiaries.length > 0) {
+    if (user?.beneficiaries && user.beneficiaries.length > 0) {
       setBeneficiaries(user.beneficiaries);
     }
-  }, [cleanParticipantId, user.accountNumber, user.beneficiaries]);
+  }, [cleanParticipantId, user?.accountNumber, user?.beneficiaries]);
 
   useEffect(() => {
     fetchLiveBeneficiaries();

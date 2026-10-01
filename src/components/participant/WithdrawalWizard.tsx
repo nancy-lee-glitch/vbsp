@@ -35,7 +35,7 @@ export const WithdrawalWizard: React.FC<WithdrawalWizardProps> = ({
 
   if (!isOpen) return null;
 
-  const maxAllowed = Math.floor(user.traditionalBalance);
+  const maxAllowed = Math.floor(Number(user?.traditionalBalance || 0));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

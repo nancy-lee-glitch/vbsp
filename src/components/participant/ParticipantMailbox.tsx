@@ -66,8 +66,8 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
       if (dbMsgs && dbMsgs.length > 0) {
         const mapped: ParticipantMessage[] = dbMsgs.map((m: DbMessage) => ({
           id: m.id ? `MSG-${m.id}` : `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
-          sender: m.sender_name || (m.sender_type === 'admin' ? 'CCSP Custody Admin' : user.name),
-          recipient: m.sender_type === 'admin' ? user.name : 'CCSP Caseworker Desk',
+          sender: m.sender_name || (m.sender_type === 'admin' ? 'CCSP Custody Admin' : (user?.name || 'Participant')),
+          recipient: m.sender_type === 'admin' ? (user?.name || 'Participant') : 'CCSP Caseworker Desk',
           subject: m.subject,
           body: m.body,
           timestamp: m.created_at ? new Date(m.created_at).toLocaleString() : 'Recent',
@@ -86,7 +86,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
 
   useEffect(() => {
     loadMessages();
-  }, [user.id, user.accountNumber]);
+  }, [user?.id, user?.accountNumber]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,8 +98,8 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
     try {
       const saved = await sendLiveMessage(user, {
         sender_type: 'participant',
-        sender_name: user.name,
-        sender_email: user.email,
+        sender_name: user?.name || 'Participant',
+        sender_email: user?.email || '',
         recipient_email: 'depository@cassivon.com',
         subject: fullSubject,
         body: newBody,
@@ -108,7 +108,7 @@ export const ParticipantMailbox: React.FC<ParticipantMailboxProps> = ({ user }) 
 
       const newMsg: ParticipantMessage = {
         id: saved.id ? `MSG-${saved.id}` : `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
-        sender: user.name,
+        sender: user?.name || 'Participant',
         recipient: 'CCSP Custodial Depository Desk',
         subject: fullSubject,
         body: newBody,

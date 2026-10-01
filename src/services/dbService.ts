@@ -963,7 +963,7 @@ export async function updateKycStatusAdmin(
       return {
         ...u,
         kycProfile: {
-          ...u.kycProfile,
+          ...(u.kycProfile || {}),
           overallStatus: status,
           riskTier: u.kycProfile?.riskTier || 'Tier 1 Individual',
           ssnMasked: u.kycProfile?.ssnMasked || '***-**-4412',

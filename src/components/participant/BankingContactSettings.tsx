@@ -24,9 +24,9 @@ export const BankingContactSettings: React.FC<BankingContactSettingsProps> = ({
   onUpdateUser,
   onNavigateToKYC
 }) => {
-  const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState(user.phone);
-  const [address, setAddress] = useState(user.address);
+  const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [address, setAddress] = useState(user?.address || '');
   const [paperless, setPaperless] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
 

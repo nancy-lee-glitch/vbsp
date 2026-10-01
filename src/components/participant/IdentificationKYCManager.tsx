@@ -40,14 +40,14 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
   user,
   onUpdateUser
 }) => {
-  const isDemoVance = user.email === 'marcus.vance@usda.gov' || user.accountNumber === 'CCSP-0089-4412-98';
+  const isDemoVance = user?.email === 'marcus.vance@usda.gov' || user?.accountNumber === 'CCSP-0089-4412-98';
 
   // For non-Vance users, start clean without mock documents
   const initialKycProfile: KYCVerificationProfile = isDemoVance 
-    ? (user.kycProfile || { overallStatus: 'Verified (Tier 1 Allocated)', riskTier: 'Tier 1 Individual', ssnMasked: '***-**-4412', additionalDocuments: [] })
-    : (user.kycProfile && user.kycProfile.ssnDocument?.fileName !== 'SSA_Card_Vance_M.pdf' 
+    ? (user?.kycProfile || { overallStatus: 'Verified (Tier 1 Allocated)', riskTier: 'Tier 1 Individual', ssnMasked: '***-**-4412', additionalDocuments: [] })
+    : (user?.kycProfile && user.kycProfile.ssnDocument?.fileName !== 'SSA_Card_Vance_M.pdf' 
         ? user.kycProfile 
-        : { overallStatus: user.kycStatus === 'Verified (Tier 1 Allocated)' ? 'Verified (Tier 1 Allocated)' : 'Not Verified', riskTier: 'Tier 1 Individual', ssnMasked: user.ssnLast4 ? `***-**-${user.ssnLast4}` : 'Unverified - Action Required', additionalDocuments: [] }
+        : { overallStatus: user?.kycProfile?.overallStatus || (user as any)?.kycStatus === 'Verified (Tier 1 Allocated)' ? 'Verified (Tier 1 Allocated)' : 'Not Verified', riskTier: 'Tier 1 Individual', ssnMasked: (user as any)?.ssnLast4 ? `***-**-${(user as any).ssnLast4}` : 'Unverified - Action Required', additionalDocuments: [] }
       );
 
   const [kycProfile, setKycProfile] = useState<KYCVerificationProfile>(initialKycProfile);
@@ -56,14 +56,15 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
   useEffect(() => {
     let isMounted = true;
     const syncKycFromDb = async () => {
+      if (!user) return;
       try {
         const docs = await fetchKycDocumentsForParticipant(user);
         if (!isMounted) return;
         if (docs && docs.length > 0) {
           const updatedProfile: KYCVerificationProfile = {
-            overallStatus: user.kycStatus === 'Verified (Tier 1 Allocated)' ? 'Verified (Tier 1 Allocated)' : 'Pending Review',
+            overallStatus: user?.kycProfile?.overallStatus || (user as any)?.kycStatus === 'Verified (Tier 1 Allocated)' ? 'Verified (Tier 1 Allocated)' : 'Pending Review',
             riskTier: 'Tier 1 Individual',
-            ssnMasked: user.ssnLast4 ? `***-**-${user.ssnLast4}` : 'Unverified - Action Required',
+            ssnMasked: (user as any)?.ssnLast4 ? `***-**-${(user as any).ssnLast4}` : (user?.kycProfile?.ssnMasked || 'Unverified - Action Required'),
             additionalDocuments: []
           };
           for (const d of docs) {
@@ -99,7 +100,7 @@ export const IdentificationKYCManager: React.FC<IdentificationKYCManagerProps> =
       clearInterval(interval); 
       window.removeEventListener('ccsp_db_sync', syncKycFromDb);
     };
-  }, [user.id, user.accountNumber]);
+  }, [user?.id, user?.accountNumber]);
 
   // Upload Modal State
   const [activeUploadType, setActiveUploadType] = useState<IdentificationDocType | null>(null);

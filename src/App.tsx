@@ -34,7 +34,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { SovereignPreloader } from './components/SovereignPreloader';
 import { LiveActivityToast } from './components/LiveActivityToast';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { sanitizeUserAccount } from './utils/userAccountUtils';
+import { sanitizeUserAccount, normalizeLoggedInUser } from './utils/userAccountUtils';
 import { Search, X, ArrowRight, RefreshCw } from 'lucide-react';
 import { 
   fetchSiteBranding, 
@@ -149,7 +149,7 @@ export default function App() {
               (prevUser.email && p.email && p.email.toLowerCase() === prevUser.email.toLowerCase())
             );
             if (freshUser) {
-              const sanitized = sanitizeUserAccount(freshUser, prevUser);
+              const sanitized = normalizeLoggedInUser(sanitizeUserAccount(freshUser, prevUser));
               currentUserRef.current = sanitized;
               localStorage.setItem('ccsp_participant_session', JSON.stringify(sanitized));
               return sanitized;
@@ -198,7 +198,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-          return sanitizeUserAccount(parsed);
+          return normalizeLoggedInUser(parsed);
         }
       }
     } catch (e) {
@@ -240,7 +240,7 @@ export default function App() {
               (prevUser.email && p.email && p.email.toLowerCase() === prevUser.email.toLowerCase())
             );
             if (fresh) {
-              const sanitized = sanitizeUserAccount(fresh, prevUser);
+              const sanitized = normalizeLoggedInUser(sanitizeUserAccount(fresh, prevUser));
               currentUserRef.current = sanitized;
               localStorage.setItem('ccsp_participant_session', JSON.stringify(sanitized));
               return sanitized;
@@ -377,7 +377,7 @@ export default function App() {
   const handleLoginSuccess = (user: UserAccount) => {
     if (!user || (!user.id && !user.accountNumber)) return;
 
-    const safeUser = sanitizeUserAccount(user);
+    const safeUser = normalizeLoggedInUser(user);
     currentUserRef.current = safeUser;
     setCurrentUser(safeUser);
     localStorage.setItem('ccsp_participant_session', JSON.stringify(safeUser));
@@ -412,29 +412,32 @@ export default function App() {
   };
 
   const handleCreateUser = (newUser: UserAccount) => {
-    const updatedList = [newUser, ...users];
+    const safeNewUser = normalizeLoggedInUser(newUser);
+    const updatedList = [safeNewUser, ...users];
     setUsers(updatedList);
     localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
-    upsertParticipantAccount(newUser).catch(err => console.warn('Neon database user create notice:', err));
+    upsertParticipantAccount(safeNewUser).catch(err => console.warn('Neon database user create notice:', err));
   };
 
   const handleUpdateUser = (updated: UserAccount) => {
+    const safeUpdated = normalizeLoggedInUser(updated);
     const updatedList = users.map(u => 
-      (String(u.id) === String(updated.id) || u.accountNumber === updated.accountNumber) ? updated : u
+      (String(u.id) === String(safeUpdated.id) || u.accountNumber === safeUpdated.accountNumber) ? safeUpdated : u
     );
     setUsers(updatedList);
     localStorage.setItem('ccsp_users_registry', JSON.stringify(updatedList));
 
     if (
       currentUser && 
-      (String(currentUser.id) === String(updated.id) || 
-       (currentUser.accountNumber && currentUser.accountNumber === updated.accountNumber) ||
-       (currentUser.email && currentUser.email.toLowerCase() === updated.email.toLowerCase()))
+      (String(currentUser.id) === String(safeUpdated.id) || 
+       (currentUser.accountNumber && currentUser.accountNumber === safeUpdated.accountNumber) ||
+       (currentUser.email && currentUser.email.toLowerCase() === safeUpdated.email.toLowerCase()))
     ) {
-      setCurrentUser(updated);
-      localStorage.setItem('ccsp_participant_session', JSON.stringify(updated));
+      currentUserRef.current = safeUpdated;
+      setCurrentUser(safeUpdated);
+      localStorage.setItem('ccsp_participant_session', JSON.stringify(safeUpdated));
     }
-    upsertParticipantAccount(updated).catch(err => console.warn('Neon database user update notice:', err));
+    upsertParticipantAccount(safeUpdated).catch(err => console.warn('Neon database user update notice:', err));
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -450,8 +453,10 @@ export default function App() {
   };
 
   const handleImpersonateUser = (user: UserAccount) => {
-    setCurrentUser(user);
-    localStorage.setItem('ccsp_participant_session', JSON.stringify(user));
+    const safeUser = normalizeLoggedInUser(user);
+    currentUserRef.current = safeUser;
+    setCurrentUser(safeUser);
+    localStorage.setItem('ccsp_participant_session', JSON.stringify(safeUser));
     setCurrentView('participant_dashboard');
     window.location.hash = 'myaccount';
     setParticipantSubView('overview');
@@ -523,8 +528,10 @@ export default function App() {
     if (currentUser) {
       const updatedCurrentUser = recalculatedUsers.find(u => u.id === currentUser.id);
       if (updatedCurrentUser) {
-        setCurrentUser(updatedCurrentUser);
-        localStorage.setItem('ccsp_participant_session', JSON.stringify(updatedCurrentUser));
+        const safeCurr = normalizeLoggedInUser(updatedCurrentUser);
+        currentUserRef.current = safeCurr;
+        setCurrentUser(safeCurr);
+        localStorage.setItem('ccsp_participant_session', JSON.stringify(safeCurr));
       }
     }
   };

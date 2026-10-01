@@ -48,10 +48,14 @@ export function sanitizeUserAccount(raw: any, fallbackUser?: UserAccount | null)
   const defaultMatch = totalBal > 0 ? Number((totalBal * 0.04).toFixed(2)) : 0;
   const defaultAuto = totalBal > 0 ? Number((totalBal * 0.01).toFixed(2)) : 0;
 
+  const rawEmpNum = Number(rawYtd?.employee ?? defaultEmp);
+  const rawMatchNum = Number(rawYtd?.agencyMatch ?? defaultMatch);
+  const rawAutoNum = Number(rawYtd?.agencyAutomatic ?? defaultAuto);
+
   const ytdContrib = {
-    employee: Number(rawYtd?.employee ?? defaultEmp),
-    agencyMatch: Number(rawYtd?.agencyMatch ?? defaultMatch),
-    agencyAutomatic: Number(rawYtd?.agencyAutomatic ?? defaultAuto)
+    employee: (isNaN(rawEmpNum) || !isFinite(rawEmpNum)) ? 0 : rawEmpNum,
+    agencyMatch: (isNaN(rawMatchNum) || !isFinite(rawMatchNum)) ? 0 : rawMatchNum,
+    agencyAutomatic: (isNaN(rawAutoNum) || !isFinite(rawAutoNum)) ? 0 : rawAutoNum
   };
 
   const kycStatus = raw?.kycProfile?.overallStatus || raw?.kycStatus || raw?.kyc_status || base?.kycProfile?.overallStatus || 'Pending Review';
@@ -100,11 +104,58 @@ export function sanitizeUserAccount(raw: any, fallbackUser?: UserAccount | null)
     activeLoans,
     transactions,
     withdrawalRequests,
-    kycProfile: raw?.kycProfile || {
-      overallStatus: kycStatus,
-      riskTier: 'Tier 1 Individual',
-      ssnMasked: raw?.ssnLast4 ? `***-**-${raw.ssnLast4}` : (raw?.ssn_last4 ? `***-**-${raw.ssn_last4}` : '***-**-4412'),
-      additionalDocuments: []
+    kycProfile: {
+      overallStatus: (raw?.kycProfile?.overallStatus || kycStatus || 'Pending Review') as any,
+      riskTier: (raw?.kycProfile?.riskTier || 'Tier 1 Individual') as any,
+      ssnMasked: String(raw?.kycProfile?.ssnMasked || (raw?.ssnLast4 ? `***-**-${raw.ssnLast4}` : (raw?.ssn_last4 ? `***-**-${raw.ssn_last4}` : '***-**-****'))),
+      additionalDocuments: Array.isArray(raw?.kycProfile?.additionalDocuments) ? raw.kycProfile.additionalDocuments : []
     }
   };
+}
+
+/**
+ * Normalizes any logged in user object immediately after successful login,
+ * guaranteeing all nested objects (ytdContributions, contributionAllocations,
+ * currentHoldings, beneficiaries, activeLoans, transactions, kycProfile) are
+ * fully populated and safe from undefined access crashes.
+ */
+export function normalizeLoggedInUser(user: any): UserAccount {
+  const sanitized = sanitizeUserAccount(user);
+  if (!sanitized.ytdContributions) {
+    sanitized.ytdContributions = {
+      employee: 0,
+      agencyMatch: 0,
+      agencyAutomatic: 0
+    };
+  } else {
+    sanitized.ytdContributions = {
+      employee: Number(sanitized.ytdContributions.employee ?? 0),
+      agencyMatch: Number(sanitized.ytdContributions.agencyMatch ?? 0),
+      agencyAutomatic: Number(sanitized.ytdContributions.agencyAutomatic ?? 0)
+    };
+  }
+  if (!sanitized.contributionAllocations || typeof sanitized.contributionAllocations !== 'object') {
+    sanitized.contributionAllocations = {};
+  }
+  if (!Array.isArray(sanitized.currentHoldings)) {
+    sanitized.currentHoldings = [];
+  }
+  if (!Array.isArray(sanitized.beneficiaries)) {
+    sanitized.beneficiaries = [];
+  }
+  if (!Array.isArray(sanitized.activeLoans)) {
+    sanitized.activeLoans = [];
+  }
+  if (!Array.isArray(sanitized.transactions)) {
+    sanitized.transactions = [];
+  }
+  if (!sanitized.kycProfile || typeof sanitized.kycProfile !== 'object') {
+    sanitized.kycProfile = {
+      overallStatus: 'Pending Review',
+      riskTier: 'Tier 1 Individual',
+      ssnMasked: '***-**-****',
+      additionalDocuments: []
+    };
+  }
+  return sanitized;
 }

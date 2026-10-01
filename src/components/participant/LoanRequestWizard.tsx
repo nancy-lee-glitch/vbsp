@@ -40,7 +40,7 @@ export const LoanRequestWizard: React.FC<LoanRequestWizardProps> = ({
   if (!isOpen) return null;
 
   // Maximum loan calculation (Lesser of 50% vested balance or $50,000 minus outstanding loan)
-  const safeTotalBalance = (isNaN(user.totalBalance) || Number.isNaN(user.totalBalance)) ? 0 : user.totalBalance;
+  const safeTotalBalance = (isNaN(Number(user?.totalBalance)) || Number.isNaN(Number(user?.totalBalance))) ? 0 : Number(user?.totalBalance || 0);
   const maxLoanAllowed = Math.max(1000, Math.min(50000 - 8500, Math.floor(safeTotalBalance * 0.5)));
   const interestRate = 4.25; // Current G Fund loan rate
 

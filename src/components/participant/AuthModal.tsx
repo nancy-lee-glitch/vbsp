@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { UserAccount, CCSPAccountType, SiteBrandingSettings } from '../../types';
 import { INITIAL_USER, MOCK_USERS } from '../../data/mockData';
-import { sanitizeUserAccount } from '../../utils/userAccountUtils';
+import { sanitizeUserAccount, normalizeLoggedInUser } from '../../utils/userAccountUtils';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -183,7 +183,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }
         };
 
-        const safeLoggedInUser = sanitizeUserAccount(loggedInUser);
+        const safeLoggedInUser = normalizeLoggedInUser(loggedInUser);
         setSelectedUserToLogin(safeLoggedInUser);
         setAuthStep('mfa');
       } else {
@@ -210,8 +210,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // Success - strictly pass sanitized authenticated user
-    onLoginSuccess(sanitizeUserAccount(selectedUserToLogin));
+    // Success - strictly pass normalized authenticated user
+    onLoginSuccess(normalizeLoggedInUser(selectedUserToLogin));
     onClose();
   };
 
@@ -288,7 +288,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             additionalDocuments: []
           }
         };
-        const safeCreatedUser = sanitizeUserAccount(createdUserAccount);
+        const safeCreatedUser = normalizeLoggedInUser(createdUserAccount);
         setIsRegistering(false);
         setCreatedUser(safeCreatedUser);
         setOnboardStep(3);
@@ -305,7 +305,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleFinishRegistration = () => {
     if (createdUser) {
-      onLoginSuccess(sanitizeUserAccount(createdUser));
+      onLoginSuccess(normalizeLoggedInUser(createdUser));
       onClose();
     }
   };

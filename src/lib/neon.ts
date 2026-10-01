@@ -113,19 +113,20 @@ export function sanitizeParticipantAccountData<T extends Record<string, any>>(us
   }
 
   // Sanitize YTD contributions
+  const rawYtd = sanitized.ytdContributions;
   sanitized.ytdContributions = {
-    employee: (isNaN(Number(sanitized.ytdContributions?.employee)) || Number.isNaN(Number(sanitized.ytdContributions?.employee)))
+    employee: (isNaN(Number(rawYtd?.employee)) || Number.isNaN(Number(rawYtd?.employee)))
       ? 0.0
-      : sanitizeNumeric(sanitized.ytdContributions?.employee, 0.0),
-    agencyMatch: (isNaN(Number(sanitized.ytdContributions?.agencyMatch)) || Number.isNaN(Number(sanitized.ytdContributions?.agencyMatch)))
+      : sanitizeNumeric(rawYtd?.employee, 0.0),
+    agencyMatch: (isNaN(Number(rawYtd?.agencyMatch)) || Number.isNaN(Number(rawYtd?.agencyMatch)))
       ? 0.0
-      : sanitizeNumeric(sanitized.ytdContributions?.agencyMatch, 0.0),
-    agencyAutomatic: (isNaN(Number(sanitized.ytdContributions?.agencyAutomatic)) || Number.isNaN(Number(sanitized.ytdContributions?.agencyAutomatic)))
+      : sanitizeNumeric(rawYtd?.agencyMatch, 0.0),
+    agencyAutomatic: (isNaN(Number(rawYtd?.agencyAutomatic)) || Number.isNaN(Number(rawYtd?.agencyAutomatic)))
       ? 0.0
-      : sanitizeNumeric(sanitized.ytdContributions?.agencyAutomatic, 0.0),
-    total: (isNaN(Number(sanitized.ytdContributions?.total)) || Number.isNaN(Number(sanitized.ytdContributions?.total)))
+      : sanitizeNumeric(rawYtd?.agencyAutomatic, 0.0),
+    total: (isNaN(Number(rawYtd?.total)) || Number.isNaN(Number(rawYtd?.total)))
       ? 0.0
-      : sanitizeNumeric(sanitized.ytdContributions?.total, 0.0),
+      : sanitizeNumeric(rawYtd?.total, 0.0),
   };
 
   // Sanitize contribution allocations

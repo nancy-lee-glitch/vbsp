@@ -26,12 +26,15 @@ export const SimpleKYCUpload: React.FC<SimpleKYCUploadProps> = ({ user }) => {
 
   // Load existing documents
   useEffect(() => {
-    loadDocuments();
-  }, [user.id]);
+    if (user?.id) {
+      loadDocuments();
+    }
+  }, [user?.id]);
 
   const loadDocuments = async () => {
+    if (!user?.id) return;
     try {
-      const res = await fetch(`/api/kyc?participantId=${user.id}`);
+      const res = await fetch(`/api/kyc?participantId=${encodeURIComponent(user.id)}`);
       const data = await res.json();
       if (data.success) {
         setDocuments(data.documents || []);

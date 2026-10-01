@@ -129,9 +129,9 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   const goldOz = Number(safeUser.goldOuncesEquivalent) || 0;
   const silverOz = Number(safeUser.silverOuncesEquivalent) || 0;
   const ytdContributions = {
-    employee: Number(safeUser.ytdContributions?.employee || 0),
-    agencyMatch: Number(safeUser.ytdContributions?.agencyMatch || 0),
-    agencyAutomatic: Number(safeUser.ytdContributions?.agencyAutomatic || 0)
+    employee: Number(safeUser?.ytdContributions?.employee ?? 0),
+    agencyMatch: Number(safeUser?.ytdContributions?.agencyMatch ?? 0),
+    agencyAutomatic: Number(safeUser?.ytdContributions?.agencyAutomatic ?? 0)
   };
   const allocations = safeUser.contributionAllocations && Object.keys(safeUser.contributionAllocations).length > 0
     ? safeUser.contributionAllocations

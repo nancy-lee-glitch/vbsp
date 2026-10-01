@@ -63,7 +63,7 @@ export const DocumentsCenter: React.FC<DocumentsCenterProps> = ({ user }) => {
       clearInterval(interval);
       window.removeEventListener('ccsp_db_sync', loadDocs);
     };
-  }, [user.id, user.accountNumber]);
+  }, [user?.id, user?.accountNumber]);
 
   const statements = [
     { title: '2026 Q2 Participant Statement', period: 'Apr 1, 2026 - Jun 30, 2026', size: '240 KB' },

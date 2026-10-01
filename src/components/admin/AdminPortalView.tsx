@@ -358,7 +358,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   // Open KYC Inspection Modal
   const handleOpenKycModal = (user: UserAccount) => {
     setKycParticipant(user);
-    const actualStatus = user.kycProfile?.overallStatus || 'Pending Review';
+    const actualStatus = user?.kycProfile?.overallStatus || 'Pending Review';
     setKycSelectedStatus(actualStatus);
     setKycAuditNotes(
       actualStatus === 'Verified (Tier 1 Allocated)' 
