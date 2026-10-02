@@ -185,7 +185,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         const safeLoggedInUser = normalizeLoggedInUser(loggedInUser);
         setSelectedUserToLogin(safeLoggedInUser);
-        setAuthStep('mfa');
+        onLoginSuccess(safeLoggedInUser);
+        onClose();
       } else {
         setErrorMessage(data.message || 'Login failed. Please verify your account credentials.');
       }

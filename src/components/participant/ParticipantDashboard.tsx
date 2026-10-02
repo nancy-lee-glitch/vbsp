@@ -1027,15 +1027,6 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
         paymentMethods={paymentMethods}
         onDepositSubmitted={handleDepositSubmitted}
       />
-
-      {/* Persistent KYC Reminder Pop-up */}
-      <ErrorBoundary fallbackTitle="KYC Reminder Notice" fallbackMessage="Identity verification check completed.">
-        <KYCPopupReminder 
-          user={safeUser}
-          onNavigateToKyc={() => setActiveSubView('kyc')}
-          activeSubView={activeSubView}
-        />
-      </ErrorBoundary>
     </div>
   );
 };
